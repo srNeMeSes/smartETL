@@ -25,6 +25,8 @@ diagnósticos de pressupostos.
   observadas e esperadas, barras agrupadas) ou aderência com proporções iguais (w de Cohen).
 - **Teste exato de Fisher** completo: tabela 2×2 com escolha do evento de cada variável, p exato,
   odds ratio amostral e condicional com IC exato (como o `fisher.test` do R) e barras agrupadas.
+- **McNemar** completo: duas medidas binárias pareadas (ex.: antes/depois), card com o exato
+  (binomial) e o qui-quadrado com correção de Edwards lado a lado, odds ratio pareada e barras.
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
