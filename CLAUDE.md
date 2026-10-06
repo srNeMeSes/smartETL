@@ -8,7 +8,7 @@ Aplicativo desktop de **processamento e análise de dados** com foco em **testes
 - **Interface:** Flet **`0.86.2`** (versão fixada em `requirements.txt`)
 - **Estatística:** `scipy.stats`, `statsmodels`, `pandas`, `numpy`
 - **Idioma da interface e das interpretações:** português do Brasil
-- **Estado atual:** Fases 0, 1 e 2 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 em andamento (3/15): **grupo Médias completo (`teste_t_1am`, `teste_t_2am`, `teste_t_pareado`)**, cumprindo o checklist da seção 9; os demais aparecem como "ainda não disponível". Próximo: `teste_z_1prop`.
+- **Estado atual:** Fases 0, 1 e 2 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 em andamento (4/15): **grupo Médias completo (`teste_t_1am`, `teste_t_2am`, `teste_t_pareado`) e `teste_z_1prop`**, cumprindo o checklist da seção 9; os demais aparecem como "ainda não disponível". Próximo: `teste_z_2prop`.
 
 ## 2. Missão do Claude neste projeto
 
@@ -91,7 +91,7 @@ smartetl/
 │   ├── io.py                     # carregar_dados → DadosCarregados; ErroLeitura
 │   ├── tipos.py                  # PerfilColuna / detectar_tipos (numérica, categórica, binária)
 │   ├── interpretacao.py          # decidir (p ≤ α), interpretar, formatar_numero/p_valor em pt-BR
-│   ├── figuras.py                # construtores de Figura (histograma, boxplot)
+│   ├── figuras.py                # construtores de Figura (histograma, boxplot, barras)
 │   └── testes/
 │       ├── medias.py             # TesteT1Amostra (só formulário, por enquanto)
 │       ├── proporcoes.py
@@ -146,16 +146,20 @@ class ParametroSpec:
     nome: str
     rotulo: str                 # texto exibido na UI (pt-BR)
     tipo: Literal["coluna_numerica", "coluna_categorica", "coluna_binaria",
-                  "multi_coluna", "numero", "alfa", "opcao", "booleano"]
+                  "multi_coluna", "numero", "alfa", "opcao", "booleano",
+                  "nivel"]      # "nivel": um valor de outra coluna (ex.: o "sucesso")
     padrao: Any = None
     opcoes: list[str] | None = None
     obrigatorio: bool = True
+    depende_de: str | None = None  # "nivel": parâmetro de coluna cujos valores são listados
 
 @dataclass
 class Figura:                   # especificação sem Flet; a UI desenha (app/ui/graficos.py)
-    tipo: Literal["histograma", "boxplot"]  # novos tipos: core/figuras.py + app/ui/graficos.py
+    tipo: Literal["histograma", "boxplot", "barras"]  # novos tipos: core/figuras + ui/graficos
     titulo: str
     dados: dict[str, Any]       # histograma: bordas, contagens, rotulo_x, referencias
+                                # boxplot: rotulo_y, grupos[{rotulo, n, q1, mediana, q3, bigodes, media, outliers}]
+                                # barras: rotulo_y, maximo, percentual, categorias[{rotulo, valor}], referencias
 
 @dataclass
 class ResultadoTeste:
@@ -324,18 +328,23 @@ Regras de leitura implementadas (detalhes na docstring de `core/io.py`):
 **Fase 3 — Testes de hipótese (um por um)**
 Itens 1–15 da seção 7, cada um com o checklist da seção 9.
 
-Andamento: **3/15** (grupo Médias completo)
+Andamento: **4/15** (Médias completo; Proporções 1/2)
 - ✅ `teste_t_1am` (`core/testes/medias.py`, testes em `tests/core/test_medias.py`): card com Wilcoxon de x − μ₀; histograma com x̄ e μ₀.
 - ✅ `teste_t_2am` (`tests/core/test_medias_2am.py`): coluna numérica + coluna de grupo com exatamente 2 níveis (`coluna_binaria`); grupo 1 = primeiro nível em ordem crescente; Welch (padrão) ou pooled; card com Mann-Whitney; boxplot por grupo.
 - ✅ `teste_t_pareado` (`tests/core/test_medias_pareado.py`): duas colunas numéricas pareadas na mesma linha (d = medida 1 − medida 2); linhas incompletas descartadas com aviso; card com Wilcoxon das diferenças; histograma das diferenças.
-- Próximo: `teste_z_1prop`.
+- ✅ `teste_z_1prop` (`core/testes/proporcoes.py`, testes em `tests/core/test_proporcoes.py`): coluna binária + valor de "sucesso" (parâmetro `nivel` dependente da coluna); erro padrão com p₀ (teste de escore); IC de Wilson; h de Cohen; card com binomial exato; aviso se n·p₀ ou n·(1 − p₀) < 5; barras de proporções com p₀.
+- Próximo: `teste_z_2prop`.
 
-Padrão estabelecido pelo `teste_t_1am` (seguir nos próximos):
+Padrão estabelecido pelos testes já implementados (seguir nos próximos):
 - `parametros()` inclui a hipótese alternativa como `opcao` com rótulos matemáticos (`μ ≠ μ₀`...) mapeados para o `alternative` do scipy; padrão bilateral.
 - `validar()` devolve mensagens prontas; `executar()` chama `validar()` e lança `ErroValidacao` se houver erro.
 - `ResultadoTeste`: `estatisticas` com chaves técnicas (`t`, `gl`, `p_valor`, `ic_inferior`...), `tabelas["Resumo"]` com colunas `Medida`/`Valor` já formatadas em pt-BR, `figuras` via `core/figuras.py`, `avisos` não bloqueantes e `comparacao` com as três alternativas na ordem ≠, >, <.
 - Interpretação via `core/interpretacao.interpretar` (cita α, p, H₀, H₁ e a conclusão no contexto).
 - Validações comuns em `core/validacao.py` (`erros_coluna`, `erro_opcao`, `erro_alfa`, `erro_numero`) para as mensagens ficarem iguais entre testes.
+- Docstring da classe documenta as escolhas (ddof, zeros, correção, exato vs. assintótico, erro padrão).
+- Avisos técnicos do scipy/statsmodels (em inglês) não chegam ao usuário: suprimir pontualmente e emitir aviso equivalente em pt-BR.
+- **Card de comparação:** só quando há um equivalente natural (não paramétrico ou exato); testes sem essa estrutura (qui-quadrado, ANOVA, diagnósticos...) não sobrescrevem `comparacao_inicial()` e devolvem `comparacao=None` — decisão do autor.
+- Valores padrão e números exibidos em pt-BR (vírgula decimal); os campos numéricos aceitam vírgula ou ponto.
 - Referências nos testes: fórmula manual (numpy) + outra biblioteca (statsmodels) ou enumeração exata; fonte documentada no topo do arquivo de teste. Cálculos de referência reutilizáveis ficam em `tests/referencias.py`.
 
 **Fase 4 — Regressão e diagnósticos**
@@ -417,7 +426,7 @@ No Windows (PowerShell 5.1), passe mensagens de commit com `git commit -F arquiv
 
 ## 13. Decisões em aberto (confirmar com o autor antes de implementar)
 
-- Qual equivalente não paramétrico aparece no card para cada teste e quais testes não terão card. **Decidido:** t de uma amostra ↔ Wilcoxon; t de duas amostras ↔ Mann-Whitney (Welch como padrão, opção pooled; entrada só no formato coluna numérica + grupo de 2 níveis). t pareado ↔ Wilcoxon das diferenças (entrada: duas colunas pareadas na mesma linha; linhas incompletas descartadas com aviso). Ainda em aberto (sugestão): ANOVA 1 fator ↔ Kruskal-Wallis.
+- Qual equivalente não paramétrico aparece no card para cada teste e quais testes não terão card. **Decidido:** t de uma amostra ↔ Wilcoxon; t de duas amostras ↔ Mann-Whitney (Welch como padrão, opção pooled; entrada só no formato coluna numérica + grupo de 2 níveis). t pareado ↔ Wilcoxon das diferenças (entrada: duas colunas pareadas na mesma linha; linhas incompletas descartadas com aviso). Z de uma proporção ↔ binomial exato (entrada: coluna binária + valor de sucesso escolhido no formulário; erro padrão com p₀; IC de Wilson). **Regra geral do autor:** card só quando a comparação for possível e útil; caso contrário, sem card. Ainda em aberto (sugestão): ANOVA 1 fator ↔ Kruskal-Wallis.
 - ~~O card continua nas abas Parâmetros e Análise ou fica só em Análise?~~ Decidido na Fase 1: **duas instâncias** (Parâmetros e Análise), para preservar o visual. Pode ser revisto depois.
 - ~~Gráficos nativos do Flet ou imagens do matplotlib?~~ Decidido na Fase 3: **nativos do Flet, simples e minimalistas**, desenhados com `flet.canvas` (no Flet 0.86.2 `BarChart`/`LineChart` saíram do pacote principal para a extensão `flet-charts`; o canvas é do núcleo e não exige dependência nova). matplotlib não é usado.
 - Pós-testes (Tukey, Dunn) e pressupostos extras (Shapiro-Wilk, Levene) como funcionalidade adicional.

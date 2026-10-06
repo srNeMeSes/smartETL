@@ -17,6 +17,8 @@ diagnósticos de pressupostos.
   comparação com o Mann-Whitney e boxplot por grupo.
 - **Teste t (pareado)** completo: duas medidas na mesma linha (ex.: antes/depois), IC da diferença,
   d de Cohen (d_z), comparação com o Wilcoxon e histograma das diferenças.
+- **Teste Z (uma proporção)** completo: escolha do valor de sucesso, IC de Wilson, h de Cohen,
+  comparação com o binomial exato e gráfico de barras das proporções.
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
