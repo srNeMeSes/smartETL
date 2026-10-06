@@ -8,7 +8,7 @@ Aplicativo desktop de **processamento e análise de dados** com foco em **testes
 - **Interface:** Flet **`0.86.2`** (versão fixada em `requirements.txt`)
 - **Estatística:** `scipy.stats`, `statsmodels`, `pandas`, `numpy`
 - **Idioma da interface e das interpretações:** português do Brasil
-- **Estado atual:** Fases 0, 1 e 2 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 em andamento (2/15): **`teste_t_1am` e `teste_t_2am` implementados e cumprindo o checklist da seção 9**; os demais aparecem como "ainda não disponível". Próximo: `teste_t_pareado`.
+- **Estado atual:** Fases 0, 1 e 2 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 em andamento (3/15): **grupo Médias completo (`teste_t_1am`, `teste_t_2am`, `teste_t_pareado`)**, cumprindo o checklist da seção 9; os demais aparecem como "ainda não disponível". Próximo: `teste_z_1prop`.
 
 ## 2. Missão do Claude neste projeto
 
@@ -324,7 +324,11 @@ Regras de leitura implementadas (detalhes na docstring de `core/io.py`):
 **Fase 3 — Testes de hipótese (um por um)**
 Itens 1–15 da seção 7, cada um com o checklist da seção 9.
 
-Andamento: **2/15**
+Andamento: **3/15** (grupo Médias completo)
+- ✅ `teste_t_1am` (`core/testes/medias.py`, testes em `tests/core/test_medias.py`): card com Wilcoxon de x − μ₀; histograma com x̄ e μ₀.
+- ✅ `teste_t_2am` (`tests/core/test_medias_2am.py`): coluna numérica + coluna de grupo com exatamente 2 níveis (`coluna_binaria`); grupo 1 = primeiro nível em ordem crescente; Welch (padrão) ou pooled; card com Mann-Whitney; boxplot por grupo.
+- ✅ `teste_t_pareado` (`tests/core/test_medias_pareado.py`): duas colunas numéricas pareadas na mesma linha (d = medida 1 − medida 2); linhas incompletas descartadas com aviso; card com Wilcoxon das diferenças; histograma das diferenças.
+- Próximo: `teste_z_1prop`.
 
 Padrão estabelecido pelo `teste_t_1am` (seguir nos próximos):
 - `parametros()` inclui a hipótese alternativa como `opcao` com rótulos matemáticos (`μ ≠ μ₀`...) mapeados para o `alternative` do scipy; padrão bilateral.
@@ -332,7 +336,7 @@ Padrão estabelecido pelo `teste_t_1am` (seguir nos próximos):
 - `ResultadoTeste`: `estatisticas` com chaves técnicas (`t`, `gl`, `p_valor`, `ic_inferior`...), `tabelas["Resumo"]` com colunas `Medida`/`Valor` já formatadas em pt-BR, `figuras` via `core/figuras.py`, `avisos` não bloqueantes e `comparacao` com as três alternativas na ordem ≠, >, <.
 - Interpretação via `core/interpretacao.interpretar` (cita α, p, H₀, H₁ e a conclusão no contexto).
 - Validações comuns em `core/validacao.py` (`erros_coluna`, `erro_opcao`, `erro_alfa`, `erro_numero`) para as mensagens ficarem iguais entre testes.
-- Referências nos testes: fórmula manual (numpy) + outra biblioteca (statsmodels) ou enumeração exata; fonte documentada no topo do arquivo de teste.
+- Referências nos testes: fórmula manual (numpy) + outra biblioteca (statsmodels) ou enumeração exata; fonte documentada no topo do arquivo de teste. Cálculos de referência reutilizáveis ficam em `tests/referencias.py`.
 
 **Fase 4 — Regressão e diagnósticos**
 Itens 16–21, com o fluxo "ajustar modelo → diagnosticar".
@@ -413,7 +417,7 @@ No Windows (PowerShell 5.1), passe mensagens de commit com `git commit -F arquiv
 
 ## 13. Decisões em aberto (confirmar com o autor antes de implementar)
 
-- Qual equivalente não paramétrico aparece no card para cada teste e quais testes não terão card. **Decidido:** t de uma amostra ↔ Wilcoxon; t de duas amostras ↔ Mann-Whitney (Welch como padrão, opção pooled; entrada só no formato coluna numérica + grupo de 2 níveis). Ainda em aberto (sugestão): t pareado ↔ Wilcoxon; ANOVA 1 fator ↔ Kruskal-Wallis.
+- Qual equivalente não paramétrico aparece no card para cada teste e quais testes não terão card. **Decidido:** t de uma amostra ↔ Wilcoxon; t de duas amostras ↔ Mann-Whitney (Welch como padrão, opção pooled; entrada só no formato coluna numérica + grupo de 2 níveis). t pareado ↔ Wilcoxon das diferenças (entrada: duas colunas pareadas na mesma linha; linhas incompletas descartadas com aviso). Ainda em aberto (sugestão): ANOVA 1 fator ↔ Kruskal-Wallis.
 - ~~O card continua nas abas Parâmetros e Análise ou fica só em Análise?~~ Decidido na Fase 1: **duas instâncias** (Parâmetros e Análise), para preservar o visual. Pode ser revisto depois.
 - ~~Gráficos nativos do Flet ou imagens do matplotlib?~~ Decidido na Fase 3: **nativos do Flet, simples e minimalistas**, desenhados com `flet.canvas` (no Flet 0.86.2 `BarChart`/`LineChart` saíram do pacote principal para a extensão `flet-charts`; o canvas é do núcleo e não exige dependência nova). matplotlib não é usado.
 - Pós-testes (Tukey, Dunn) e pressupostos extras (Shapiro-Wilk, Levene) como funcionalidade adicional.

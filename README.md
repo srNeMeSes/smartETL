@@ -15,6 +15,8 @@ diagnósticos de pressupostos.
   d de Cohen, interpretação em português, comparação com o Wilcoxon e histograma.
 - **Teste t (duas amostras)** completo: Welch ou variâncias iguais, IC da diferença, d de Cohen,
   comparação com o Mann-Whitney e boxplot por grupo.
+- **Teste t (pareado)** completo: duas medidas na mesma linha (ex.: antes/depois), IC da diferença,
+  d de Cohen (d_z), comparação com o Wilcoxon e histograma das diferenças.
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
