@@ -31,6 +31,8 @@ diagnósticos de pressupostos.
   p exato, IC exato da mediana e histograma.
 - **Wilcoxon** completo: uma amostra ou pareado, p exato ou aproximado (informado), pseudomediana
   de Hodges-Lehmann com IC (como o `wilcox.test` do R), tamanho de efeito r e histograma.
+- **Mann-Whitney U** completo: dois grupos, p exato ou aproximado (informado), deslocamento de
+  Hodges-Lehmann com IC, probabilidade de superioridade, r e boxplot.
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
