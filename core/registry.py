@@ -1,0 +1,74 @@
+"""Catálogo dos testes: fonte única de ids, rótulos, grupos e classes."""
+
+from dataclasses import dataclass
+
+from core.base import TesteBase
+from core.testes.medias import TesteT1Amostra
+
+
+@dataclass(frozen=True)
+class TesteInfo:
+    id: str
+    nome: str
+    grupo: str
+    classe: type[TesteBase] | None = None  # None = ainda não implementado
+
+    @property
+    def disponivel(self) -> bool:
+        return self.classe is not None
+
+    def criar(self) -> TesteBase | None:
+        return self.classe() if self.classe is not None else None
+
+
+_CATALOGO: tuple[TesteInfo, ...] = (
+    TesteInfo("teste_t_1am", "Teste t (uma amostra)", "Médias", TesteT1Amostra),
+    TesteInfo("teste_t_2am", "Teste t (duas amostras)", "Médias"),
+    TesteInfo("teste_t_pareado", "Teste t (pareado)", "Médias"),
+    TesteInfo("teste_z_1prop", "Teste Z (uma proporção)", "Proporções"),
+    TesteInfo("teste_z_2prop", "Teste Z (duas proporções)", "Proporções"),
+    TesteInfo("qui_quadrado", "Qui-quadrado", "Categóricos"),
+    TesteInfo("fisher", "Teste exato de Fisher", "Categóricos"),
+    TesteInfo("mcnemar", "McNemar", "Categóricos"),
+    TesteInfo("teste_sinal", "Teste do sinal", "Não paramétricos"),
+    TesteInfo("wilcoxon", "Wilcoxon", "Não paramétricos"),
+    TesteInfo("mann_whitney", "Mann-Whitney U", "Não paramétricos"),
+    TesteInfo("kruskal_wallis", "Kruskal-Wallis", "Não paramétricos"),
+    TesteInfo("friedman", "Friedman", "Não paramétricos"),
+    TesteInfo("anova_1fator", "ANOVA (1 fator)", "ANOVA"),
+    TesteInfo("anova_2fator", "ANOVA (2 fatores)", "ANOVA"),
+    TesteInfo("regres_linear", "Regressão Linear", "Regressão"),
+    TesteInfo("regres_logit", "Regressão Logística", "Regressão"),
+    TesteInfo("durbin_watson", "Durbin-Watson", "Diagnóstico"),
+    TesteInfo("breusch_pagan", "Breusch-Pagan", "Diagnóstico"),
+    TesteInfo("white", "White", "Diagnóstico"),
+    TesteInfo("vif", "VIF", "Diagnóstico"),
+)
+
+_POR_ID = {info.id: info for info in _CATALOGO}
+
+testes_hipotese: list[tuple[str, str]] = [(info.id, info.nome) for info in _CATALOGO]
+
+
+def listar() -> list[TesteInfo]:
+    """Todos os testes, na ordem oficial."""
+    return list(_CATALOGO)
+
+
+def por_grupo() -> dict[str, list[TesteInfo]]:
+    """Testes agrupados, preservando a ordem dos grupos e dos testes."""
+    grupos: dict[str, list[TesteInfo]] = {}
+    for info in _CATALOGO:
+        grupos.setdefault(info.grupo, []).append(info)
+    return grupos
+
+
+def obter(teste_id: str) -> TesteInfo:
+    try:
+        return _POR_ID[teste_id]
+    except KeyError:
+        raise ValueError(f"O teste '{teste_id}' não está cadastrado.") from None
+
+
+def primeiro() -> TesteInfo:
+    return _CATALOGO[0]
