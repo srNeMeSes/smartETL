@@ -26,6 +26,24 @@ _TEXTO = {"two-sided": "diferente de", "greater": "maior que", "less": "menor qu
 N_PEQUENO = 30
 
 
+def wilcoxon_tres_alternativas(
+    diferencas: np.ndarray,
+) -> tuple[dict[str, float | None], int]:
+    """p-valores do Wilcoxon dos postos sinalizados para ≠, > e < 0 e o número de zeros.
+
+    zero_method="wilcox" (diferenças nulas descartadas), sem correção de continuidade,
+    method="auto". Se todas as diferenças forem nulas, os p-valores são None.
+    """
+    zeros = int((diferencas == 0).sum())
+    if zeros == len(diferencas):
+        return dict.fromkeys(_SIMBOLO), zeros
+    p = {
+        alt: float(stats.wilcoxon(diferencas, zero_method="wilcox", alternative=alt).pvalue)
+        for alt in _SIMBOLO
+    }
+    return p, zeros
+
+
 class TesteT1Amostra(TesteBase):
     """Teste t de Student para uma amostra (H₀: μ = μ₀).
 
@@ -190,16 +208,9 @@ class TesteT1Amostra(TesteBase):
     @staticmethod
     def _wilcoxon(x: np.ndarray, mu0: float) -> tuple[dict[str, float | None], list[str]]:
         """p-valores do Wilcoxon para as três alternativas e avisos sobre zeros."""
-        diferencas = x - mu0
-        zeros = int((diferencas == 0).sum())
-        if zeros == len(diferencas):
-            return dict.fromkeys(_SIMBOLO), [
-                "Wilcoxon não calculado: todas as observações são iguais a μ₀."
-            ]
-        p = {
-            alt: float(stats.wilcoxon(diferencas, zero_method="wilcox", alternative=alt).pvalue)
-            for alt in _SIMBOLO
-        }
+        p, zeros = wilcoxon_tres_alternativas(x - mu0)
+        if zeros == len(x):
+            return p, ["Wilcoxon não calculado: todas as observações são iguais a μ₀."]
         avisos = []
         if zeros:
             avisos.append(
@@ -499,5 +510,209 @@ class TesteT2Amostras(TesteBase):
             ("d de Cohen", formatar_numero(e["d_cohen"])),
             ("U de Mann-Whitney", formatar_numero(e["u"], 1)),
             ("p-valor (Mann-Whitney)", formatar_p_valor(e["p_mann_whitney"])),
+        ]
+        return pd.DataFrame(linhas, columns=["Medida", "Valor"])
+
+
+# ---------------------------------------------------------------------------
+# Teste t (pareado)
+# ---------------------------------------------------------------------------
+class TesteTPareado(TesteBase):
+    """Teste t para amostras pareadas (H₀: μ₁ = μ₂, isto é, média das diferenças = 0).
+
+    Entrada: duas colunas numéricas pareadas na mesma linha (ex.: antes e depois). Linhas com
+    valor ausente em qualquer uma das duas colunas são descartadas (com aviso). As diferenças
+    são d = medida 1 − medida 2.
+    Wrapper de `scipy.stats.ttest_rel` (equivale ao t de uma amostra sobre d, gl = n − 1); o IC
+    é da média das diferenças (μ₁ − μ₂). Tamanho de efeito: d de Cohen para dados pareados
+    (d_z = d̄ / s_d).
+    Equivalente não paramétrico no card: Wilcoxon dos postos sinalizados de d (mesmas opções do
+    t de uma amostra: zero_method="wilcox", sem correção, method="auto").
+    Decisão: rejeita H₀ quando p ≤ α.
+    """
+
+    id = "teste_t_pareado"
+    nome = "Teste t (pareado)"
+    grupo = "Médias"
+
+    def parametros(self) -> list[ParametroSpec]:
+        return [
+            ParametroSpec("coluna1", "Medida 1 (ex.: antes)", "coluna_numerica"),
+            ParametroSpec("coluna2", "Medida 2 (ex.: depois)", "coluna_numerica"),
+            ParametroSpec(
+                "alternativa",
+                "Hipótese alternativa (H₁)",
+                "opcao",
+                padrao=ALTERNATIVA_PADRAO_2,
+                opcoes=list(ALTERNATIVAS_2),
+            ),
+            ParametroSpec("alfa", "Nível de significância (α)", "alfa", padrao=0.05),
+        ]
+
+    def comparacao_inicial(self) -> ComparacaoPValores:
+        return ComparacaoPValores(
+            titulo_esquerda="t Student",
+            titulo_direita="Wilcoxon",
+            hipoteses=list(ALTERNATIVAS_2),
+            linhas=[(None, None)] * len(ALTERNATIVAS_2),
+        )
+
+    @staticmethod
+    def pares(df: pd.DataFrame, coluna1: str, coluna2: str) -> tuple[np.ndarray, np.ndarray, int]:
+        """(x₁, x₂, linhas descartadas por valor ausente em alguma das colunas)."""
+        completos = df[[coluna1, coluna2]].dropna()
+        x1 = completos[coluna1].astype(float).to_numpy()
+        x2 = completos[coluna2].astype(float).to_numpy()
+        return x1, x2, len(df) - len(completos)
+
+    # ---------------- Validação ----------------
+    def validar(self, df: pd.DataFrame, params: dict) -> list[str]:
+        c1, c2 = params.get("coluna1"), params.get("coluna2")
+        erros = erros_coluna(df, c1, "a medida 1") + erros_coluna(df, c2, "a medida 2")
+        if not erros and c1 == c2:
+            erros.append("As duas medidas devem ser colunas diferentes.")
+        if not erros:
+            x1, x2, _ = self.pares(df, c1, c2)
+            if len(x1) < 2:
+                erros.append(
+                    f"São necessários ao menos 2 pares completos de '{c1}' e '{c2}' (há {len(x1)})."
+                )
+            elif np.ptp(x1 - x2) == 0:
+                erros.append(
+                    f"Todas as diferenças entre '{c1}' e '{c2}' são iguais (variância zero): "
+                    "o teste t pareado não pode ser calculado."
+                )
+        erros += erro_opcao(
+            params.get("alternativa", ALTERNATIVA_PADRAO_2),
+            ALTERNATIVAS_2,
+            "Escolha uma hipótese alternativa válida.",
+        )
+        erros += erro_alfa(params.get("alfa", 0.05))
+        return erros
+
+    # ---------------- Execução ----------------
+    def executar(self, df: pd.DataFrame, params: dict) -> ResultadoTeste:
+        erros = self.validar(df, params)
+        if erros:
+            raise ErroValidacao(erros)
+
+        c1, c2 = params["coluna1"], params["coluna2"]
+        alfa = float(params.get("alfa", 0.05))
+        alternativa = ALTERNATIVAS_2[params.get("alternativa", ALTERNATIVA_PADRAO_2)]
+
+        x1, x2, descartadas = self.pares(df, c1, c2)
+        d = x1 - x2
+        n = len(d)
+
+        testes_t = {alt: stats.ttest_rel(x1, x2, alternative=alt) for alt in _SIMBOLO}
+        t = testes_t[alternativa]
+        p_valor = float(t.pvalue)
+        ic = t.confidence_interval(confidence_level=1 - alfa)
+
+        media_d = float(d.mean())
+        dp_d = float(d.std(ddof=1))
+        correlacao = float(np.corrcoef(x1, x2)[0, 1]) if np.ptp(x1) and np.ptp(x2) else math.nan
+        p_wilcoxon, zeros = wilcoxon_tres_alternativas(d)
+
+        estatisticas = {
+            "n": float(n),
+            "n_descartadas": float(descartadas),
+            "media1": float(x1.mean()),
+            "media2": float(x2.mean()),
+            "media_diferencas": media_d,
+            "dp_diferencas": dp_d,
+            "erro_padrao": dp_d / math.sqrt(n),
+            "correlacao": correlacao,
+            "t": float(t.statistic),
+            "gl": float(t.df),
+            "p_valor": p_valor,
+            "ic_inferior": float(ic.low),
+            "ic_superior": float(ic.high),
+            "d_cohen": media_d / dp_d,
+            "p_wilcoxon": p_wilcoxon[alternativa],
+        }
+
+        simbolo, texto = _SIMBOLO[alternativa], _TEXTO_2[alternativa]
+        dif = formatar_numero(media_d, 2)
+        interpretacao = interpretar(
+            p_valor,
+            alfa,
+            h0="μ₁ = μ₂",
+            h1=f"μ₁ {simbolo} μ₂",
+            conclusao_rejeita=(
+                f"Há evidência estatística de que a média de '{c1}' é {texto} média de '{c2}' "
+                f"(diferença média = {dif})."
+            ),
+            conclusao_nao_rejeita=(
+                f"Não há evidência suficiente de que a média de '{c1}' seja {texto} média de "
+                f"'{c2}' (diferença média = {dif})."
+            ),
+        )
+
+        avisos = []
+        if descartadas:
+            avisos.append(
+                f"{descartadas} linha(s) com valor ausente em '{c1}' ou '{c2}' foram descartadas."
+            )
+        if n < N_PEQUENO:
+            avisos.append(
+                f"Amostra pequena (n = {n} pares): o teste t pareado supõe que as diferenças "
+                "tenham distribuição aproximadamente normal. Compare com o Wilcoxon no card."
+            )
+        if zeros:
+            avisos.append(f"No Wilcoxon, {zeros} par(es) com diferença nula foram descartados.")
+
+        return ResultadoTeste(
+            teste_id=self.id,
+            estatisticas=estatisticas,
+            p_valor=p_valor,
+            alfa=alfa,
+            decisao=decidir(p_valor, alfa),
+            interpretacao=interpretacao,
+            tabelas={"Resumo": self._tabela_resumo(estatisticas, (c1, c2), alfa, alternativa)},
+            figuras=[
+                histograma(
+                    d,
+                    f"Diferenças '{c1}' − '{c2}'",
+                    f"{c1} − {c2}",
+                    [
+                        (f"Diferença média (d̄ = {dif})", media_d, "destaque"),
+                        ("Diferença nula (0)", 0.0, "tracejado"),
+                    ],
+                )
+            ],
+            avisos=avisos,
+            comparacao=ComparacaoPValores(
+                titulo_esquerda="t Student",
+                titulo_direita="Wilcoxon",
+                hipoteses=list(ALTERNATIVAS_2),
+                linhas=[
+                    (float(testes_t[a].pvalue), p_wilcoxon[a]) for a in ALTERNATIVAS_2.values()
+                ],
+            ),
+        )
+
+    @staticmethod
+    def _tabela_resumo(
+        e: dict[str, float], colunas: tuple[str, str], alfa: float, alternativa: str
+    ) -> pd.DataFrame:
+        confianca = f"{(1 - alfa) * 100:.0f}%"
+        tipo_ic = "" if alternativa == "two-sided" else " (unilateral)"
+        ic = f"[{formatar_numero(e['ic_inferior'])}; {formatar_numero(e['ic_superior'])}]"
+        c1, c2 = colunas
+        linhas = [
+            ("Pares completos (n)", f"{int(e['n'])}"),
+            (f"Média de '{c1}' (x̄₁)", formatar_numero(e["media1"])),
+            (f"Média de '{c2}' (x̄₂)", formatar_numero(e["media2"])),
+            ("Média das diferenças (d̄ = x₁ − x₂)", formatar_numero(e["media_diferencas"])),
+            ("Desvio padrão das diferenças", formatar_numero(e["dp_diferencas"])),
+            ("Erro padrão", formatar_numero(e["erro_padrao"])),
+            ("Correlação entre as medidas (r)", formatar_numero(e["correlacao"])),
+            ("Estatística t", formatar_numero(e["t"])),
+            ("Graus de liberdade", f"{int(e['gl'])}"),
+            ("p-valor (t)", formatar_p_valor(e["p_valor"])),
+            (f"IC {confianca} para μ₁ − μ₂{tipo_ic}", ic),
+            ("d de Cohen (d_z)", formatar_numero(e["d_cohen"])),
+            ("p-valor (Wilcoxon)", formatar_p_valor(e["p_wilcoxon"])),
         ]
         return pd.DataFrame(linhas, columns=["Medida", "Valor"])

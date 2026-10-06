@@ -465,3 +465,20 @@ def test_formulario_t_2am_filtra_grupo_binario(tela_controller, tmp_path, page):
     tela.sidebar.botao_executar.on_click(None)
     assert controller.estado.ultimo_resultado.teste_id == "teste_t_2am"
     assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
+
+
+def test_formulario_t_pareado_e_execucao(tela_controller, tmp_path):
+    tela, controller = tela_controller
+    arquivo = tmp_path / "p.csv"
+    arquivo.write_text("id;antes;depois;grupo\n1;10;8;a\n2;12;11;b\n3;9;9,5;a\n4;14;11;b\n")
+    controller.carregar_arquivo(str(arquivo))
+    tela.sidebar.selecionar("teste_t_pareado")
+    form = tela.formulario
+    assert form.controle("coluna1").label == "Medida 1 (ex.: antes)"
+    assert [o.key for o in form.controle("coluna2").options] == ["id", "antes", "depois"]
+    assert "Wilcoxon" in textos(form.card) and "Hₐ:  μ₁ ≠ μ₂" in textos(form.card)
+    form.controle("coluna1").value = "antes"
+    form.controle("coluna2").value = "depois"
+    tela.sidebar.botao_executar.on_click(None)
+    assert controller.estado.ultimo_resultado.teste_id == "teste_t_pareado"
+    assert "Diferenças 'antes' − 'depois'" in _textos_aba(tela.painel.visualizacao)

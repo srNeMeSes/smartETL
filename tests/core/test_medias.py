@@ -7,13 +7,12 @@ Fontes dos valores de referência (independentes do wrapper em core/testes/media
   (amostra sem empates nem zeros, n = 10 → 1024 combinações).
 """
 
-import itertools
 import math
 
 import numpy as np
 import pandas as pd
 import pytest
-from scipy.stats import rankdata
+from referencias import wilcoxon_exato
 from statsmodels.stats.weightstats import DescrStatsW
 
 from core.base import ErroValidacao, ResultadoTeste
@@ -43,22 +42,6 @@ def _params(**extra):
 
 def _rotulo(alternativa_scipy: str) -> str:
     return next(r for r, a in ALTERNATIVAS.items() if a == alternativa_scipy)
-
-
-def _wilcoxon_exato(x, mu0):
-    """p-valores exatos por enumeração: (bilateral, maior, menor)."""
-    d = np.asarray(x) - mu0
-    postos = rankdata(np.abs(d))
-    w_obs = postos[d > 0].sum()
-    distribuicao = np.array(
-        [
-            sum(p for p, s in zip(postos, sinais, strict=True) if s)
-            for sinais in itertools.product([0, 1], repeat=len(d))
-        ]
-    )
-    maior = np.mean(distribuicao >= w_obs - 1e-9)
-    menor = np.mean(distribuicao <= w_obs + 1e-9)
-    return min(1.0, 2 * min(maior, menor)), maior, menor
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +88,7 @@ def test_ic_contra_statsmodels(teste, df, alfa, alternativa):
 
 def test_wilcoxon_exato_por_enumeracao(teste, df):
     r = teste.executar(df, _params())
-    esperado = _wilcoxon_exato(AMOSTRA, MU0)
+    esperado = wilcoxon_exato(np.array(AMOSTRA) - MU0)
     obtido = [p_w for _, p_w in r.comparacao.linhas]
     assert obtido == pytest.approx(list(esperado), rel=REL)
     assert r.estatisticas["p_wilcoxon"] == pytest.approx(esperado[0], rel=REL)

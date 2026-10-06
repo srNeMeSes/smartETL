@@ -329,3 +329,26 @@ def test_integracao_t_2am_carregar_selecionar_executar(controller, visao, tmp_pa
     assert (resultado.estatisticas["n1"], resultado.estatisticas["n2"]) == (3, 3)
     assert resultado.comparacao.titulo_direita == "Mann-Whitney"
     assert visao.chamadas[-1] == ("resultado", "teste_t_2am")
+
+
+def test_integracao_t_pareado_carregar_selecionar_executar(controller, visao, tmp_path):
+    # Checklist §9, item 7, para o teste t pareado (linha incompleta descartada com aviso).
+    arquivo = tmp_path / "pressao.csv"
+    arquivo.write_text(
+        "paciente;antes;depois\n1;140;132\n2;152;141\n3;138;139\n4;160;149\n5;145;\n6;150;143\n",
+        encoding="utf-8",
+    )
+    controller.carregar_arquivo(str(arquivo))
+    controller.selecionar_teste("teste_t_pareado")
+    assert visao.ultima()[:2] == ("formulario", "teste_t_pareado")
+    visao.params = {
+        "coluna1": "antes",
+        "coluna2": "depois",
+        "alternativa": "μ₁ > μ₂",
+        "alfa": 0.05,
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "teste_t_pareado"
+    assert resultado.estatisticas["n"] == 5
+    assert any("1 linha(s) com valor ausente" in a for a in resultado.avisos)
+    assert visao.chamadas[-1] == ("resultado", "teste_t_pareado")

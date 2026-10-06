@@ -91,4 +91,8 @@ def test_classes_registradas_sao_consistentes():
 
 def test_testes_implementados():
     # Fase 3: atualizar a cada teste implementado (ordem da seção 7).
-    assert [t.id for t in registry.listar() if t.disponivel] == ["teste_t_1am", "teste_t_2am"]
+    assert [t.id for t in registry.listar() if t.disponivel] == [
+        "teste_t_1am",
+        "teste_t_2am",
+        "teste_t_pareado",
+    ]
