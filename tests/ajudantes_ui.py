@@ -7,8 +7,12 @@ import flet as ft
 _FILHOS = ("content", "controls", "tabs", "columns", "rows", "cells", "label")
 
 
-def iterar_controles(controle) -> Iterator:
-    """Percorre a árvore de controles Flet em profundidade."""
+def iterar_controles(controle, _vistos: set[int] | None = None) -> Iterator:
+    """Percorre a árvore de controles Flet em profundidade, sem repetir controles."""
+    vistos = set() if _vistos is None else _vistos
+    if id(controle) in vistos:
+        return
+    vistos.add(id(controle))
     yield controle
     for atributo in _FILHOS:
         filho = getattr(controle, atributo, None)
@@ -17,7 +21,7 @@ def iterar_controles(controle) -> Iterator:
         filhos = filho if isinstance(filho, list) else [filho]
         for item in filhos:
             if hasattr(item, "_c"):  # só controles Flet
-                yield from iterar_controles(item)
+                yield from iterar_controles(item, vistos)
 
 
 def textos(controle) -> list[str]:

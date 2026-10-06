@@ -25,6 +25,10 @@ CAMPO_TEXTO = ft.Colors.BLACK
 CAMPO_ROTULO = ft.Colors.BLACK_54
 CAMPO_BORDA = ft.Colors.BLACK_54
 
+# Notificações (SnackBar)
+NOTIFICACAO = TEXTO
+NOTIFICACAO_ERRO = "#B42318"
+
 SOMBRA_CARTAO = ft.Colors.with_opacity(0.06, ft.Colors.BLACK)
 
 # Tipografia

@@ -37,3 +37,11 @@ def border_only(
     """Borda só nos lados informados."""
     lados = {"top": top, "right": right, "bottom": bottom, "left": left}
     return ft.Border(**{lado: valor for lado, valor in lados.items() if valor is not None})
+
+
+def esta_na_pagina(controle: ft.BaseControl) -> bool:
+    """Se o controle já foi montado (no Flet 0.86.2, `.page` lança RuntimeError se não foi)."""
+    try:
+        return controle.page is not None
+    except RuntimeError:
+        return False

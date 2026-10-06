@@ -3,6 +3,7 @@
 import flet as ft
 
 from app.ui import tema
+from app.ui.helpers import esta_na_pagina
 from core.base import ComparacaoPValores
 
 SEM_VALOR = "—"
@@ -270,11 +271,7 @@ class CardComparacaoTestes(ft.Container):
     # API pública
     # ----------------------------------------------------------------
     def _esta_na_pagina(self) -> bool:
-        # No Flet 0.86.2, `Control.page` lança RuntimeError se o controle não estiver montado.
-        try:
-            return self.page is not None
-        except RuntimeError:
-            return False
+        return esta_na_pagina(self)
 
     def _atualizar_se_montado(self, atualizar_pagina: bool) -> None:
         if atualizar_pagina and self._esta_na_pagina():
