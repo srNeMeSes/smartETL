@@ -3,10 +3,8 @@
 import math
 
 import pandas as pd
-from pandas.api import types as ptypes
 
-# Colunas inteiras/booleanas com até este número de valores distintos também são categóricas.
-MAX_NIVEIS_CATEGORICA = 10
+from core.tipos import PerfilColuna, detectar_tipos
 
 
 def converter_numero(texto: str | float | int | None) -> float:
@@ -25,32 +23,20 @@ def converter_numero(texto: str | float | int | None) -> float:
     return valor
 
 
-def _numerica(serie: pd.Series) -> bool:
-    return ptypes.is_numeric_dtype(serie) and not ptypes.is_bool_dtype(serie)
+def colunas_por_tipo(
+    df: pd.DataFrame, tipo: str, perfis: dict[str, PerfilColuna] | None = None
+) -> list[str]:
+    """Nomes das colunas compatíveis com o tipo de um `ParametroSpec` (regras em core/tipos.py).
 
-
-def colunas_por_tipo(df: pd.DataFrame, tipo: str) -> list[str]:
-    """Nomes das colunas compatíveis com o tipo de um `ParametroSpec`.
-
-    Regras provisórias (a detecção de tipos completa vem na Fase 2):
-    - numérica / multi_coluna: dtype numérico (exceto booleano);
-    - binária: exatamente 2 valores distintos (ignorando NaN);
-    - categórica: não numérica, ou inteira/booleana com até `MAX_NIVEIS_CATEGORICA` níveis.
+    `perfis` evita recalcular a detecção quando ela já foi feita na leitura do arquivo.
     """
-    colunas: list[str] = []
-    for nome in df.columns:
-        serie = df[nome]
-        if tipo in ("coluna_numerica", "multi_coluna"):
-            compativel = _numerica(serie)
-        elif tipo == "coluna_binaria":
-            compativel = serie.nunique(dropna=True) == 2
-        elif tipo == "coluna_categorica":
-            discreta = ptypes.is_integer_dtype(serie) or ptypes.is_bool_dtype(serie)
-            compativel = not _numerica(serie) or (
-                discreta and serie.nunique(dropna=True) <= MAX_NIVEIS_CATEGORICA
-            )
-        else:
-            raise ValueError(f"Tipo de coluna desconhecido: {tipo}")
-        if compativel:
-            colunas.append(str(nome))
-    return colunas
+    perfis = perfis if perfis is not None else detectar_tipos(df)
+    if tipo in ("coluna_numerica", "multi_coluna"):
+        papel = "numerica"
+    elif tipo == "coluna_binaria":
+        papel = "binaria"
+    elif tipo == "coluna_categorica":
+        papel = "categorica"
+    else:
+        raise ValueError(f"Tipo de coluna desconhecido: {tipo}")
+    return [nome for nome, perfil in perfis.items() if getattr(perfil, papel)]

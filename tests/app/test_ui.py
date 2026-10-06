@@ -232,7 +232,7 @@ class _TesteTodosOsTipos(TesteBase):
 
 
 def test_form_renderiza_todos_os_tipos():
-    df = pd.DataFrame({"v": [1.0, 2.0, 3.0], "w": [4.0, 5.0, 6.0], "s": ["a", "b", "a"]})
+    df = pd.DataFrame({"v": [1.5, 2.5, 3.5], "w": [4.5, 5.5, 6.5], "s": ["a", "b", "a"]})
     form = PainelParametros(_TesteTodosOsTipos(), df)
     assert form.card is None
     assert [o.key for o in form.controle("y").options] == ["v", "w"]

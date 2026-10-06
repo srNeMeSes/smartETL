@@ -7,6 +7,7 @@ import pytest
 
 from core.base import ErroValidacao, TesteBase, TesteNaoImplementado
 from core.testes.medias import TesteT1Amostra
+from core.tipos import detectar_tipos
 from core.validacao import colunas_por_tipo, converter_numero
 
 
@@ -84,6 +85,11 @@ def test_colunas_por_tipo(df_tipos):
         "flag",
         "cidade",
     ]
+
+
+def test_colunas_por_tipo_usa_perfis_prontos(df_tipos):
+    perfis = detectar_tipos(df_tipos[["valor"]])  # só "valor": prova que não recalcula
+    assert colunas_por_tipo(df_tipos, "coluna_numerica", perfis) == ["valor"]
 
 
 def test_colunas_por_tipo_desconhecido(df_tipos):

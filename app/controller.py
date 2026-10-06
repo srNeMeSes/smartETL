@@ -10,7 +10,7 @@ import pandas as pd
 from app.state import AppState
 from core import registry
 from core.base import ErroExecucao, ErroValidacao, ResultadoTeste, TesteBase
-from core.io import FormatoNaoSuportado, importar_dados
+from core.io import ErroLeitura, importar_dados
 
 log = logging.getLogger(__name__)
 
@@ -60,11 +60,8 @@ class Controller:
         nome = Path(caminho).name
         try:
             df = importar_dados(caminho)
-        except FormatoNaoSuportado as erro:
+        except ErroLeitura as erro:
             self.visao.notificar(str(erro), erro=True)
-            return False
-        except pd.errors.EmptyDataError:
-            self.visao.notificar(f"O arquivo '{nome}' está vazio.", erro=True)
             return False
         except Exception:
             log.exception("Falha ao ler %s", caminho)
@@ -73,9 +70,6 @@ class Controller:
                 "ou corrompido.",
                 erro=True,
             )
-            return False
-        if len(df.columns) == 0:
-            self.visao.notificar(f"O arquivo '{nome}' não contém dados.", erro=True)
             return False
 
         log.info("Arquivo carregado: %s (%d linhas, %d colunas)", caminho, *df.shape)
