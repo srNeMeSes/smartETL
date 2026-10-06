@@ -8,7 +8,7 @@ Aplicativo desktop de **processamento e análise de dados** com foco em **testes
 - **Interface:** Flet **`0.86.2`** (versão fixada em `requirements.txt`)
 - **Estatística:** `scipy.stats`, `statsmodels`, `pandas`, `numpy`
 - **Idioma da interface e das interpretações:** português do Brasil
-- **Estado atual:** Fases 0, 1 e 2 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 em andamento (4/15): **grupo Médias completo (`teste_t_1am`, `teste_t_2am`, `teste_t_pareado`) e `teste_z_1prop`**, cumprindo o checklist da seção 9; os demais aparecem como "ainda não disponível". Próximo: `teste_z_2prop`.
+- **Estado atual:** Fases 0, 1 e 2 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 em andamento (5/15): **grupos Médias e Proporções completos** (`teste_t_1am`, `teste_t_2am`, `teste_t_pareado`, `teste_z_1prop`, `teste_z_2prop`), cumprindo o checklist da seção 9; os demais aparecem como "ainda não disponível". Próximo: `qui_quadrado`.
 
 ## 2. Missão do Claude neste projeto
 
@@ -328,12 +328,13 @@ Regras de leitura implementadas (detalhes na docstring de `core/io.py`):
 **Fase 3 — Testes de hipótese (um por um)**
 Itens 1–15 da seção 7, cada um com o checklist da seção 9.
 
-Andamento: **4/15** (Médias completo; Proporções 1/2)
+Andamento: **5/15** (Médias e Proporções completos)
 - ✅ `teste_t_1am` (`core/testes/medias.py`, testes em `tests/core/test_medias.py`): card com Wilcoxon de x − μ₀; histograma com x̄ e μ₀.
 - ✅ `teste_t_2am` (`tests/core/test_medias_2am.py`): coluna numérica + coluna de grupo com exatamente 2 níveis (`coluna_binaria`); grupo 1 = primeiro nível em ordem crescente; Welch (padrão) ou pooled; card com Mann-Whitney; boxplot por grupo.
 - ✅ `teste_t_pareado` (`tests/core/test_medias_pareado.py`): duas colunas numéricas pareadas na mesma linha (d = medida 1 − medida 2); linhas incompletas descartadas com aviso; card com Wilcoxon das diferenças; histograma das diferenças.
 - ✅ `teste_z_1prop` (`core/testes/proporcoes.py`, testes em `tests/core/test_proporcoes.py`): coluna binária + valor de "sucesso" (parâmetro `nivel` dependente da coluna); erro padrão com p₀ (teste de escore); IC de Wilson; h de Cohen; card com binomial exato; aviso se n·p₀ ou n·(1 − p₀) < 5; barras de proporções com p₀.
-- Próximo: `teste_z_2prop`.
+- ✅ `teste_z_2prop` (`tests/core/test_proporcoes_2p.py`): resposta binária + sucesso + grupo com 2 níveis; z com proporção combinada; IC de Wald (não combinado) para p₁ − p₂; h de Cohen e odds ratio com IC de Woolf (indefinida com célula zero); card com Fisher exato; tabela 2×2 na Análise; barras por grupo com a proporção combinada.
+- Próximo: `qui_quadrado`.
 
 Padrão estabelecido pelos testes já implementados (seguir nos próximos):
 - `parametros()` inclui a hipótese alternativa como `opcao` com rótulos matemáticos (`μ ≠ μ₀`...) mapeados para o `alternative` do scipy; padrão bilateral.
@@ -426,7 +427,7 @@ No Windows (PowerShell 5.1), passe mensagens de commit com `git commit -F arquiv
 
 ## 13. Decisões em aberto (confirmar com o autor antes de implementar)
 
-- Qual equivalente não paramétrico aparece no card para cada teste e quais testes não terão card. **Decidido:** t de uma amostra ↔ Wilcoxon; t de duas amostras ↔ Mann-Whitney (Welch como padrão, opção pooled; entrada só no formato coluna numérica + grupo de 2 níveis). t pareado ↔ Wilcoxon das diferenças (entrada: duas colunas pareadas na mesma linha; linhas incompletas descartadas com aviso). Z de uma proporção ↔ binomial exato (entrada: coluna binária + valor de sucesso escolhido no formulário; erro padrão com p₀; IC de Wilson). **Regra geral do autor:** card só quando a comparação for possível e útil; caso contrário, sem card. Ainda em aberto (sugestão): ANOVA 1 fator ↔ Kruskal-Wallis.
+- Qual equivalente não paramétrico aparece no card para cada teste e quais testes não terão card. **Decidido:** t de uma amostra ↔ Wilcoxon; t de duas amostras ↔ Mann-Whitney (Welch como padrão, opção pooled; entrada só no formato coluna numérica + grupo de 2 níveis). t pareado ↔ Wilcoxon das diferenças (entrada: duas colunas pareadas na mesma linha; linhas incompletas descartadas com aviso). Z de uma proporção ↔ binomial exato (entrada: coluna binária + valor de sucesso escolhido no formulário; erro padrão com p₀; IC de Wilson). Z de duas proporções ↔ Fisher exato (proporção combinada no z, IC de Wald não combinado; efeitos: diferença, h de Cohen e odds ratio). **Regra geral do autor:** card só quando a comparação for possível e útil; caso contrário, sem card. Ainda em aberto (sugestão): ANOVA 1 fator ↔ Kruskal-Wallis.
 - ~~O card continua nas abas Parâmetros e Análise ou fica só em Análise?~~ Decidido na Fase 1: **duas instâncias** (Parâmetros e Análise), para preservar o visual. Pode ser revisto depois.
 - ~~Gráficos nativos do Flet ou imagens do matplotlib?~~ Decidido na Fase 3: **nativos do Flet, simples e minimalistas**, desenhados com `flet.canvas` (no Flet 0.86.2 `BarChart`/`LineChart` saíram do pacote principal para a extensão `flet-charts`; o canvas é do núcleo e não exige dependência nova). matplotlib não é usado.
 - Pós-testes (Tukey, Dunn) e pressupostos extras (Shapiro-Wilk, Levene) como funcionalidade adicional.

@@ -19,6 +19,8 @@ diagnósticos de pressupostos.
   d de Cohen (d_z), comparação com o Wilcoxon e histograma das diferenças.
 - **Teste Z (uma proporção)** completo: escolha do valor de sucesso, IC de Wilson, h de Cohen,
   comparação com o binomial exato e gráfico de barras das proporções.
+- **Teste Z (duas proporções)** completo: IC da diferença, h de Cohen, razão de chances (odds ratio),
+  tabela 2×2, comparação com o Fisher exato e barras por grupo.
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
