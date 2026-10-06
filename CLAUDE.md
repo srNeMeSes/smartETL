@@ -8,7 +8,7 @@ Aplicativo desktop de **processamento e análise de dados** com foco em **testes
 - **Interface:** Flet **`0.86.2`** (versão fixada em `requirements.txt`)
 - **Estatística:** `scipy.stats`, `statsmodels`, `pandas`, `numpy`
 - **Idioma da interface e das interpretações:** português do Brasil
-- **Estado atual:** Fases 0, 1 e 2 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos; **só o `teste_t_1am` tem formulário (via `ParametroSpec`) e nenhum cálculo estatístico está implementado** — o próximo passo é a Fase 3, começando pelo `teste_t_1am`.
+- **Estado atual:** Fases 0, 1 e 2 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 em andamento (1/15): **o `teste_t_1am` está implementado e cumpre o checklist da seção 9**; os demais aparecem como "ainda não disponível". Próximo: `teste_t_2am`.
 
 ## 2. Missão do Claude neste projeto
 
@@ -79,6 +79,7 @@ smartetl/
 │   │   ├── painel_abas.py        # Parâmetros / Análise / Visualização (API, sem índices)
 │   │   ├── painel_parametros.py  # formulário gerado a partir de ParametroSpec
 │   │   ├── tela_principal.py     # monta a tela e implementa a Visao do controller
+│   │   ├── graficos.py           # desenha Figura com flet.canvas (nativo, minimalista)
 │   │   └── componentes/
 │   │       ├── campos.py         # dropdown/campo/checkbox com o estilo único
 │   │       └── card_comparacao.py
@@ -89,7 +90,8 @@ smartetl/
 │   ├── registry.py               # TesteInfo(id, nome, grupo, classe) dos 21 testes
 │   ├── io.py                     # carregar_dados → DadosCarregados; ErroLeitura
 │   ├── tipos.py                  # PerfilColuna / detectar_tipos (numérica, categórica, binária)
-│   ├── interpretacao.py          # (Fase 3) textos em pt-BR a partir de p-valor e α
+│   ├── interpretacao.py          # decidir (p ≤ α), interpretar, formatar_numero/p_valor em pt-BR
+│   ├── figuras.py                # construtores de Figura (histograma...)
 │   └── testes/
 │       ├── medias.py             # TesteT1Amostra (só formulário, por enquanto)
 │       ├── proporcoes.py
@@ -150,9 +152,10 @@ class ParametroSpec:
     obrigatorio: bool = True
 
 @dataclass
-class Figura:                   # formato definitivo decidido na Fase 3
+class Figura:                   # especificação sem Flet; a UI desenha (app/ui/graficos.py)
+    tipo: Literal["histograma"]  # novos tipos: adicionar em core/figuras.py e app/ui/graficos.py
     titulo: str
-    png: bytes
+    dados: dict[str, Any]       # histograma: bordas, contagens, rotulo_x, referencias
 
 @dataclass
 class ResultadoTeste:
@@ -305,7 +308,7 @@ Rodar o app e conferir os 12 problemas da seção 3. Escrever testes de caracter
 **Fase 1 — Reestruturação (sem lógica estatística)** ✅ concluída
 Criar a estrutura da seção 4 seguindo o mapa de migração: `tema.py` com paleta única, `state.py`, `controller.py`, `core/base.py`, `registry.py`, `painel_abas.py` com API própria (fim dos índices), `campos.py` com o estilo único. Corrigir os itens 1–8 da seção 3. O app deve abrir e parecer idêntico, agora com estados vazios corretos e o botão Executar conectado ao controller.
 
-Pendências deixadas para as próximas fases: execução fora da thread da UI (hoje `controller.executar` é síncrono; mover para `page.run_thread`/tarefa quando houver cálculo real — Fase 3); `core/interpretacao.py` (Fase 3).
+Pendências da Fase 1 resolvidas na Fase 3: `Executar` roda via `page.run_thread` (com trava contra cliques repetidos) e `core/interpretacao.py` existe.
 
 **Fase 2 — Dados** ✅ concluída
 `core/io.py`: CSV com detecção de separador/encoding/decimal, XLSX via `openpyxl`, detecção de tipos (numérica, categórica, binária), erros tratados e exibidos ao usuário. Prévia limitada a 100 linhas. Testes: arquivo válido, vazio, com NaN, colunas mistas, encoding errado, extensão inválida.
@@ -317,8 +320,19 @@ Regras de leitura implementadas (detalhes na docstring de `core/io.py`):
 - **Tipos** (`core/tipos.py`): numérica = dtype numérico não booleano; binária = 2 valores distintos; categórica = não numérica, ou numérica discreta (só inteiros, inclusive float com NaN) com até 10 níveis. Uma coluna pode ter mais de um papel.
 - **Erros** (`ErroLeitura`, mensagem pronta em pt-BR): vazio, só cabeçalho, inexistente/bloqueado, binário, linha com colunas a mais (com número da linha), XLSX inválido, extensão não suportada. **Avisos:** coluna que mistura números e texto; XLSX com várias planilhas (lê a primeira). Colunas sem nome e vazias (separador sobrando) são descartadas.
 - A prévia mostra até 100 linhas, com NaN vazio e decimais com vírgula. Ler arquivos grandes ainda acontece na thread da UI (otimizar na Fase 5, se medido como lento).
+
 **Fase 3 — Testes de hipótese (um por um)**
-Itens 1–15 da seção 7, cada um com o checklist da seção 9. Começar pelo `teste_t_1am`, que já tem formulário e card prontos para ligar ao cálculo.
+Itens 1–15 da seção 7, cada um com o checklist da seção 9.
+
+Andamento: **1/15** — ✅ `teste_t_1am` (`core/testes/medias.py`, testes em `tests/core/test_medias.py`). Próximo: `teste_t_2am`.
+
+Padrão estabelecido pelo `teste_t_1am` (seguir nos próximos):
+- `parametros()` inclui a hipótese alternativa como `opcao` com rótulos matemáticos (`μ ≠ μ₀`...) mapeados para o `alternative` do scipy; padrão bilateral.
+- `validar()` devolve mensagens prontas; `executar()` chama `validar()` e lança `ErroValidacao` se houver erro.
+- `ResultadoTeste`: `estatisticas` com chaves técnicas (`t`, `gl`, `p_valor`, `ic_inferior`...), `tabelas["Resumo"]` com colunas `Medida`/`Valor` já formatadas em pt-BR, `figuras` via `core/figuras.py`, `avisos` não bloqueantes e `comparacao` com as três alternativas na ordem ≠, >, <.
+- Interpretação via `core/interpretacao.interpretar` (cita α, p, H₀, H₁ e a conclusão no contexto).
+- Docstring da classe documenta as escolhas (ddof, zeros, correção, exato vs. assintótico).
+- Referências nos testes: fórmula manual (numpy) + outra biblioteca (statsmodels) ou enumeração exata; fonte documentada no topo do arquivo de teste.
 
 **Fase 4 — Regressão e diagnósticos**
 Itens 16–21, com o fluxo "ajustar modelo → diagnosticar".
@@ -399,8 +413,8 @@ No Windows (PowerShell 5.1), passe mensagens de commit com `git commit -F arquiv
 
 ## 13. Decisões em aberto (confirmar com o autor antes de implementar)
 
-- Qual equivalente não paramétrico aparece no card para cada teste (sugestão: t 1 amostra e t pareado ↔ Wilcoxon; t 2 amostras ↔ Mann-Whitney; ANOVA 1 fator ↔ Kruskal-Wallis) e quais testes não terão card.
+- Qual equivalente não paramétrico aparece no card para cada teste e quais testes não terão card. **Decidido:** t de uma amostra ↔ Wilcoxon. Ainda em aberto (sugestão): t pareado ↔ Wilcoxon; t 2 amostras ↔ Mann-Whitney; ANOVA 1 fator ↔ Kruskal-Wallis.
 - ~~O card continua nas abas Parâmetros e Análise ou fica só em Análise?~~ Decidido na Fase 1: **duas instâncias** (Parâmetros e Análise), para preservar o visual. Pode ser revisto depois.
-- Gráficos nativos do Flet ou imagens do matplotlib na aba Visualização.
+- ~~Gráficos nativos do Flet ou imagens do matplotlib?~~ Decidido na Fase 3: **nativos do Flet, simples e minimalistas**, desenhados com `flet.canvas` (no Flet 0.86.2 `BarChart`/`LineChart` saíram do pacote principal para a extensão `flet-charts`; o canvas é do núcleo e não exige dependência nova). matplotlib não é usado.
 - Pós-testes (Tukey, Dunn) e pressupostos extras (Shapiro-Wilk, Levene) como funcionalidade adicional.
 - Formatos de arquivo além de CSV/XLSX e exportação de resultados (PDF/HTML/CSV).

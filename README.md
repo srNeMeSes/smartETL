@@ -11,8 +11,8 @@ diagnósticos de pressupostos.
   com mensagens de erro e avisos em português.
 - Interface completa: carregamento de arquivo, prévia de até 100 linhas, lista de testes
   agrupada por categoria e abas **Parâmetros**, **Análise** e **Visualização**.
-- O **Teste t (uma amostra)** já tem formulário e card de comparação (t Student × Wilcoxon).
-  O cálculo estatístico entra na próxima fase.
+- **Teste t (uma amostra)** completo: hipótese alternativa configurável, estatísticas, IC,
+  d de Cohen, interpretação em português, comparação com o Wilcoxon e histograma.
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
@@ -53,6 +53,7 @@ app/
     painel_abas.py         # abas Parâmetros / Análise / Visualização
     painel_parametros.py   # formulário gerado a partir dos parâmetros do teste
     tela_principal.py      # montagem da tela
+    graficos.py            # gráficos nativos (flet.canvas)
     componentes/           # campos com estilo único e card de comparação
 core/                      # lógica de domínio, sem Flet
   base.py                  # contratos: ParametroSpec, ResultadoTeste, TesteBase...
@@ -60,6 +61,8 @@ core/                      # lógica de domínio, sem Flet
   io.py                    # leitura de CSV/XLSX (encoding, separador e decimal automáticos)
   tipos.py                 # detecção de colunas numéricas, categóricas e binárias
   validacao.py             # regras de validação reutilizáveis
+  interpretacao.py         # decisão e textos de interpretação em pt-BR
+  figuras.py               # dados dos gráficos (sem Flet)
   testes/                  # implementações por grupo
 tests/                     # pytest (core/ e app/)
 ```
