@@ -102,4 +102,5 @@ def test_testes_implementados():
         "mcnemar",
         "teste_sinal",
         "wilcoxon",
+        "mann_whitney",
     ]

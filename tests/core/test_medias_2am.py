@@ -7,13 +7,12 @@ Fontes dos valores de referência (independentes do wrapper em core/testes/media
   grupos (amostras sem empates).
 """
 
-import itertools
 import math
 
 import numpy as np
 import pandas as pd
 import pytest
-from scipy.stats import rankdata
+from referencias import mann_whitney_exato
 from statsmodels.stats.weightstats import CompareMeans, DescrStatsW, ttest_ind
 
 from core.base import ErroValidacao
@@ -50,22 +49,6 @@ def _params(**extra):
 
 def _rotulo(alternativa_scipy: str) -> str:
     return next(r for r, a in ALTERNATIVAS_2.items() if a == alternativa_scipy)
-
-
-def _mann_whitney_exato(x, y):
-    """p-valores exatos de U₁ por enumeração: (bilateral, maior, menor)."""
-    postos = rankdata(np.concatenate([x, y]))
-    n1 = len(x)
-    u_obs = postos[:n1].sum() - n1 * (n1 + 1) / 2
-    distribuicao = np.array(
-        [
-            sum(postos[list(idx)]) - n1 * (n1 + 1) / 2
-            for idx in itertools.combinations(range(len(postos)), n1)
-        ]
-    )
-    maior = np.mean(distribuicao >= u_obs - 1e-9)
-    menor = np.mean(distribuicao <= u_obs + 1e-9)
-    return min(1.0, 2 * min(maior, menor)), maior, menor
 
 
 # ---------------------------------------------------------------------------
@@ -131,7 +114,7 @@ def test_d_de_cohen_com_desvio_combinado(teste, df):
 
 def test_mann_whitney_exato_por_enumeracao(teste, df):
     r = teste.executar(df, _params())
-    esperado = _mann_whitney_exato(np.array(A), np.array(B))
+    esperado = mann_whitney_exato(np.array(A), np.array(B))
     assert [p for _, p in r.comparacao.linhas] == pytest.approx(list(esperado), rel=REL)
     assert r.estatisticas["u"] == 1.0  # só 14,8 (B) fica abaixo de 15,2 (A)
 

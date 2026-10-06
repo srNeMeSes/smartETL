@@ -129,3 +129,26 @@ def clopper_pearson(k: int, n: int, cauda_inf: float, cauda_sup: float) -> tuple
     )
     superior = 1.0 if k == n else resolver(lambda p: _binomial_cdf(k, n, p), cauda_sup, False)
     return inferior, superior
+
+
+# ---------------------------------------------------------------------------
+# Mann-Whitney: enumeração das divisões dos postos
+# ---------------------------------------------------------------------------
+def distribuicao_u_enumerada(postos, n1: int) -> list[float]:
+    """Valores de U₁ para todas as C(N, n₁) formas de escolher os postos do grupo 1."""
+    postos = list(postos)
+    return [
+        sum(postos[i] for i in idx) - n1 * (n1 + 1) / 2
+        for idx in itertools.combinations(range(len(postos)), n1)
+    ]
+
+
+def mann_whitney_exato(x, y) -> tuple[float, float, float]:
+    """p-valores exatos de U₁ por enumeração (bilateral, maior, menor); amostras sem empates."""
+    postos = rankdata(np.concatenate([x, y]))
+    n1 = len(x)
+    u_obs = postos[:n1].sum() - n1 * (n1 + 1) / 2
+    distribuicao = np.array(distribuicao_u_enumerada(postos, n1))
+    maior = float(np.mean(distribuicao >= u_obs - 1e-9))
+    menor = float(np.mean(distribuicao <= u_obs + 1e-9))
+    return min(1.0, 2 * min(maior, menor)), maior, menor

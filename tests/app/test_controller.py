@@ -523,3 +523,16 @@ def test_integracao_wilcoxon_carregar_selecionar_executar(controller, visao):
     assert (resultado.estatisticas["w_mais"], resultado.estatisticas["w_menos"]) == (75, 3)
     assert resultado.comparacao is None
     assert visao.chamadas[-1] == ("resultado", "wilcoxon")
+
+
+def test_integracao_mann_whitney_carregar_selecionar_executar(controller, visao):
+    # Checklist §9, item 7, para o Mann-Whitney, com a base do projeto (bases/).
+    assert controller.carregar_arquivo(str(BASES / "turmas_br.csv"))
+    controller.selecionar_teste("mann_whitney")
+    assert visao.ultima()[:2] == ("formulario", "mann_whitney")
+    visao.params = {"coluna": "nota", "grupo": "turma", "alternativa": "G₁ ≠ G₂", "alfa": 0.05}
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "mann_whitney"
+    assert (resultado.estatisticas["n1"], resultado.estatisticas["n2"]) == (6, 7)
+    assert resultado.comparacao is None
+    assert visao.chamadas[-1] == ("resultado", "mann_whitney")

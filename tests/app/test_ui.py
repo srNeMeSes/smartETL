@@ -654,3 +654,18 @@ def test_wilcoxon_formulario_sem_card(tela_controller):
     assert resultado.teste_id == "wilcoxon" and resultado.estatisticas["usou_exato"] == 0.0
     assert "Pseudomediana (Hodges-Lehmann)" in _textos_aba(tela.painel.analise)
     assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
+
+
+def test_mann_whitney_formulario_sem_card(tela_controller):
+    tela, controller = tela_controller
+    controller.carregar_arquivo(str(BASES / "turmas_br.csv"))
+    tela.sidebar.selecionar("mann_whitney")
+    form = tela.formulario
+    assert form.card is None
+    assert [o.key for o in form.controle("grupo").options] == ["turma"]
+    form.controle("coluna").value = "nota"
+    form.controle("grupo").value = "turma"
+    tela.sidebar.botao_executar.on_click(None)
+    assert controller.estado.ultimo_resultado.teste_id == "mann_whitney"
+    assert "Deslocamento de Hodges-Lehmann (G₁ − G₂)" in _textos_aba(tela.painel.analise)
+    assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1

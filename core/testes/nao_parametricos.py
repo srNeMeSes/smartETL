@@ -7,8 +7,10 @@ import pandas as pd
 from scipy import stats
 
 from core.base import ErroValidacao, ParametroSpec, ResultadoTeste, TesteBase
-from core.figuras import histograma
+from core.figuras import boxplot, histograma
 from core.interpretacao import decidir, formatar_numero, formatar_p_valor, interpretar
+from core.testes.medias import TesteT2Amostras
+from core.tipos import rotulo_nivel
 from core.validacao import converter_numero, erro_alfa, erro_numero, erro_opcao, erros_coluna
 
 UMA_AMOSTRA = "Uma amostra"
@@ -449,5 +451,242 @@ class TesteWilcoxon(TesteBase):
                     ],
                 )
             ],
+            avisos=avisos,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Mann-Whitney U
+# ---------------------------------------------------------------------------
+ALTERNATIVAS_MW = {"G₁ ≠ G₂": "two-sided", "G₁ > G₂": "greater", "G₁ < G₂": "less"}
+ALTERNATIVA_PADRAO_MW = "G₁ ≠ G₂"
+LIMITE_EXATO_MW = 8  # como o method="auto" do scipy: exato se min(n₁, n₂) ≤ 8 e sem empates
+
+
+def distribuicao_u(n1: int, n2: int) -> np.ndarray:
+    """Contagens de U = 0..n₁n₂ sob H₀: coeficientes de ∏ₖ (1 − q^(n₂+k)) / (1 − qᵏ), k = 1..n₁."""
+    poli = np.zeros(n1 * n2 + 1)
+    poli[0] = 1.0
+    for k in range(1, n1 + 1):
+        multiplicado = poli.copy()
+        multiplicado[n2 + k :] -= poli[: len(poli) - (n2 + k)]
+        for i in range(k, len(multiplicado)):  # divide por (1 − qᵏ): soma acumulada de passo k
+            multiplicado[i] += multiplicado[i - k]
+        poli = multiplicado
+    return poli
+
+
+def _quantil_u(p: float, n1: int, n2: int) -> int:
+    """Menor u com P(U ≤ u) ≥ p (como `qwilcox` do R)."""
+    contagens = distribuicao_u(n1, n2)
+    acumulada = np.cumsum(contagens) / contagens.sum()
+    return int(np.searchsorted(acumulada, p - 1e-12))
+
+
+def deslocamento_hodges_lehmann(
+    x1: np.ndarray, x2: np.ndarray, alfa: float, alternativa: str, exato: bool
+) -> tuple[float, float, float]:
+    """(estimativa, IC inferior, IC superior) do deslocamento grupo 1 − grupo 2.
+
+    Estimativa: mediana das n₁n₂ diferenças x₁ᵢ − x₂ⱼ. IC exato pelos quantis de U (método do
+    `wilcox.test` do R) ou pela aproximação normal k = n₁n₂/2 − z·√(n₁n₂(N+1)/12).
+    """
+    n1, n2 = len(x1), len(x2)
+    dif = np.sort((x1[:, None] - x2[None, :]).ravel())
+    m = len(dif)
+    estimativa = float(np.median(dif))
+    cauda = alfa / 2 if alternativa == "two-sided" else alfa
+    if exato:
+        qu = max(_quantil_u(cauda, n1, n2), 1)
+    else:
+        z = float(stats.norm.ppf(1 - cauda))
+        qu = max(int(np.floor(n1 * n2 / 2 - z * math.sqrt(n1 * n2 * (n1 + n2 + 1) / 12))), 1)
+    qu = min(qu, m)
+    baixo, alto = float(dif[qu - 1]), float(dif[m - qu])
+    if alternativa == "greater":
+        return estimativa, baixo, math.inf
+    if alternativa == "less":
+        return estimativa, -math.inf, alto
+    return estimativa, baixo, alto
+
+
+class TesteMannWhitney(TesteBase):
+    """Teste de Mann-Whitney U (Wilcoxon da soma dos postos) para dois grupos independentes.
+
+    H₀: as distribuições da variável nos dois grupos são iguais; "G₁ > G₂": a variável tende a
+    ser maior no grupo 1. Entrada: coluna numérica + coluna de grupo com exatamente 2 níveis
+    (grupo 1 = primeiro nível em ordem crescente); linhas incompletas descartadas (aviso).
+    Wrapper de `scipy.stats.mannwhitneyu`: exato quando min(n₁, n₂) ≤ 8 e não há empates (regra
+    do method="auto"), senão aproximação normal com correção de empates e de continuidade; o
+    Resumo informa o método. U₁ = R₁ − n₁(n₁+1)/2 e U₂ = n₁n₂ − U₁. Efeitos: probabilidade de
+    superioridade U₁/(n₁n₂) = P(X₁ > X₂) + ½·P(X₁ = X₂) e r = z/√N (z sem continuidade).
+    Deslocamento de Hodges-Lehmann com IC (exato como o `wilcox.test` do R, ou aproximado). Sem
+    card. Decisão: p ≤ α.
+    """
+
+    id = "mann_whitney"
+    nome = "Mann-Whitney U"
+    grupo = "Não paramétricos"
+
+    def parametros(self) -> list[ParametroSpec]:
+        return [
+            ParametroSpec("coluna", "Variável", "coluna_numerica"),
+            ParametroSpec("grupo", "Grupo (2 níveis)", "coluna_binaria"),
+            ParametroSpec(
+                "alternativa",
+                "Hipótese alternativa (H₁)",
+                "opcao",
+                padrao=ALTERNATIVA_PADRAO_MW,
+                opcoes=list(ALTERNATIVAS_MW),
+            ),
+            ParametroSpec("alfa", "Nível de significância (α)", "alfa", padrao=0.05),
+        ]
+
+    # ---------------- Validação ----------------
+    def validar(self, df: pd.DataFrame, params: dict) -> list[str]:
+        coluna, grupo = params.get("coluna"), params.get("grupo")
+        erros = erros_coluna(df, coluna) + erros_coluna(df, grupo, "o grupo", numerica=False)
+        if not erros and coluna == grupo:
+            erros.append("A variável e o grupo devem ser colunas diferentes.")
+        if not erros:
+            niveis, amostras, _ = TesteT2Amostras.separar(df, coluna, grupo)
+            if len(niveis) != 2:
+                erros.append(
+                    f"A coluna de grupo '{grupo}' deve ter exatamente 2 níveis com dados válidos "
+                    f"(tem {len(niveis)})."
+                )
+            elif np.ptp(np.concatenate(amostras)) == 0:
+                erros.append(
+                    f"Todos os valores de '{coluna}' são iguais nos dois grupos: não há ordem "
+                    "para comparar."
+                )
+        erros += erro_opcao(
+            params.get("alternativa", ALTERNATIVA_PADRAO_MW),
+            ALTERNATIVAS_MW,
+            "Escolha uma hipótese alternativa válida.",
+        )
+        erros += erro_alfa(params.get("alfa", 0.05))
+        return erros
+
+    # ---------------- Execução ----------------
+    def executar(self, df: pd.DataFrame, params: dict) -> ResultadoTeste:
+        erros = self.validar(df, params)
+        if erros:
+            raise ErroValidacao(erros)
+
+        coluna, grupo = params["coluna"], params["grupo"]
+        alfa = float(params.get("alfa", 0.05))
+        alternativa = ALTERNATIVAS_MW[params.get("alternativa", ALTERNATIVA_PADRAO_MW)]
+
+        niveis, (x1, x2), descartadas = TesteT2Amostras.separar(df, coluna, grupo)
+        g1, g2 = (rotulo_nivel(n) for n in niveis)
+        n1, n2 = len(x1), len(x2)
+        total = n1 + n2
+
+        postos = stats.rankdata(np.concatenate([x1, x2]))
+        r1, r2 = float(postos[:n1].sum()), float(postos[n1:].sum())
+        u1 = r1 - n1 * (n1 + 1) / 2
+        u2 = n1 * n2 - u1
+        _, contagem_empates = np.unique(postos, return_counts=True)
+        tem_empates = bool((contagem_empates > 1).any())
+        exato = min(n1, n2) <= LIMITE_EXATO_MW and not tem_empates
+
+        p_valor = float(
+            stats.mannwhitneyu(
+                x1, x2, alternative=alternativa, method="exact" if exato else "asymptotic"
+            ).pvalue
+        )
+        correcao = (contagem_empates**3 - contagem_empates).sum() / (total * (total - 1))
+        variancia = n1 * n2 / 12 * ((total + 1) - correcao)
+        z = (u1 - n1 * n2 / 2) / math.sqrt(variancia)
+        hl, ic_inf, ic_sup = deslocamento_hodges_lehmann(x1, x2, alfa, alternativa, exato)
+
+        estatisticas = {
+            "n1": float(n1),
+            "n2": float(n2),
+            "n_descartadas": float(descartadas),
+            "soma_postos1": r1,
+            "soma_postos2": r2,
+            "u1": u1,
+            "u2": u2,
+            "usou_exato": float(exato),
+            "p_valor": p_valor,
+            "z": z,
+            "r": z / math.sqrt(total),
+            "prob_superioridade": u1 / (n1 * n2),
+            "mediana1": float(np.median(x1)),
+            "mediana2": float(np.median(x2)),
+            "deslocamento_hl": hl,
+            "ic_inferior": ic_inf,
+            "ic_superior": ic_sup,
+        }
+
+        simbolo = _SIMBOLO[alternativa]
+        if alternativa == "two-sided":
+            rejeita = f"Há evidência estatística de que '{coluna}' difere entre '{g1}' e '{g2}'."
+            nao = f"Não há evidência suficiente de que '{coluna}' difira entre '{g1}' e '{g2}'."
+        else:
+            maior, menor = (g1, g2) if alternativa == "greater" else (g2, g1)
+            rejeita = (
+                f"Há evidência estatística de que '{coluna}' tende a ser maior no grupo "
+                f"'{maior}' do que no grupo '{menor}'."
+            )
+            nao = (
+                f"Não há evidência suficiente de que '{coluna}' tenda a ser maior no grupo "
+                f"'{maior}' do que no grupo '{menor}'."
+            )
+        interpretacao = interpretar(
+            p_valor,
+            alfa,
+            h0=f"a distribuição de '{coluna}' é a mesma em '{g1}' e '{g2}'",
+            h1=f"G₁ {simbolo} G₂",
+            conclusao_rejeita=rejeita,
+            conclusao_nao_rejeita=nao,
+        )
+
+        avisos = []
+        if descartadas:
+            avisos.append(f"{descartadas} linha(s) com valor ou grupo ausente foram descartadas.")
+        if tem_empates:
+            avisos.append(
+                "Há empates entre os valores: postos médios e p-valor pela aproximação normal com "
+                "correção de empates."
+            )
+
+        nivel = f"{(1 - alfa) * 100:.0f}%"
+        tipo_ic = "" if alternativa == "two-sided" else " (unilateral)"
+        metodo_txt = "Exato" if exato else "Aproximação normal (empates e continuidade)"
+        resumo = [
+            ("Grupo 1", f"'{g1}' (n = {n1})"),
+            ("Grupo 2", f"'{g2}' (n = {n2})"),
+            ("Soma dos postos do grupo 1 (R₁)", formatar_numero(r1, 1)),
+            ("Soma dos postos do grupo 2 (R₂)", formatar_numero(r2, 1)),
+            ("U₁", formatar_numero(u1, 1)),
+            ("U₂", formatar_numero(u2, 1)),
+            ("Método do p-valor", metodo_txt),
+            ("p-valor", formatar_p_valor(p_valor)),
+            ("Mediana do grupo 1", formatar_numero(estatisticas["mediana1"])),
+            ("Mediana do grupo 2", formatar_numero(estatisticas["mediana2"])),
+            ("Deslocamento de Hodges-Lehmann (G₁ − G₂)", formatar_numero(hl)),
+            (
+                f"IC {nivel} para o deslocamento{tipo_ic}",
+                f"[{formatar_numero(ic_inf)}; {formatar_numero(ic_sup)}]",
+            ),
+            (
+                "Probabilidade de superioridade U₁/(n₁n₂)",
+                formatar_numero(estatisticas["prob_superioridade"]),
+            ),
+            ("Tamanho de efeito r = z/√N", formatar_numero(estatisticas["r"])),
+        ]
+
+        return ResultadoTeste(
+            teste_id=self.id,
+            estatisticas=estatisticas,
+            p_valor=p_valor,
+            alfa=alfa,
+            decisao=decidir(p_valor, alfa),
+            interpretacao=interpretacao,
+            tabelas={"Resumo": pd.DataFrame(resumo, columns=["Medida", "Valor"])},
+            figuras=[boxplot([(g1, x1), (g2, x2)], f"'{coluna}' por '{grupo}'", coluna)],
             avisos=avisos,
         )
