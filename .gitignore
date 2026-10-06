@@ -1,0 +1,11 @@
+# Ambientes virtuais
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+
+# Ferramentas
+.pytest_cache/
+.ruff_cache/

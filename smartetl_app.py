@@ -91,9 +91,6 @@ def section_title(text_value: str, trailing=None):
 
 
 
-
-
-# ---------------- Aplicação principal ----------------
 def main(page: ft.Page):
     page.title = "smartETL — Processamento de dados"
     page.bgcolor = BG
@@ -357,15 +354,15 @@ def main(page: ft.Page):
                     expand=True,
                     controls=[
                         ft.Container(
-                            content=ft.Column(controls=[ft.Text("ola mundo1", color=ft.Colors.BLACK)]),
+                            content=ft.Column(controls=[ft.Text("Processando...", color=ft.Colors.BLACK)]),
                             padding=20,
                         ),
                         ft.Container(
-                            content=ft.Column(controls=[ft.Text("ola mundo2", color=ft.Colors.BLACK)]),
+                            content=ft.Column(controls=[ft.Text("Processando...", color=ft.Colors.BLACK)]),
                             padding=20,
                         ),
                         ft.Container(
-                            content=ft.Column(controls=[ft.Text("ola mundo3", color=ft.Colors.BLACK)]),
+                            content=ft.Column(controls=[ft.Text("Processando...", color=ft.Colors.BLACK)]),
                             padding=20,
                         ),
                     ],
