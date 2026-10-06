@@ -13,6 +13,8 @@ diagnósticos de pressupostos.
   agrupada por categoria e abas **Parâmetros**, **Análise** e **Visualização**.
 - **Teste t (uma amostra)** completo: hipótese alternativa configurável, estatísticas, IC,
   d de Cohen, interpretação em português, comparação com o Wilcoxon e histograma.
+- **Teste t (duas amostras)** completo: Welch ou variâncias iguais, IC da diferença, d de Cohen,
+  comparação com o Mann-Whitney e boxplot por grupo.
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos

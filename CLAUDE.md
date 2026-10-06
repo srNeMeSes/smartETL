@@ -8,7 +8,7 @@ Aplicativo desktop de **processamento e análise de dados** com foco em **testes
 - **Interface:** Flet **`0.86.2`** (versão fixada em `requirements.txt`)
 - **Estatística:** `scipy.stats`, `statsmodels`, `pandas`, `numpy`
 - **Idioma da interface e das interpretações:** português do Brasil
-- **Estado atual:** Fases 0, 1 e 2 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 em andamento (1/15): **o `teste_t_1am` está implementado e cumpre o checklist da seção 9**; os demais aparecem como "ainda não disponível". Próximo: `teste_t_2am`.
+- **Estado atual:** Fases 0, 1 e 2 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 em andamento (2/15): **`teste_t_1am` e `teste_t_2am` implementados e cumprindo o checklist da seção 9**; os demais aparecem como "ainda não disponível". Próximo: `teste_t_pareado`.
 
 ## 2. Missão do Claude neste projeto
 
@@ -91,7 +91,7 @@ smartetl/
 │   ├── io.py                     # carregar_dados → DadosCarregados; ErroLeitura
 │   ├── tipos.py                  # PerfilColuna / detectar_tipos (numérica, categórica, binária)
 │   ├── interpretacao.py          # decidir (p ≤ α), interpretar, formatar_numero/p_valor em pt-BR
-│   ├── figuras.py                # construtores de Figura (histograma...)
+│   ├── figuras.py                # construtores de Figura (histograma, boxplot)
 │   └── testes/
 │       ├── medias.py             # TesteT1Amostra (só formulário, por enquanto)
 │       ├── proporcoes.py
@@ -153,7 +153,7 @@ class ParametroSpec:
 
 @dataclass
 class Figura:                   # especificação sem Flet; a UI desenha (app/ui/graficos.py)
-    tipo: Literal["histograma"]  # novos tipos: adicionar em core/figuras.py e app/ui/graficos.py
+    tipo: Literal["histograma", "boxplot"]  # novos tipos: core/figuras.py + app/ui/graficos.py
     titulo: str
     dados: dict[str, Any]       # histograma: bordas, contagens, rotulo_x, referencias
 
@@ -324,14 +324,14 @@ Regras de leitura implementadas (detalhes na docstring de `core/io.py`):
 **Fase 3 — Testes de hipótese (um por um)**
 Itens 1–15 da seção 7, cada um com o checklist da seção 9.
 
-Andamento: **1/15** — ✅ `teste_t_1am` (`core/testes/medias.py`, testes em `tests/core/test_medias.py`). Próximo: `teste_t_2am`.
+Andamento: **2/15**
 
 Padrão estabelecido pelo `teste_t_1am` (seguir nos próximos):
 - `parametros()` inclui a hipótese alternativa como `opcao` com rótulos matemáticos (`μ ≠ μ₀`...) mapeados para o `alternative` do scipy; padrão bilateral.
 - `validar()` devolve mensagens prontas; `executar()` chama `validar()` e lança `ErroValidacao` se houver erro.
 - `ResultadoTeste`: `estatisticas` com chaves técnicas (`t`, `gl`, `p_valor`, `ic_inferior`...), `tabelas["Resumo"]` com colunas `Medida`/`Valor` já formatadas em pt-BR, `figuras` via `core/figuras.py`, `avisos` não bloqueantes e `comparacao` com as três alternativas na ordem ≠, >, <.
 - Interpretação via `core/interpretacao.interpretar` (cita α, p, H₀, H₁ e a conclusão no contexto).
-- Docstring da classe documenta as escolhas (ddof, zeros, correção, exato vs. assintótico).
+- Validações comuns em `core/validacao.py` (`erros_coluna`, `erro_opcao`, `erro_alfa`, `erro_numero`) para as mensagens ficarem iguais entre testes.
 - Referências nos testes: fórmula manual (numpy) + outra biblioteca (statsmodels) ou enumeração exata; fonte documentada no topo do arquivo de teste.
 
 **Fase 4 — Regressão e diagnósticos**
@@ -413,7 +413,7 @@ No Windows (PowerShell 5.1), passe mensagens de commit com `git commit -F arquiv
 
 ## 13. Decisões em aberto (confirmar com o autor antes de implementar)
 
-- Qual equivalente não paramétrico aparece no card para cada teste e quais testes não terão card. **Decidido:** t de uma amostra ↔ Wilcoxon. Ainda em aberto (sugestão): t pareado ↔ Wilcoxon; t 2 amostras ↔ Mann-Whitney; ANOVA 1 fator ↔ Kruskal-Wallis.
+- Qual equivalente não paramétrico aparece no card para cada teste e quais testes não terão card. **Decidido:** t de uma amostra ↔ Wilcoxon; t de duas amostras ↔ Mann-Whitney (Welch como padrão, opção pooled; entrada só no formato coluna numérica + grupo de 2 níveis). Ainda em aberto (sugestão): t pareado ↔ Wilcoxon; ANOVA 1 fator ↔ Kruskal-Wallis.
 - ~~O card continua nas abas Parâmetros e Análise ou fica só em Análise?~~ Decidido na Fase 1: **duas instâncias** (Parâmetros e Análise), para preservar o visual. Pode ser revisto depois.
 - ~~Gráficos nativos do Flet ou imagens do matplotlib?~~ Decidido na Fase 3: **nativos do Flet, simples e minimalistas**, desenhados com `flet.canvas` (no Flet 0.86.2 `BarChart`/`LineChart` saíram do pacote principal para a extensão `flet-charts`; o canvas é do núcleo e não exige dependência nova). matplotlib não é usado.
 - Pós-testes (Tukey, Dunn) e pressupostos extras (Shapiro-Wilk, Levene) como funcionalidade adicional.
