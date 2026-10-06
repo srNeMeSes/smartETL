@@ -236,3 +236,218 @@ class TesteSinal(TesteBase):
             ],
             avisos=avisos,
         )
+
+
+# ---------------------------------------------------------------------------
+# Wilcoxon (postos sinalizados)
+# ---------------------------------------------------------------------------
+LIMITE_EXATO_WILCOXON = 50  # n até este valor, sem empates: p e IC exatos
+
+
+def distribuicao_postos_sinalizados(n: int) -> np.ndarray:
+    """Contagem de subconjuntos de {1..n} por soma: distribuição exata de W⁺ sob H₀ (× 2ⁿ)."""
+    contagens = np.zeros(n * (n + 1) // 2 + 1, dtype=float)
+    contagens[0] = 1
+    for posto in range(1, n + 1):
+        contagens[posto:] = contagens[posto:] + contagens[: len(contagens) - posto].copy()
+    return contagens
+
+
+def _quantil_postos(p: float, n: int) -> int:
+    """Menor w com P(W⁺ ≤ w) ≥ p (como `qsignrank` do R)."""
+    acumulada = np.cumsum(distribuicao_postos_sinalizados(n)) / 2**n
+    return int(np.searchsorted(acumulada, p - 1e-12))
+
+
+def hodges_lehmann(d: np.ndarray, alfa: float, alternativa: str, exato: bool) -> tuple:
+    """(pseudomediana, IC inferior, IC superior) sobre as médias de Walsh de `d` (já sem zeros).
+
+    Exato: quantis da distribuição de W⁺ (método do `wilcox.test` do R). Aproximado: posto
+    k = n(n+1)/4 − z·√(n(n+1)(2n+1)/24) para escolher as estatísticas de ordem.
+    """
+    n = len(d)
+    i, j = np.triu_indices(n)
+    walsh = np.sort((d[i] + d[j]) / 2)
+    estimativa = float(np.median(walsh))
+    m = len(walsh)  # = n(n+1)/2
+    cauda = alfa / 2 if alternativa == "two-sided" else alfa
+    if exato:
+        qu = max(_quantil_postos(cauda, n), 1)
+    else:
+        z = float(stats.norm.ppf(1 - cauda))
+        qu = max(int(np.floor(n * (n + 1) / 4 - z * math.sqrt(n * (n + 1) * (2 * n + 1) / 24))), 1)
+    qu = min(qu, m)
+    baixo, alto = float(walsh[qu - 1]), float(walsh[m - qu])
+    if alternativa == "greater":
+        return estimativa, baixo, math.inf
+    if alternativa == "less":
+        return estimativa, -math.inf, alto
+    return estimativa, baixo, alto
+
+
+class TesteWilcoxon(TesteBase):
+    """Teste de Wilcoxon dos postos sinalizados (H₀: mediana = M₀, distribuição simétrica).
+
+    Modos ("Tipo de teste"): Uma amostra (coluna + M₀) ou Pareado (diferenças
+    d = medida 1 − medida 2 contra M₀, padrão 0); linhas incompletas descartadas (aviso).
+    Diferenças nulas descartadas (`zero_method="wilcox"`, aviso); empates em |d| recebem posto
+    médio. p-valor via `scipy.stats.wilcoxon`, exato quando n ≤ 50 e não há empates, senão
+    aproximação normal com correção de empates e sem correção de continuidade (o Resumo informa
+    o método). W⁺/W⁻ = somas dos postos positivos/negativos. Pseudomediana de Hodges-Lehmann
+    (mediana das médias de Walsh, sem as diferenças nulas, + M₀) com IC — exato pelos quantis
+    de W⁺ como o `wilcox.test` do R, ou pela aproximação normal. Efeito r = z/√n, com z da
+    aproximação normal. Sem card. Decisão: p ≤ α.
+    """
+
+    id = "wilcoxon"
+    nome = "Wilcoxon"
+    grupo = "Não paramétricos"
+
+    def parametros(self) -> list[ParametroSpec]:
+        return TesteSinal().parametros()
+
+    def validar(self, df: pd.DataFrame, params: dict) -> list[str]:
+        return TesteSinal().validar(df, params)
+
+    def executar(self, df: pd.DataFrame, params: dict) -> ResultadoTeste:
+        erros = self.validar(df, params)
+        if erros:
+            raise ErroValidacao(erros)
+
+        modo = params.get("modo", UMA_AMOSTRA)
+        pareado = modo == PAREADO
+        c1, c2 = params["coluna1"], params.get("coluna2")
+        m0 = converter_numero(params["m0"])
+        alfa = float(params.get("alfa", 0.05))
+        alternativa = ALTERNATIVAS_SINAL[params.get("alternativa", ALTERNATIVA_PADRAO_SINAL)]
+
+        valores, descartadas = TesteSinal.valores(df, params)
+        diferencas = valores - m0
+        nao_nulas = diferencas[diferencas != 0]
+        zeros = len(diferencas) - len(nao_nulas)
+        n = len(nao_nulas)
+        postos = stats.rankdata(np.abs(nao_nulas))
+        w_mais = float(postos[nao_nulas > 0].sum())
+        w_menos = float(postos[nao_nulas < 0].sum())
+        tem_empates = len(np.unique(np.abs(nao_nulas))) < n
+        exato = n <= LIMITE_EXATO_WILCOXON and not tem_empates
+        metodo = "exact" if exato else "approx"
+
+        p_valor = float(
+            stats.wilcoxon(
+                nao_nulas, zero_method="wilcox", alternative=alternativa, method=metodo
+            ).pvalue
+        )
+        _, contagem_empates = np.unique(postos, return_counts=True)
+        variancia = n * (n + 1) * (2 * n + 1) / 24 - (
+            (contagem_empates**3 - contagem_empates).sum() / 48
+        )
+        z = (w_mais - n * (n + 1) / 4) / math.sqrt(variancia) if variancia > 0 else 0.0
+        r_efeito = z / math.sqrt(n)
+        hl, ic_inf, ic_sup = hodges_lehmann(nao_nulas, alfa, alternativa, exato)
+        pseudomediana = hl + m0
+        mediana = float(np.median(valores))
+
+        estatisticas = {
+            "n_validos": float(len(valores)),
+            "n": float(n),
+            "zeros": float(zeros),
+            "n_descartadas": float(descartadas),
+            "w_mais": w_mais,
+            "w_menos": w_menos,
+            "usou_exato": float(exato),
+            "p_valor": p_valor,
+            "z": z,
+            "r": r_efeito,
+            "m0": m0,
+            "mediana": mediana,
+            "pseudomediana": pseudomediana,
+            "ic_inferior": ic_inf + m0,
+            "ic_superior": ic_sup + m0,
+        }
+
+        m0_txt = _numero_curto(m0)
+        alvo = f"a mediana das diferenças '{c1}' − '{c2}'" if pareado else f"a mediana de '{c1}'"
+        simbolo, texto = _SIMBOLO[alternativa], _TEXTO[alternativa]
+        interpretacao = interpretar(
+            p_valor,
+            alfa,
+            h0=f"M = {m0_txt}",
+            h1=f"M {simbolo} {m0_txt}",
+            conclusao_rejeita=f"Há evidência estatística de que {alvo} é {texto} {m0_txt}.",
+            conclusao_nao_rejeita=(
+                f"Não há evidência suficiente de que {alvo} seja {texto} {m0_txt}."
+            ),
+        )
+
+        avisos = []
+        if descartadas:
+            onde = f"'{c1}' ou '{c2}'" if pareado else f"'{c1}'"
+            avisos.append(f"{descartadas} linha(s) com valor ausente em {onde} foram descartadas.")
+        if zeros:
+            avisos.append(
+                f"{zeros} diferença(s) nula(s) (valor igual a M₀ = {m0_txt}) foram descartadas; "
+                f"o teste usa n = {n}."
+            )
+        if tem_empates:
+            avisos.append(
+                "Há empates nos valores absolutos das diferenças: postos médios e p-valor pela "
+                "aproximação normal com correção de empates."
+            )
+        avisos.append(
+            "O Wilcoxon supõe distribuição das diferenças aproximadamente simétrica em torno da "
+            "mediana; se houver forte assimetria, prefira o Teste do sinal."
+        )
+
+        nivel = f"{(1 - alfa) * 100:.0f}%"
+        tipo_ic = "" if alternativa == "two-sided" else " (unilateral)"
+        nome_mediana = "Mediana das diferenças" if pareado else "Mediana amostral"
+        metodo_txt = (
+            "Exato" if exato else "Aproximação normal (correção de empates, sem continuidade)"
+        )
+        resumo = [
+            ("Tipo de teste", modo),
+            ("Observações válidas", f"{len(valores)}"),
+            ("Diferenças nulas (descartadas)", f"{zeros}"),
+            ("n usado no teste", f"{n}"),
+            ("W⁺ (soma dos postos positivos)", formatar_numero(w_mais, 1)),
+            ("W⁻ (soma dos postos negativos)", formatar_numero(w_menos, 1)),
+            ("Método do p-valor", metodo_txt),
+            ("p-valor", formatar_p_valor(p_valor)),
+            ("Mediana hipotética (M₀)", formatar_numero(m0)),
+            (nome_mediana, formatar_numero(mediana)),
+            ("Pseudomediana (Hodges-Lehmann)", formatar_numero(pseudomediana)),
+            (
+                f"IC {nivel} para a pseudomediana{tipo_ic}",
+                f"[{formatar_numero(ic_inf + m0)}; {formatar_numero(ic_sup + m0)}]",
+            ),
+            ("Tamanho de efeito r = z/√n", formatar_numero(r_efeito)),
+        ]
+        rotulo = f"{c1} − {c2}" if pareado else c1
+        titulo = f"Diferenças '{c1}' − '{c2}'" if pareado else f"Distribuição de '{c1}'"
+
+        return ResultadoTeste(
+            teste_id=self.id,
+            estatisticas=estatisticas,
+            p_valor=p_valor,
+            alfa=alfa,
+            decisao=decidir(p_valor, alfa),
+            interpretacao=interpretacao,
+            tabelas={"Resumo": pd.DataFrame(resumo, columns=["Medida", "Valor"])},
+            figuras=[
+                histograma(
+                    valores,
+                    titulo,
+                    rotulo,
+                    [
+                        (
+                            f"Pseudomediana ({formatar_numero(pseudomediana, 2)})",
+                            pseudomediana,
+                            "destaque",
+                        ),
+                        (f"Mediana hipotética (M₀ = {m0_txt})", m0, "tracejado"),
+                    ],
+                )
+            ],
+            avisos=avisos,
+        )

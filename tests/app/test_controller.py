@@ -98,10 +98,10 @@ def test_carregar_arquivo_atualiza_tabela_e_painel(controller, visao, csv_valido
 
 def test_arquivo_carregado_depois_da_selecao_atualiza_painel(controller, visao, csv_valido):
     controller.iniciar()
-    controller.selecionar_teste("wilcoxon")
+    controller.selecionar_teste("friedman")
     assert visao.ultima() == ("sem_arquivo",)
     controller.carregar_arquivo(str(csv_valido))
-    assert visao.ultima() == ("indisponivel", "wilcoxon")
+    assert visao.ultima() == ("indisponivel", "friedman")
     controller.selecionar_teste("teste_t_1am")
     assert visao.ultima()[:2] == ("formulario", "teste_t_1am")
 
@@ -502,3 +502,24 @@ def test_integracao_sinal_carregar_selecionar_executar(controller, visao):
     }
     assert controller.carregar_arquivo(str(BASES / "pressao_br.csv"))
     assert controller.executar().estatisticas["positivos"] == 8
+
+
+def test_integracao_wilcoxon_carregar_selecionar_executar(controller, visao):
+    # Checklist §9, item 7, para o Wilcoxon, com as bases do projeto (bases/).
+    assert controller.carregar_arquivo(str(BASES / "dieta_br.csv"))
+    controller.selecionar_teste("wilcoxon")
+    assert visao.ultima()[:2] == ("formulario", "wilcoxon")
+    visao.params = {
+        "modo": "Pareado",
+        "coluna1": "antes",
+        "coluna2": "depois",
+        "m0": 0.0,
+        "alternativa": "M ≠ M₀",
+        "alfa": 0.05,
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "wilcoxon"
+    assert resultado.estatisticas["usou_exato"] == 1.0
+    assert (resultado.estatisticas["w_mais"], resultado.estatisticas["w_menos"]) == (75, 3)
+    assert resultado.comparacao is None
+    assert visao.chamadas[-1] == ("resultado", "wilcoxon")

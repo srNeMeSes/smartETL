@@ -350,9 +350,9 @@ def test_teste_nao_implementado_nao_reusa_formulario_do_t_1am(tela_controller, c
     # Problema 3: qualquer teste mostrava o formulário do t de uma amostra.
     tela, controller = tela_controller
     controller.carregar_arquivo(str(csv_valido))
-    tela.sidebar.selecionar("wilcoxon")
+    tela.sidebar.selecionar("friedman")
     assert tela.formulario is None
-    assert "Wilcoxon ainda não está disponível" in _textos_aba(tela.painel.parametros)
+    assert "Friedman ainda não está disponível" in _textos_aba(tela.painel.parametros)
     assert not do_tipo(tela.painel.parametros, ft.TextField)
 
 
@@ -637,4 +637,20 @@ def test_sinal_formulario_sem_card(tela_controller):
     tela.sidebar.botao_executar.on_click(None)
     assert controller.estado.ultimo_resultado.teste_id == "teste_sinal"
     assert "Resumo" in _textos_aba(tela.painel.analise)
+    assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
+
+
+def test_wilcoxon_formulario_sem_card(tela_controller):
+    tela, controller = tela_controller
+    controller.carregar_arquivo(str(BASES / "atendimento_br.csv"))
+    tela.sidebar.selecionar("wilcoxon")
+    form = tela.formulario
+    assert form.card is None
+    assert form.controle("modo").value == "Uma amostra"
+    form.controle("coluna1").value = "minutos"
+    form.controle("m0").value = "10"
+    tela.sidebar.botao_executar.on_click(None)
+    resultado = controller.estado.ultimo_resultado
+    assert resultado.teste_id == "wilcoxon" and resultado.estatisticas["usou_exato"] == 0.0
+    assert "Pseudomediana (Hodges-Lehmann)" in _textos_aba(tela.painel.analise)
     assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
