@@ -7,6 +7,10 @@ import pandas as pd
 EXTENSOES_SUPORTADAS = (".xlsx", ".csv")
 
 
+class FormatoNaoSuportado(ValueError):
+    """Extensão de arquivo fora de EXTENSOES_SUPORTADAS."""
+
+
 def importar_dados(path: str | Path, extensao: str | None = None) -> pd.DataFrame:
     """Lê um arquivo .xlsx ou .csv; a extensão é deduzida do caminho se não for informada."""
     extensao = (extensao if extensao is not None else Path(path).suffix).lower()
@@ -14,4 +18,6 @@ def importar_dados(path: str | Path, extensao: str | None = None) -> pd.DataFram
         return pd.read_excel(path)
     if extensao == ".csv":
         return pd.read_csv(path)
-    raise ValueError(f"Formato de arquivo não suportado: {extensao}. Utilize apenas .xlsx ou .csv.")
+    raise FormatoNaoSuportado(
+        f"Formato de arquivo não suportado: {extensao}. Utilize apenas .xlsx ou .csv."
+    )
