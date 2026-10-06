@@ -189,7 +189,12 @@ def test_form_coletar_valores(form_t1):
     form_t1.controle("coluna").value = "qtd"
     form_t1.controle("mu0").value = "7,5"
     form_t1.controle("alfa").value = "0.10"
-    assert form_t1.coletar_valores() == {"coluna": "qtd", "mu0": 7.5, "alfa": 0.10}
+    assert form_t1.coletar_valores() == {
+        "coluna": "qtd",
+        "mu0": 7.5,
+        "alternativa": "μ ≠ μ₀",  # padrão já selecionado
+        "alfa": 0.10,
+    }
 
 
 def test_form_campos_vazios(form_t1):
@@ -357,10 +362,27 @@ def test_executar_pelo_botao_notifica(tela_controller, csv_valido, page):
     tela.formulario.controle("mu0").value = "5"
     tela.sidebar.botao_executar.on_click(None)
     page.run_thread.assert_called_once_with(controller.executar)  # fora da thread da UI
+    # Fluxo completo do t de uma amostra na interface: Análise, card e Visualização.
+    resultado = controller.estado.ultimo_resultado
+    assert resultado is not None and resultado.teste_id == "teste_t_1am"
+    analise = _textos_aba(tela.painel.analise)
+    assert resultado.decisao.replace("H0", "H₀") in analise
+    assert "Resumo" in analise and "Estatística t" in analise
+    assert tela.card_analise._textos_p_esquerda[0].value != "—"
+    assert tela.formulario.card._textos_p_direita[0].value != "—"
+    assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
+    assert tela.painel.tabs.selected_index == ABA_ANALISE
+
+
+def test_executar_com_campos_vazios_notifica_erro(tela_controller, csv_valido, page):
+    tela, controller = tela_controller
+    controller.carregar_arquivo(str(csv_valido))
+    tela.sidebar.botao_executar.on_click(None)
     snack = page.show_dialog.call_args.args[0]
     assert isinstance(snack, ft.SnackBar)
-    assert "ainda não foi implementado" in snack.content.value
+    assert "Preencha o campo 'Variável'." in snack.content.value
     assert snack.bgcolor == tema.NOTIFICACAO_ERRO
+    assert controller.estado.ultimo_resultado is None
 
 
 def test_exibir_resultado_preenche_analise_e_cards(tela_controller, csv_valido):

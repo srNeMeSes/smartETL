@@ -14,7 +14,7 @@ extend-exclude = ["*.md"]
 # Regras explícitas: o padrão do ruff não acusa `import *` (F403/F405).
 select = ["E", "W", "F", "I", "N", "UP", "B", "RUF"]
 # Símbolos gregos e matemáticos fazem parte dos textos da interface.
-allowed-confusables = ["α", "μ", "σ", "ρ", "–"]
+allowed-confusables = ["α", "μ", "σ", "ρ", "–", "−"]
 # Nomes de exceções de domínio definidos no CLAUDE.md (ErroValidacao, ErroExecucao).
 ignore = ["N818"]
 

@@ -22,7 +22,8 @@ class PerfilColuna:
     n_distintos: int
 
 
-def _numerica(serie: pd.Series) -> bool:
+def e_numerica(serie: pd.Series) -> bool:
+    """dtype numérico, exceto booleano."""
     return ptypes.is_numeric_dtype(serie) and not ptypes.is_bool_dtype(serie)
 
 
@@ -48,7 +49,7 @@ def perfilar_coluna(nome: str, serie: pd.Series) -> PerfilColuna:
     n_distintos = int(validos.nunique())
     if n_validos == 0:
         return PerfilColuna(nome, False, False, False, 0, int(serie.size), 0)
-    numerica = _numerica(serie)
+    numerica = e_numerica(serie)
     categorica = not numerica or (_discreta(validos) and n_distintos <= MAX_NIVEIS_CATEGORICA)
     return PerfilColuna(
         nome=nome,

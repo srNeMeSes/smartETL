@@ -1,6 +1,7 @@
 """Liga a interface ao core. Sem lógica estatística e sem Flet."""
 
 import logging
+import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Protocol
@@ -40,6 +41,7 @@ class Controller:
         self.estado = estado
         self.visao = visao
         self._obter_teste = obter_teste
+        self._executando = threading.Lock()  # executar() roda fora da thread da UI
 
     def iniciar(self) -> None:
         """Renderiza o estado inicial (inclusive o teste já marcado na sidebar)."""
@@ -115,6 +117,15 @@ class Controller:
             self.visao.exibir_formulario(info.criar(), self.estado.dados)
 
     def executar(self) -> ResultadoTeste | None:
+        """Executa o teste selecionado; ignora cliques enquanto uma execução está em andamento."""
+        if not self._executando.acquire(blocking=False):
+            return None
+        try:
+            return self._executar()
+        finally:
+            self._executando.release()
+
+    def _executar(self) -> ResultadoTeste | None:
         info = self._obter_teste(self.estado.teste_id)
         df = self.estado.df
         if df is None:

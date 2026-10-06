@@ -5,7 +5,7 @@ import math
 import pandas as pd
 import pytest
 
-from core.base import ErroValidacao, TesteBase, TesteNaoImplementado
+from core.base import ErroValidacao, TesteBase
 from core.testes.medias import TesteT1Amostra
 from core.tipos import detectar_tipos
 from core.validacao import colunas_por_tipo, converter_numero
@@ -23,14 +23,17 @@ def test_erro_validacao_aceita_texto_ou_lista():
     assert str(erro) == "a\nb"
 
 
-def test_t_1am_parametros_do_formulario_atual():
+def test_t_1am_parametros_do_formulario():
     specs = TesteT1Amostra().parametros()
     assert [(s.nome, s.rotulo, s.tipo) for s in specs] == [
         ("coluna", "Variável", "coluna_numerica"),
         ("mu0", "Média Hipotética", "numero"),
+        ("alternativa", "Hipótese alternativa (H₁)", "opcao"),
         ("alfa", "Nível de significância (α)", "alfa"),
     ]
-    assert specs[2].padrao == 0.05
+    assert specs[2].opcoes == ["μ ≠ μ₀", "μ > μ₀", "μ < μ₀"]
+    assert specs[2].padrao == "μ ≠ μ₀"
+    assert specs[3].padrao == 0.05
 
 
 def test_t_1am_comparacao_inicial_sem_p_valores():
@@ -38,14 +41,6 @@ def test_t_1am_comparacao_inicial_sem_p_valores():
     assert (comp.titulo_esquerda, comp.titulo_direita) == ("t Student", "Wilcoxon")
     assert comp.hipoteses == ["μ ≠ μ₀", "μ > μ₀", "μ < μ₀"]
     assert comp.linhas == [(None, None)] * 3
-
-
-def test_t_1am_calculo_ainda_nao_implementado(df_exemplo):
-    teste = TesteT1Amostra()
-    with pytest.raises(TesteNaoImplementado, match="ainda não foi implementado"):
-        teste.validar(df_exemplo, {})
-    with pytest.raises(TesteNaoImplementado):
-        teste.executar(df_exemplo, {})
 
 
 @pytest.mark.parametrize(

@@ -48,6 +48,8 @@ class PainelParametros(ft.Row):
                 *(self._criar_campo(spec) for spec in self.specs),
             ],
             spacing=15,
+            # Rola quando há mais campos do que cabem na aba (ex.: 4 campos no t de uma amostra).
+            scroll=ft.ScrollMode.AUTO,
         )
 
         comparacao = teste.comparacao_inicial()

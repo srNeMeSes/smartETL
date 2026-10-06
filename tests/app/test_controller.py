@@ -207,11 +207,25 @@ def test_executar_teste_indisponivel(controller, visao, csv_valido):
     assert visao.notificacoes[-1] == ("O McNemar ainda não está disponível nesta versão.", False)
 
 
-def test_executar_t_1am_ainda_nao_implementado(controller, visao, csv_valido):
+def test_integracao_t_1am_carregar_selecionar_executar(controller, visao, csv_valido):
+    # Checklist §9, item 7: dataset de exemplo → selecionar teste → executar → ResultadoTeste.
     controller.carregar_arquivo(str(csv_valido))
+    controller.selecionar_teste("teste_t_1am")
+    visao.params = {"coluna": "qtd", "mu0": 5.0, "alternativa": "μ > μ₀", "alfa": 0.05}
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste)
+    assert resultado.teste_id == "teste_t_1am"
+    assert resultado.estatisticas["n"] == 6
+    assert resultado.comparacao is not None and len(resultado.comparacao.linhas) == 3
+    assert visao.chamadas[-2:] == [("processando",), ("resultado", "teste_t_1am")]
+    assert controller.estado.ultimo_resultado is resultado
+
+
+def test_integracao_t_1am_validacao_do_teste(controller, visao, csv_valido):
+    controller.carregar_arquivo(str(csv_valido))
+    visao.params = {"coluna": "users", "mu0": 5.0, "alternativa": "μ ≠ μ₀", "alfa": 0.05}
     assert controller.executar() is None
-    mensagem, erro = visao.notificacoes[-1]
-    assert erro and "ainda não foi implementado" in mensagem
+    assert visao.notificacoes[-1] == ("A coluna 'users' não é numérica.", True)
     assert ("processando",) not in visao.chamadas
 
 
@@ -285,3 +299,12 @@ def test_falha_na_execucao_limpa_processando(csv_valido, monkeypatch, falha, tre
     mensagem, erro = visao.notificacoes[-1]
     assert erro and trecho in mensagem
     assert controller.estado.ultimo_resultado is None
+
+
+def test_execucao_em_andamento_ignora_novo_clique(controller, visao, csv_valido):
+    controller.carregar_arquivo(str(csv_valido))
+    visao.params = {"coluna": "qtd", "mu0": 5.0, "alternativa": "μ ≠ μ₀", "alfa": 0.05}
+    with controller._executando:  # simula uma execução ainda rodando em outra thread
+        assert controller.executar() is None
+    assert ("processando",) not in visao.chamadas
+    assert controller.executar() is not None  # liberado, executa normalmente

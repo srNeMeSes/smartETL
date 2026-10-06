@@ -8,7 +8,7 @@ from core.base import Figura
 from core.interpretacao import formatar_numero
 
 LARGURA = 640
-ALTURA = 260
+ALTURA = 220
 _MARGEM_ESQ, _MARGEM_DIR, _MARGEM_TOPO, _MARGEM_BASE = 36, 16, 26, 26
 
 
@@ -18,13 +18,15 @@ def desenhar_figura(figura: Figura, largura: float = LARGURA, altura: float = AL
         grafico, legenda = histograma(figura.dados, largura, altura)
     else:
         raise ValueError(f"Tipo de figura desconhecido: {figura.tipo}")
-    controles: list[ft.Control] = [
-        ft.Text(figura.titulo, size=14, weight=ft.FontWeight.W_600, color=tema.TEXTO),
-        grafico,
-    ]
-    if legenda is not None:
-        controles.append(legenda)
-    return ft.Column(controles, spacing=8)
+    titulo = ft.Text(figura.titulo, size=14, weight=ft.FontWeight.W_600, color=tema.TEXTO)
+    # Legenda na mesma linha do título: o gráfico inteiro cabe na aba sem rolar.
+    cabecalho = ft.Row(
+        [titulo, legenda] if legenda is not None else [titulo],
+        spacing=32,
+        width=largura,
+        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+    )
+    return ft.Column([cabecalho, grafico], spacing=8)
 
 
 def _texto(x: float, y: float, valor: str, alinhamento: ft.Alignment) -> cv.Text:
@@ -81,10 +83,13 @@ def histograma(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, f
     formas.append(cv.Line(_MARGEM_ESQ, _MARGEM_TOPO, _MARGEM_ESQ, base, paint=eixo))
     formas.append(_texto(_MARGEM_ESQ - 6, base, "0", ft.Alignment.CENTER_RIGHT))
     formas.append(_texto(_MARGEM_ESQ - 6, _MARGEM_TOPO, str(maximo), ft.Alignment.CENTER_RIGHT))
-    for valor in (x0, (x0 + x1) / 2, x1):
-        formas.append(
-            _texto(sx(valor), base + 6, formatar_numero(valor, 2), ft.Alignment.TOP_CENTER)
-        )
+    # Rótulos das pontas alinhados para dentro, para não serem cortados pela borda do canvas.
+    for valor, alinhamento in (
+        (x0, ft.Alignment.TOP_LEFT),
+        ((x0 + x1) / 2, ft.Alignment.TOP_CENTER),
+        (x1, ft.Alignment.TOP_RIGHT),
+    ):
+        formas.append(_texto(sx(valor), base + 6, formatar_numero(valor, 2), alinhamento))
 
     for ref in referencias:
         x = sx(ref["valor"])
