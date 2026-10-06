@@ -33,6 +33,8 @@ diagnósticos de pressupostos.
   de Hodges-Lehmann com IC (como o `wilcox.test` do R), tamanho de efeito r e histograma.
 - **Mann-Whitney U** completo: dois grupos, p exato ou aproximado (informado), deslocamento de
   Hodges-Lehmann com IC, probabilidade de superioridade, r e boxplot.
+- **Kruskal-Wallis** completo: 2 ou mais grupos, H corrigido para empates, ε², tabela por grupo,
+  pós-teste de Dunn opcional (p ajustado por Holm) e boxplot.
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
