@@ -21,6 +21,8 @@ diagnósticos de pressupostos.
   comparação com o binomial exato e gráfico de barras das proporções.
 - **Teste Z (duas proporções)** completo: IC da diferença, h de Cohen, razão de chances (odds ratio),
   tabela 2×2, comparação com o Fisher exato e barras por grupo.
+- **Qui-quadrado** completo: independência (tabela de contingência, V de Cramér, frequências
+  observadas e esperadas, barras agrupadas) ou aderência com proporções iguais (w de Cohen).
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
