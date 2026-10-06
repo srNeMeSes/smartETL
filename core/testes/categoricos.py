@@ -331,3 +331,209 @@ class QuiQuadrado(TesteBase):
             0, f"{tabela.index.name} \\ {tabela.columns.name}", [str(i) for i in tabela.index]
         )
         return saida
+
+
+# ---------------------------------------------------------------------------
+# Teste exato de Fisher
+# ---------------------------------------------------------------------------
+ALTERNATIVAS_OR = {"OR ≠ 1": "two-sided", "OR > 1": "greater", "OR < 1": "less"}
+ALTERNATIVA_PADRAO_OR = "OR ≠ 1"
+_SIMBOLO_OR = {"two-sided": "≠", "greater": ">", "less": "<"}
+
+
+class TesteFisher(TesteBase):
+    """Teste exato de Fisher para uma tabela 2×2 (H₀: odds ratio = 1, independência).
+
+    Entrada: duas colunas categóricas com exatamente 2 valores cada e o valor que é o "evento"
+    em cada uma. A tabela é [[a, b], [c, d]] com linhas = (evento₁, outro₁) e colunas =
+    (evento₂, outro₂); linhas com valor ausente em alguma das colunas são descartadas (aviso).
+    p-valor exato: `scipy.stats.fisher_exact` (bilateral pelo método das probabilidades ≤ à
+    da tabela observada, como no R). "OR > 1": o evento₁ aumenta a chance do evento₂.
+    Odds ratio amostral = ad/bc; odds ratio condicional (EMV da hipergeométrica não central) com
+    IC exato condicional, `scipy.stats.contingency.odds_ratio(kind="conditional")` — os mesmos
+    valores do `fisher.test` do R; o IC é unilateral quando H₁ é unilateral. Com célula zero,
+    a odds ratio vai a 0 ou +∞ (com aviso). Sem card de comparação. Decisão: p ≤ α.
+    """
+
+    id = "fisher"
+    nome = "Teste exato de Fisher"
+    grupo = "Categóricos"
+
+    def parametros(self) -> list[ParametroSpec]:
+        return [
+            ParametroSpec("coluna1", "Variável 1 (linhas)", "coluna_binaria"),
+            ParametroSpec("evento1", "Evento da variável 1", "nivel", depende_de="coluna1"),
+            ParametroSpec("coluna2", "Variável 2 (colunas)", "coluna_binaria"),
+            ParametroSpec("evento2", "Evento da variável 2", "nivel", depende_de="coluna2"),
+            ParametroSpec(
+                "alternativa",
+                "Hipótese alternativa (H₁)",
+                "opcao",
+                padrao=ALTERNATIVA_PADRAO_OR,
+                opcoes=list(ALTERNATIVAS_OR),
+            ),
+            ParametroSpec("alfa", "Nível de significância (α)", "alfa", padrao=0.05),
+        ]
+
+    @staticmethod
+    def tabela_2x2(
+        df: pd.DataFrame, coluna1: str, evento1: str, coluna2: str, evento2: str
+    ) -> tuple[list[list[int]], tuple[str, str], tuple[str, str], int]:
+        """([[a, b], [c, d]], (evento₁, outro₁), (evento₂, outro₂), linhas descartadas)."""
+        validas = df[[coluna1, coluna2]].dropna()
+        x = validas[coluna1].map(rotulo_nivel)
+        y = validas[coluna2].map(rotulo_nivel)
+        outro1 = next(n for n in niveis_coluna(validas[coluna1]) if n != evento1)
+        outro2 = next(n for n in niveis_coluna(validas[coluna2]) if n != evento2)
+        tabela = [
+            [int(((x == linha) & (y == coluna)).sum()) for coluna in (evento2, outro2)]
+            for linha in (evento1, outro1)
+        ]
+        return tabela, (evento1, outro1), (evento2, outro2), len(df) - len(validas)
+
+    # ---------------- Validação ----------------
+    def validar(self, df: pd.DataFrame, params: dict) -> list[str]:
+        erros: list[str] = []
+        colunas = []
+        for i in (1, 2):
+            coluna, evento = params.get(f"coluna{i}"), params.get(f"evento{i}")
+            erros_i = erros_coluna(df, coluna, f"a variável {i}", numerica=False)
+            colunas.append(coluna)
+            if erros_i:
+                erros += erros_i
+                continue
+            niveis = niveis_coluna(df[coluna])
+            if len(niveis) != 2:
+                erros.append(
+                    f"A coluna '{coluna}' deve ter exatamente 2 valores distintos "
+                    f"(tem {len(niveis)})."
+                )
+            elif not evento:
+                erros.append(f"Escolha o evento da variável {i}.")
+            elif str(evento) not in niveis:
+                erros.append(f"O valor '{evento}' não aparece na coluna '{coluna}'.")
+        if not erros and colunas[0] == colunas[1]:
+            erros.append("As duas variáveis devem ser colunas diferentes.")
+        if not erros:
+            validas = df[colunas].dropna()
+            for coluna in colunas:
+                k = validas[coluna].nunique()
+                if k != 2:
+                    erros.append(
+                        f"Nas linhas completas, a coluna '{coluna}' deve ter os 2 valores "
+                        f"(tem {k})."
+                    )
+        erros += erro_opcao(
+            params.get("alternativa", ALTERNATIVA_PADRAO_OR),
+            ALTERNATIVAS_OR,
+            "Escolha uma hipótese alternativa válida.",
+        )
+        erros += erro_alfa(params.get("alfa", 0.05))
+        return erros
+
+    # ---------------- Execução ----------------
+    def executar(self, df: pd.DataFrame, params: dict) -> ResultadoTeste:
+        erros = self.validar(df, params)
+        if erros:
+            raise ErroValidacao(erros)
+
+        c1, c2 = params["coluna1"], params["coluna2"]
+        e1, e2 = str(params["evento1"]), str(params["evento2"])
+        alfa = float(params.get("alfa", 0.05))
+        alternativa = ALTERNATIVAS_OR[params.get("alternativa", ALTERNATIVA_PADRAO_OR)]
+
+        tabela, niveis1, niveis2, descartadas = self.tabela_2x2(df, c1, e1, c2, e2)
+        (a, b), (c, d) = tabela
+        n = a + b + c + d
+
+        p_valor = float(stats.fisher_exact(tabela, alternative=alternativa).pvalue)
+        condicional = stats.contingency.odds_ratio(tabela, kind="conditional")
+        or_cond = float(condicional.statistic)
+        ic = condicional.confidence_interval(confidence_level=1 - alfa, alternative=alternativa)
+        celula_zero = 0 in (a, b, c, d)
+        or_amostral = (a * d) / (b * c) if b * c else (math.inf if a * d else math.nan)
+
+        estatisticas = {
+            "n": float(n),
+            "n_descartadas": float(descartadas),
+            "a": float(a),
+            "b": float(b),
+            "c": float(c),
+            "d": float(d),
+            "p_valor": p_valor,
+            "odds_ratio_amostral": float(or_amostral),
+            "odds_ratio_condicional": or_cond,
+            "ic_inferior": float(ic.low),
+            "ic_superior": float(ic.high),
+        }
+
+        simbolo = _SIMBOLO_OR[alternativa]
+        evento_1, evento_2 = f"'{c1}' = '{e1}'", f"'{c2}' = '{e2}'"
+        if alternativa == "two-sided":
+            rejeita = f"Há evidência estatística de associação entre {evento_1} e {evento_2}."
+            nao = f"Não há evidência suficiente de associação entre {evento_1} e {evento_2}."
+        else:
+            efeito = "aumenta" if alternativa == "greater" else "diminui"
+            rejeita = f"Há evidência estatística de que {evento_1} {efeito} a chance de {evento_2}."
+            nao = f"Não há evidência suficiente de que {evento_1} {efeito} a chance de {evento_2}."
+        interpretacao = interpretar(
+            p_valor,
+            alfa,
+            h0="OR = 1, as variáveis são independentes",
+            h1=f"OR {simbolo} 1",
+            conclusao_rejeita=rejeita,
+            conclusao_nao_rejeita=nao,
+        )
+
+        avisos = []
+        if descartadas:
+            avisos.append(
+                f"{descartadas} linha(s) com valor ausente em '{c1}' ou '{c2}' foram descartadas."
+            )
+        if celula_zero:
+            avisos.append(
+                "A tabela tem uma célula com zero: a odds ratio vai a 0 ou +∞ e o IC fica aberto "
+                "de um lado. O p-valor exato continua válido."
+            )
+
+        confianca = f"{(1 - alfa) * 100:.0f}%"
+        tipo_ic = "" if alternativa == "two-sided" else " (unilateral)"
+        resumo = [
+            ("Observações (n)", f"{n}"),
+            (f"Evento da variável 1 ('{c1}')", f"'{e1}'"),
+            (f"Evento da variável 2 ('{c2}')", f"'{e2}'"),
+            ("p-valor exato", formatar_p_valor(p_valor)),
+            ("Odds ratio amostral (ad/bc)", formatar_numero(or_amostral)),
+            ("Odds ratio condicional (EMV)", formatar_numero(or_cond)),
+            (
+                f"IC {confianca} exato para a odds ratio{tipo_ic}",
+                f"[{formatar_numero(float(ic.low))}; {formatar_numero(float(ic.high))}]",
+            ),
+        ]
+        tabela_df = pd.DataFrame(tabela, index=list(niveis1), columns=list(niveis2))
+        tabela_df.index.name, tabela_df.columns.name = c1, c2
+        proporcoes = [[v / sum(linha) if sum(linha) else 0.0 for v in linha] for linha in tabela]
+
+        return ResultadoTeste(
+            teste_id=self.id,
+            estatisticas=estatisticas,
+            p_valor=p_valor,
+            alfa=alfa,
+            decisao=decidir(p_valor, alfa),
+            interpretacao=interpretacao,
+            tabelas={
+                "Resumo": pd.DataFrame(resumo, columns=["Medida", "Valor"]),
+                "Tabela 2×2": QuiQuadrado._tabela_com_totais(tabela_df),
+            },
+            figuras=[
+                barras_agrupadas(
+                    [(nivel, linha) for nivel, linha in zip(niveis1, proporcoes, strict=True)],
+                    list(niveis2),
+                    f"'{c2}' por '{c1}' (% dentro de cada '{c1}')",
+                    "Proporção",
+                    maximo=1.0,
+                    percentual=True,
+                )
+            ],
+            avisos=avisos,
+        )

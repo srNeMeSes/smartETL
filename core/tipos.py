@@ -75,8 +75,25 @@ def detectar_tipos(df: pd.DataFrame) -> dict[str, PerfilColuna]:
 # ---------------------------------------------------------------------------
 # Níveis (valores distintos) de colunas categóricas/binárias
 # ---------------------------------------------------------------------------
-# Valores que costumam indicar "sucesso" (comparação sem maiúsculas/acentos de caixa).
-_SUCESSO_PROVAVEL = ("1", "sim", "s", "yes", "y", "true", "verdadeiro", "aprovado", "sucesso")
+# Valores que costumam indicar "sucesso"/"evento" (comparação sem diferenciar maiúsculas).
+_SUCESSO_PROVAVEL = (
+    "1",
+    "sim",
+    "s",
+    "yes",
+    "y",
+    "true",
+    "verdadeiro",
+    "aprovado",
+    "sucesso",
+    "positivo",
+    "presente",
+    "caso",
+    "doente",
+    "evento",
+)
+# Prefixos de negação: entre "Fumante" e "Não fumante", o evento sugerido é "Fumante".
+_NEGACAO = ("não ", "nao ", "sem ", "não-", "nao-")
 
 
 def rotulo_nivel(valor: object) -> str:
@@ -100,8 +117,12 @@ def niveis_coluna(serie: pd.Series) -> list[str]:
 
 
 def nivel_sucesso_padrao(niveis: list[str]) -> str | None:
-    """Sugestão de "sucesso": um valor típico ("1", "Sim", "Aprovado"...) ou o último nível."""
+    """Sugestão de "sucesso"/"evento", em ordem: um valor típico ("1", "Sim", "Aprovado",
+    "Doente"...); o valor sem negação quando o outro começa com "Não"/"Sem"; o último nível."""
     for nivel in niveis:
         if nivel.strip().lower() in _SUCESSO_PROVAVEL:
             return nivel
+    afirmativos = [n for n in niveis if not n.strip().lower().startswith(_NEGACAO)]
+    if 0 < len(afirmativos) < len(niveis):
+        return afirmativos[-1]
     return niveis[-1] if niveis else None

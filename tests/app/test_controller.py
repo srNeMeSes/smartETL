@@ -426,3 +426,27 @@ def test_integracao_qui_quadrado_carregar_selecionar_executar(controller, visao,
     resultado = controller.executar()
     assert resultado.estatisticas["k"] == 3
     assert visao.chamadas[-1] == ("resultado", "qui_quadrado")
+
+
+def test_integracao_fisher_carregar_selecionar_executar(controller, visao, tmp_path):
+    # Checklist §9, item 7, para o Teste exato de Fisher.
+    arquivo = tmp_path / "estudo.csv"
+    linhas = ["fuma;doente"] + ["Sim;Sim"] * 12 + ["Sim;Não"] * 5 + ["Não;Sim"] * 4
+    linhas += ["Não;Não"] * 11
+    arquivo.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    controller.carregar_arquivo(str(arquivo))
+    controller.selecionar_teste("fisher")
+    assert visao.ultima()[:2] == ("formulario", "fisher")
+    visao.params = {
+        "coluna1": "fuma",
+        "evento1": "Sim",
+        "coluna2": "doente",
+        "evento2": "Sim",
+        "alternativa": "OR > 1",
+        "alfa": 0.05,
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "fisher"
+    assert resultado.estatisticas["odds_ratio_amostral"] == pytest.approx(6.6)
+    assert resultado.comparacao is None
+    assert visao.chamadas[-1] == ("resultado", "fisher")

@@ -75,6 +75,10 @@ def test_niveis_coluna_ordenados_e_sem_nulos():
         (["0", "1"], "1"),
         (["Aprovado", "Reprovado"], "Aprovado"),
         (["N", "S"], "S"),
+        (["Fumante", "Não fumante"], "Fumante"),  # negação: o afirmativo
+        (["Com seguro", "Sem seguro"], "Com seguro"),
+        (["Doente", "Saudável"], "Doente"),
+        (["Negativo", "Positivo"], "Positivo"),
         (["azul", "verde"], "verde"),  # nenhum típico: o último
         ([], None),
     ],

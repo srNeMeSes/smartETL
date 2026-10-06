@@ -98,4 +98,5 @@ def test_testes_implementados():
         "teste_z_1prop",
         "teste_z_2prop",
         "qui_quadrado",
+        "fisher",
     ]

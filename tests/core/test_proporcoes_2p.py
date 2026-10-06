@@ -15,6 +15,7 @@ from statistics import NormalDist
 import numpy as np
 import pandas as pd
 import pytest
+from referencias import fisher_exato
 
 from core.base import ErroValidacao
 from core.interpretacao import NAO_REJEITA_H0, REJEITA_H0
@@ -73,17 +74,8 @@ def _p_normal(z, alternativa):
 
 
 def _fisher_manual(a, b, c, d, alternativa):
-    n1, n2, m = a + b, c + d, a + c
-    total = math.comb(n1 + n2, m)
-    pmf = {
-        x: math.comb(n1, x) * math.comb(n2, m - x) / total
-        for x in range(max(0, m - n2), min(n1, m) + 1)
-    }
-    if alternativa == "greater":
-        return sum(p for x, p in pmf.items() if x >= a)
-    if alternativa == "less":
-        return sum(p for x, p in pmf.items() if x <= a)
-    return min(1.0, sum(p for p in pmf.values() if p <= pmf[a] * (1 + 1e-7)))
+    bilateral, maior, menor = fisher_exato(a, b, c, d)
+    return {"two-sided": bilateral, "greater": maior, "less": menor}[alternativa]
 
 
 # ---------------------------------------------------------------------------
