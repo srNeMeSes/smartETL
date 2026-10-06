@@ -100,4 +100,5 @@ def test_testes_implementados():
         "qui_quadrado",
         "fisher",
         "mcnemar",
+        "teste_sinal",
     ]

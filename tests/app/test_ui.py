@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from ajudantes_ui import do_tipo, iterar_controles, textos
+from conftest import BASES
 
 import main as app_main
 from app.controller import Controller
@@ -619,4 +620,21 @@ def test_mcnemar_card_exato_e_qui_quadrado(tela_controller, tmp_path):
     assert tela.card_analise._textos_p_esquerda[0].value != "—"
     assert tela.card_analise._textos_p_direita[0].value != "—"
     assert "Tabela de pares" in _textos_aba(tela.painel.analise)
+    assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
+
+
+def test_sinal_formulario_sem_card(tela_controller):
+    tela, controller = tela_controller
+    controller.carregar_arquivo(str(BASES / "atendimento_br.csv"))
+    tela.sidebar.selecionar("teste_sinal")
+    form = tela.formulario
+    assert form.card is None
+    assert form.controle("modo").value == "Uma amostra"
+    assert form.controle("m0").value == "0"
+    assert [o.key for o in form.controle("coluna1").options] == ["minutos"]
+    form.controle("coluna1").value = "minutos"
+    form.controle("m0").value = "10"
+    tela.sidebar.botao_executar.on_click(None)
+    assert controller.estado.ultimo_resultado.teste_id == "teste_sinal"
+    assert "Resumo" in _textos_aba(tela.painel.analise)
     assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1

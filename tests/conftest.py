@@ -6,6 +6,9 @@ import openpyxl
 import pandas as pd
 import pytest
 
+# Pasta das bases de teste manual do projeto (também usadas em testes de integração).
+BASES = Path(__file__).resolve().parent.parent / "bases"
+
 
 @pytest.fixture
 def df_exemplo() -> pd.DataFrame:

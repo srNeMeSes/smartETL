@@ -5,6 +5,7 @@ from typing import ClassVar
 
 import pandas as pd
 import pytest
+from conftest import BASES
 
 from app.controller import Controller
 from app.state import AppState
@@ -473,3 +474,31 @@ def test_integracao_mcnemar_carregar_selecionar_executar(controller, visao, tmp_
     assert (resultado.estatisticas["b"], resultado.estatisticas["c"]) == (12, 3)
     assert resultado.comparacao.titulo_esquerda == "Exato (binomial)"
     assert visao.chamadas[-1] == ("resultado", "mcnemar")
+
+
+def test_integracao_sinal_carregar_selecionar_executar(controller, visao):
+    # Checklist §9, item 7, para o Teste do sinal, com a base do projeto (bases/).
+    assert controller.carregar_arquivo(str(BASES / "atendimento_br.csv"))
+    controller.selecionar_teste("teste_sinal")
+    assert visao.ultima()[:2] == ("formulario", "teste_sinal")
+    visao.params = {
+        "modo": "Uma amostra",
+        "coluna1": "minutos",
+        "coluna2": None,
+        "m0": 10.0,
+        "alternativa": "M > M₀",
+        "alfa": 0.05,
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "teste_sinal"
+    assert (resultado.estatisticas["positivos"], resultado.estatisticas["negativos"]) == (13, 4)
+    assert resultado.comparacao is None
+    visao.params = visao.params | {
+        "modo": "Pareado",
+        "coluna1": "antes",
+        "coluna2": "depois",
+        "m0": 0.0,
+        "alternativa": "M ≠ M₀",
+    }
+    assert controller.carregar_arquivo(str(BASES / "pressao_br.csv"))
+    assert controller.executar().estatisticas["positivos"] == 8
