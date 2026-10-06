@@ -8,7 +8,7 @@ Aplicativo desktop de **processamento e análise de dados** com foco em **testes
 - **Interface:** Flet **`0.86.2`** (versão fixada em `requirements.txt`)
 - **Estatística:** `scipy.stats`, `statsmodels`, `pandas`, `numpy`
 - **Idioma da interface e das interpretações:** português do Brasil
-- **Estado atual:** interface montada e funcional até o carregamento de arquivo; **só existe o formulário de parâmetros do `teste_t_1am`, e nenhum cálculo estatístico está implementado**.
+- **Estado atual:** Fases 0 e 1 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`); **só o `teste_t_1am` tem formulário (via `ParametroSpec`) e nenhum cálculo estatístico está implementado** — o próximo passo é a Fase 2.
 
 ## 2. Missão do Claude neste projeto
 
@@ -29,71 +29,69 @@ Aplicativo desktop de **processamento e análise de dados** com foco em **testes
 
 ## 3. Estado atual do código
 
-### Arquivos (estrutura plana na raiz)
-
-| Arquivo | O que faz hoje |
-|---------|----------------|
-| `smartetl_app.py` | Entrada (`ft.run(main)`), paleta de cores, helpers de layout, sidebar, cabeçalho, `DataTable` de prévia, abas e callbacks (`selecionar_arquivo`, `carregar_base`, `mostrar_testes`). Tudo dentro de `main(page)`. |
-| `utils.py` | Lista `testes_hipotese` + `criar_sidebar_testes` (lista de testes com ícone de rádio, seleção visual). |
-| `conteiner_parametros.py` | `teste_selecionado(nome, colunas)` (despacho por `globals()`) e `teste_t_1am(colunas)` (formulário + card). Retorna as 3 abas: `(parametro, analise, visual)`. |
-| `ConteinerTestes.py` | `CardComparacaoTestes` (`ft.Container`): card que compara p-valores de dois testes (padrão: "t Student" × "Wilcoxon") para as hipóteses alternativas ≠, >, <. Tem `atualizar_p_values` e `atualizar_p_value_linha`. |
-| `load_table.py` | `importar_dados(path, extensao)` com `read_excel`/`read_csv`. |
-| `requirements.txt` | Apenas `flet==0.86.2`. |
-| `README.md` | **Desatualizado** (descreve o protótipo antigo com "Gerar relatório", Histórico, Logs, gráfico de barras). |
+A estrutura plana original (`smartetl_app.py`, `utils.py`, `conteiner_parametros.py`, `ConteinerTestes.py`, `load_table.py`) foi substituída na Fase 1 pela arquitetura da seção 4 e removida. O histórico está no git.
 
 ### Comportamento atual (preservar)
 
-- Janela 1440×900 (mín. 1150×720), centralizada; fundo `BG`, sem padding na página.
-- Sidebar de 260 px: logo "smartETL", subtítulo, botão **Arquivo** (fundo laranja suave), lista rolável de testes (primeiro marcado por padrão), botão **Executar teste** (laranja, ícone de balança).
+- Janela 1440×900 (mín. 1150×720), **centralizada** (`page.run_task(page.window.center)` — `Window.center` é assíncrono no Flet 0.86.2); fundo `tema.FUNDO`, sem padding na página.
+- Sidebar de 260 px: logo "smartETL", subtítulo, botão **Arquivo** (fundo laranja suave), lista rolável de testes **agrupada por categoria** (cabeçalhos em maiúsculas, primeiro teste marcado por padrão), botão **Executar teste** (laranja, ícone de balança).
 - Área principal: título "Processamento de dados", subtítulo "Testes de Hipótese | paramétricos e não paramétricos", tabela de prévia (altura 320, rolagem horizontal e vertical) e painel de 3 abas (**Parâmetros**, **Análise**, **Visualização**).
-- Tabela vazia: 20 colunas `column1..20` e 12 linhas em branco. Com arquivo: no máximo **100 linhas**, completando até 20 colunas com `columnN` vazias.
-- Seleção de arquivo: `FilePicker`, extensões `xlsx` e `csv`, um arquivo.
-- Formulário do `teste_t_1am`: dropdown "Variável", campo "Média Hipotética", dropdown "Nível de significância (α)" (0.01 / 0.05 / 0.10, padrão 0.05), e o card de comparação ao lado.
+- Tabela vazia: 20 colunas `column1..20` (cinza claro) e 12 linhas em branco. Com arquivo: **só as colunas reais**, no máximo **100 linhas**, NaN exibido vazio.
+- Seleção de arquivo: `FilePicker` em `page.services`, extensões `xlsx` e `csv`, um arquivo. Erros de leitura viram `SnackBar` vermelho em português.
+- Estados vazios: sem arquivo → "Carregue um arquivo para começar."; teste sem implementação → "O <teste> ainda não está disponível nesta versão."; sem execução → "Configure os parâmetros e clique em Executar teste." "Processando..." só durante a execução.
+- Formulário do `teste_t_1am` (gerado pelos `ParametroSpec`): dropdown "Variável" (só colunas numéricas), campo "Média Hipotética" (aceita vírgula decimal), dropdown "Nível de significância (α)" (0.01 / 0.05 / 0.10, padrão 0.05), e o card de comparação ao lado, com p-valores "—" e hipóteses "μ ≠ μ₀", "μ > μ₀", "μ < μ₀". A aba Análise tem uma **segunda instância** do card.
 
-### Problemas conhecidos (corrigir nas Fases 0 e 1)
+### Problemas da linha de base (Fase 0) e situação
 
-1. **Abas ficam em "Processando..." (é o que aparece no print).** `mostrar_testes` retorna sem fazer nada quando não há arquivo carregado, e o primeiro teste aparece marcado sem disparar `on_selecionar`. Além disso, carregar o arquivo *depois* de escolher o teste não atualiza o painel.
-2. **Botão "Executar teste" sem `on_click`.**
-3. **Despacho frágil:** `teste_selecionado` usa `globals().get(nome)` e, se a função não existe, **cai no formulário do `teste_t_1am`**. Ou seja, hoje qualquer teste mostra o formulário do t de uma amostra. Há `print` de debug.
-4. **Mesma instância de `CardComparacaoTestes` colocada em dois lugares** (dentro de `parametro` e de `analise`). Um controle Flet deve ter um único pai; use instâncias separadas ou mantenha o card só na aba Análise.
-5. **Acesso por índice à árvore de controles** em `mostrar_testes` (`tabs.content.controls[1].controls[0].content = ...`). Qualquer mudança no layout quebra silenciosamente.
-6. **Formulário sem referência aos campos:** não há como ler os valores digitados/selecionados. O dropdown lista todas as colunas (inclusive não numéricas). "Média Hipotética" não tem validação. Os estilos de `Dropdown`/`TextField` estão repetidos linha a linha.
-7. **Três laranjas diferentes:** `#FF6A1A` (app), `#FF8A3D` (`utils.py`) e `#F97316` (card). `COR_BORDA` também está duplicada com valores distintos.
-8. **Imports e código morto:** `from utils import *` e `from load_table import *`; `import pandas as pd` não usado em `smartetl_app.py`; em `load_table.py` há `import flet as flet` sem uso e `pandas` importado duas vezes; constantes e helpers sem uso (`ALIGN_*`, `GREEN`, `section_title`, `card_container`, `radius`, `page.fonts = {}`).
-9. **Leitura de dados sem robustez:** `read_csv` sem separador/encoding/decimal (CSV brasileiro costuma ter `;`, vírgula decimal e `latin-1`); `selecionar_arquivo` sem `try/except` (erro some no callback, sem mensagem ao usuário); `print` de debug.
-10. **Dados reais misturados com placeholders** em `carregar_base` (colunas `columnN` e células `"   "` para completar 20 colunas). Separar "estado vazio" de "dados".
-11. **Dependências incompletas:** `requirements.txt` não lista `pandas`, `openpyxl` (necessário para `read_excel`), `numpy`, `scipy`, `statsmodels`. O README diz Python 3.9, mas o código exige 3.10+.
-12. **Nomes:** `ConteinerTestes.py` (CamelCase e "Conteiner") e `conteiner_parametros.py`. Padronizar para `snake_case` e `container`.
+| # | Problema | Situação |
+|---|----------|----------|
+| 1 | Abas presas em "Processando..."; teste inicial e arquivo carregado depois não atualizavam o painel | Resolvido (controller + estados vazios) |
+| 2 | "Executar teste" sem `on_click` | Resolvido (ligado a `controller.executar`) |
+| 3 | Despacho por `globals()` caía no formulário do `teste_t_1am` | Resolvido (`registry` + `TesteInfo.disponivel`) |
+| 4 | Mesma instância do card em duas abas | Resolvido (duas instâncias) |
+| 5 | Acesso por índice à árvore de controles | Resolvido (`PainelAbas.definir_*`) |
+| 6 | Formulário sem referência aos campos, sem filtro de tipo e sem validação; estilos repetidos | Resolvido (`painel_parametros.py`, `campos.py`, `core/validacao.py`) |
+| 7 | Cores duplicadas: 3 laranjas, **3 bordas**, 3 laranjas suaves e 4 cinzas de texto | Resolvido (`tema.py`; teste impede hex fora dele) |
+| 8 | `import *`, imports e código morto | Resolvido (ruff com F403/F405, I, N, UP, B, RUF) |
+| 9 | Leitura sem robustez; callback sem `try/except` | **Parcial:** erros tratados no controller; CSV brasileiro (`;`, vírgula, latin-1) fica para a **Fase 2** (teste `xfail` em `tests/core/test_io.py`) |
+| 10 | Placeholders misturados aos dados; coluna real "column…" pintada como fantasma | Resolvido (`TabelaDados.mostrar_vazio` / `mostrar`) |
+| 11 | Dependências incompletas; README com Python 3.9 | Resolvido (`requirements.txt` fixado, README reescrito) |
+| 12 | Nomes `ConteinerTestes.py` / `conteiner_parametros.py` | Resolvido (`card_comparacao.py`, `painel_parametros.py`) |
+
+Achados extras da Fase 0, também resolvidos: `CardComparacaoTestes.atualizar_*` quebrava fora da página (`Control.page` lança `RuntimeError` no Flet 0.86.2 — use `helpers.esta_na_pagina`); `ft.ElevatedButton` obsoleto (usar `ft.Button`); p-valores falsos "0.001" no card; hipótese fixa "μ¹ ≠ μ²"; janela não centralizada; `pd.errors.EmptyDataError` é `ValueError` (tratar antes de exibir mensagens de `ValueError`).
 
 ## 4. Arquitetura alvo
 
 ```
 smartetl/
-├── main.py                       # ponto de entrada: ft.run(main)
+├── main.py                       # ponto de entrada: configura a página, ft.run(main)
 ├── CLAUDE.md
-├── README.md                     # reescrito (ver seção 12)
-├── requirements.txt / pyproject.toml
+├── README.md
+├── requirements.txt              # versões fixadas
+├── pyproject.toml                # config do ruff (regras explícitas) e do pytest (pythonpath)
+├── .gitignore
 ├── app/
 │   ├── ui/
 │   │   ├── tema.py               # UMA paleta (cores, raios, tipografia)
-│   │   ├── helpers.py            # pad(), border_all(), border_only()...
-│   │   ├── sidebar.py            # logo, Arquivo, lista de testes, Executar
+│   │   ├── helpers.py            # pad(), border_all(), border_only(), esta_na_pagina()
+│   │   ├── sidebar.py            # logo, Arquivo, lista de testes agrupada, Executar
 │   │   ├── tabela_dados.py       # prévia do dataset (estado vazio vs. dados)
 │   │   ├── painel_abas.py        # Parâmetros / Análise / Visualização (API, sem índices)
 │   │   ├── painel_parametros.py  # formulário gerado a partir de ParametroSpec
+│   │   ├── tela_principal.py     # monta a tela e implementa a Visao do controller
 │   │   └── componentes/
-│   │       ├── campos.py         # dropdown/campo com o estilo único atual
-│   │       └── card_comparacao.py# (era ConteinerTestes.py)
-│   ├── controller.py             # liga UI ↔ core (sem lógica estatística)
+│   │       ├── campos.py         # dropdown/campo/checkbox com o estilo único
+│   │       └── card_comparacao.py
+│   ├── controller.py             # liga UI ↔ core via Protocol Visao (sem Flet, sem estatística)
 │   └── state.py                  # df, teste selecionado, parâmetros, último resultado
 ├── core/
-│   ├── base.py                   # TesteBase, ParametroSpec, ResultadoTeste
-│   ├── registry.py               # id → classe; gera a lista da sidebar
-│   ├── io.py                     # (era load_table.py) leitura CSV/XLSX robusta
-│   ├── validacao.py
-│   ├── interpretacao.py          # textos em pt-BR a partir de p-valor e α
+│   ├── base.py                   # contratos (ver abaixo) e exceções de domínio
+│   ├── registry.py               # TesteInfo(id, nome, grupo, classe) dos 21 testes
+│   ├── io.py                     # leitura CSV/XLSX (robustez na Fase 2)
+│   ├── validacao.py              # converter_numero, colunas_por_tipo...
+│   ├── interpretacao.py          # (Fase 3) textos em pt-BR a partir de p-valor e α
 │   └── testes/
-│       ├── medias.py
+│       ├── medias.py             # TesteT1Amostra (só formulário, por enquanto)
 │       ├── proporcoes.py
 │       ├── categoricos.py
 │       ├── nao_parametricos.py
@@ -101,16 +99,19 @@ smartetl/
 │       └── regressao.py
 └── tests/
     ├── conftest.py               # datasets pequenos, determinísticos
+    ├── ajudantes_ui.py           # percorrer a árvore de controles Flet nos testes
     ├── core/
     └── app/
 ```
 
-### Mapa de migração (arquivo atual → destino)
+Os testes rodam sem janela: a `Page` é um `MagicMock` e o controller é testado com uma `Visao` falsa. Nomes de arquivos de teste devem ser únicos entre `tests/core` e `tests/app` (não há `__init__.py`). O pytest só coleta `test_*` e `Test_*` (classes de domínio começam com `Teste`).
+
+### Mapa de migração (concluído na Fase 1)
 
 | Atual | Destino |
 |-------|---------|
 | `smartetl_app.py` (paleta, helpers) | `app/ui/tema.py`, `app/ui/helpers.py` |
-| `smartetl_app.py` (sidebar, cabeçalho, tabela, abas) | `app/ui/sidebar.py`, `tabela_dados.py`, `painel_abas.py`; montagem em `main.py` |
+| `smartetl_app.py` (sidebar, cabeçalho, tabela, abas) | `app/ui/sidebar.py`, `tabela_dados.py`, `painel_abas.py`; montagem em `app/ui/tela_principal.py` e `main.py` |
 | `smartetl_app.py` (`selecionar_arquivo`, `carregar_base`, `mostrar_testes`) | `app/controller.py` + `app/state.py` |
 | `utils.py` → `testes_hipotese` | gerada por `core/registry.py` (fonte única) |
 | `utils.py` → `criar_sidebar_testes` | `app/ui/sidebar.py` (com cabeçalhos por grupo) |
@@ -135,16 +136,23 @@ smartetl/
 
 ### Contrato de um teste
 
+Implementado em `core/base.py` (é a fonte da verdade; abaixo, o resumo).
+
 ```python
-@dataclass
+@dataclass(frozen=True)
 class ParametroSpec:
     nome: str
     rotulo: str                 # texto exibido na UI (pt-BR)
-    tipo: Literal["coluna_numerica", "coluna_categorica", "multi_coluna",
-                  "numero", "alfa", "opcao", "booleano"]
+    tipo: Literal["coluna_numerica", "coluna_categorica", "coluna_binaria",
+                  "multi_coluna", "numero", "alfa", "opcao", "booleano"]
     padrao: Any = None
     opcoes: list[str] | None = None
     obrigatorio: bool = True
+
+@dataclass
+class Figura:                   # formato definitivo decidido na Fase 3
+    titulo: str
+    png: bytes
 
 @dataclass
 class ResultadoTeste:
@@ -169,21 +177,28 @@ class TesteBase(ABC):
     def validar(self, df: pd.DataFrame, params: dict) -> list[str]: ...  # lista de erros
     @abstractmethod
     def executar(self, df: pd.DataFrame, params: dict) -> ResultadoTeste: ...
+    def comparacao_inicial(self) -> ComparacaoPValores | None:  # card antes da execução
+        return None
+
+# Exceções: ErroValidacao(mensagens), ErroExecucao, TesteNaoImplementado(ErroExecucao)
 ```
+
+O teste é registrado em `core/registry.py` (`TesteInfo(..., classe=MinhaClasse)`); `classe=None` significa "ainda não disponível" e a UI mostra esse estado. `id`, `nome` e `grupo` da classe devem coincidir com o `TesteInfo` (há teste automatizado). O formulário recebe os valores já convertidos por `PainelParametros.coletar_valores()` (números como `float`, α como `float`, colunas como `str`).
 
 ### Card de comparação (`CardComparacaoTestes`)
 
-Mantenha o componente: ele mostra, para cada hipótese alternativa (≠, >, <), o p-valor do teste paramétrico (laranja, à esquerda) ao lado do p-valor do equivalente não paramétrico (roxo, à direita). A nota do rodapé diz que os valores são calculados após a execução. Ele deve ser alimentado com `atualizar_p_values(...)` ao final de `executar`, via `ResultadoTeste.comparacao`:
+Mantenha o componente: ele mostra, para cada hipótese alternativa (≠, >, <), o p-valor do teste paramétrico (laranja, à esquerda) ao lado do p-valor do equivalente não paramétrico (roxo, à direita). A nota do rodapé diz que os valores são calculados após a execução. Antes da execução o card é criado com `CardComparacaoTestes.de_comparacao(teste.comparacao_inicial())` (p-valores "—"); depois, `TelaPrincipal.exibir_resultado` cria o card da Análise a partir de `ResultadoTeste.comparacao` e chama `card.aplicar(comparacao)` no card de Parâmetros (p-valores formatados com vírgula decimal, "< 0,001" abaixo de 0,001):
 
 ```python
 @dataclass
 class ComparacaoPValores:
-    titulo_esquerda: str                  # "t Student"
-    titulo_direita: str                   # "Wilcoxon"
-    linhas: list[tuple[float, float]]     # (p_param, p_nao_param) para ≠, >, <
+    titulo_esquerda: str                               # "t Student"
+    titulo_direita: str                                # "Wilcoxon"
+    hipoteses: list[str]                               # H1 de cada linha: "μ ≠ μ₀", "μ > μ₀", "μ < μ₀"
+    linhas: list[tuple[float | None, float | None]]    # (p_param, p_nao_param); None = não calculado
 ```
 
-Nem todo teste tem essa estrutura (ex.: qui-quadrado, ANOVA, diagnósticos). O teste declara `comparacao = None` e a UI exibe só a tabela/estatísticas. Quando for usada, o texto da hipótese de cada linha deve refletir o teste (hoje é fixo em "μ¹ ≠ μ²"; para o t de uma amostra deve ser "μ ≠ μ0" etc.).
+Nem todo teste tem essa estrutura (ex.: qui-quadrado, ANOVA, diagnósticos): o teste não sobrescreve `comparacao_inicial()` (retorna `None`), devolve `comparacao=None` no resultado, e a UI exibe só a tabela/estatísticas. O texto das hipóteses vem do teste (o card prefixa "Hₐ:").
 
 ## 5. Stack estatística
 
@@ -195,11 +210,11 @@ Dependências (todas em `requirements.txt`, com versões fixadas): `flet==0.86.2
 
 Duas colunas, fundo claro, cartões brancos, texto cinza escuro, **laranja como destaque**, cantos arredondados, visual minimalista e profissional. Nenhum componente deve ter cor hardcoded fora de `tema.py`.
 
-Melhorias previstas (sem alterar a identidade):
-- Agrupar a sidebar por categoria com cabeçalhos (Médias, Proporções, Categóricos, Não paramétricos, ANOVA, Regressão e diagnóstico).
-- Dropdowns de variável filtrados pelo tipo exigido pelo teste (numérica, categórica, binária).
-- Mensagens de erro amigáveis em português, nunca traceback na tela (usar `SnackBar`/banner do Flet 0.86.2).
-- Tabela de prévia: estado vazio separado do estado com dados; sem colunas/células fantasmas misturadas aos dados reais.
+Melhorias já feitas na Fase 1 (sem alterar a identidade):
+- Sidebar agrupada por categoria com cabeçalhos (os grupos da seção 7: Médias, Proporções, Categóricos, Não paramétricos, ANOVA, Regressão, Diagnóstico).
+- Dropdowns de variável filtrados pelo tipo exigido pelo teste (`core/validacao.colunas_por_tipo`; regras provisórias até a detecção de tipos da Fase 2).
+- Mensagens de erro amigáveis em português via `page.show_dialog(ft.SnackBar(...))`, nunca traceback na tela.
+- Tabela de prévia: estado vazio separado do estado com dados.
 
 ## 7. Catálogo de testes (ordem de implementação)
 
@@ -229,7 +244,7 @@ Implementar **nesta ordem**, um de cada vez.
 | 20 | `white` | White | Diagnóstico | `statsmodels.stats.diagnostic.het_white` | resíduos + preditores |
 | 21 | `vif` | VIF | Diagnóstico | `statsmodels.stats.outliers_influence.variance_inflation_factor` | preditores |
 
-### Lista oficial de ids (já existente em `utils.py`; passa a ser gerada pelo `registry.py`)
+### Lista oficial de ids (gerada por `core/registry.py` como `testes_hipotese`)
 
 ```python
 testes_hipotese = [
@@ -284,11 +299,13 @@ Cada teste declara seus pressupostos e a UI os mostra na aba Análise como aviso
 
 ## 8. Plano de execução por fases
 
-**Fase 0 — Linha de base**
+**Fase 0 — Linha de base** ✅ concluída
 Rodar o app e conferir os 12 problemas da seção 3. Escrever testes de caracterização do que já funciona (`importar_dados`, lista de testes, montagem da UI sem exceção). Corrigir `requirements.txt` e instalar o ambiente do zero para provar que roda.
 
-**Fase 1 — Reestruturação (sem lógica estatística)**
+**Fase 1 — Reestruturação (sem lógica estatística)** ✅ concluída
 Criar a estrutura da seção 4 seguindo o mapa de migração: `tema.py` com paleta única, `state.py`, `controller.py`, `core/base.py`, `registry.py`, `painel_abas.py` com API própria (fim dos índices), `campos.py` com o estilo único. Corrigir os itens 1–8 da seção 3. O app deve abrir e parecer idêntico, agora com estados vazios corretos e o botão Executar conectado ao controller.
+
+Pendências deixadas para as próximas fases: execução fora da thread da UI (hoje `controller.executar` é síncrono; mover para `page.run_thread`/tarefa quando houver cálculo real — Fase 3); `core/interpretacao.py` (Fase 3); robustez da leitura de CSV (Fase 2).
 
 **Fase 2 — Dados**
 `core/io.py`: CSV com detecção de separador/encoding/decimal, XLSX via `openpyxl`, detecção de tipos (numérica, categórica, binária), erros tratados e exibidos ao usuário. Prévia limitada a 100 linhas. Testes: arquivo válido, vazio, com NaN, colunas mistas, encoding errado, extensão inválida.
@@ -362,23 +379,21 @@ Datasets de teste pequenos e determinísticos (semente fixa) em `tests/conftest.
 python -m venv venv && source venv/bin/activate     # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# rodar o app (hoje)
-python smartetl_app.py
-# rodar o app (após a Fase 1)
+# rodar o app
 python main.py
 
 # testes e qualidade
 pytest -q
-pytest tests/core/test_medias.py -q    # apenas um grupo
+pytest tests/core/test_registry.py -q  # apenas um arquivo
 ruff check . && ruff format .
 ```
 
-Reescrever o `README.md` na Fase 1: remover as descrições do protótipo antigo (Histórico, Logs, "Gerar relatório", gráfico de barras, dados fictícios), atualizar requisitos (Python 3.10+) e estrutura.
+No Windows (PowerShell 5.1), passe mensagens de commit com `git commit -F arquivo.txt`: aspas duplas dentro de `-m` são quebradas pelo PowerShell ao chamar executáveis nativos.
 
 ## 13. Decisões em aberto (confirmar com o autor antes de implementar)
 
 - Qual equivalente não paramétrico aparece no card para cada teste (sugestão: t 1 amostra e t pareado ↔ Wilcoxon; t 2 amostras ↔ Mann-Whitney; ANOVA 1 fator ↔ Kruskal-Wallis) e quais testes não terão card.
-- O card continua nas abas Parâmetros e Análise ou fica só em Análise? (hoje a mesma instância é usada nas duas)
+- ~~O card continua nas abas Parâmetros e Análise ou fica só em Análise?~~ Decidido na Fase 1: **duas instâncias** (Parâmetros e Análise), para preservar o visual. Pode ser revisto depois.
 - Gráficos nativos do Flet ou imagens do matplotlib na aba Visualização.
 - Pós-testes (Tukey, Dunn) e pressupostos extras (Shapiro-Wilk, Levene) como funcionalidade adicional.
 - Formatos de arquivo além de CSV/XLSX e exportação de resultados (PDF/HTML/CSV).

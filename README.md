@@ -1,68 +1,66 @@
-# smartETL — Protótipo de Interface (Flet)
+# smartETL — Testes de Hipótese
 
-Protótipo de interface desktop para um aplicativo de processamento e análise
-de dados, inspirado em ferramentas modernas de ETL/BI. **Neste momento é uma
-interface estática**: todos os dados são fictícios e gerados em memória, e os
-botões (Gerar relatório, Filtros, Visualizar, Exportar, itens da barra
-lateral) são apenas visuais — a paginação da tabela é a única interação
-funcional, incluída como demonstração de como os dados fluem para os
-componentes.
+Aplicativo desktop (Flet) para carregar uma base de dados (CSV ou XLSX), escolher um
+teste de hipótese, configurar os parâmetros e ver o resultado, a interpretação e os gráficos.
+O catálogo prevê 21 testes paramétricos e não paramétricos, além de ANOVA, regressão e
+diagnósticos de pressupostos.
+
+## Estado atual
+
+- Interface completa: carregamento de arquivo, prévia de até 100 linhas, lista de testes
+  agrupada por categoria e abas **Parâmetros**, **Análise** e **Visualização**.
+- O **Teste t (uma amostra)** já tem formulário e card de comparação (t Student × Wilcoxon).
+  O cálculo estatístico entra na próxima fase.
+- Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
 
-- Python 3.9 ou superior
-- Pacote `flet` (testado com a versão `0.86.2`)
+- Python **3.10 ou superior** (testado com 3.13)
+- Dependências fixadas em `requirements.txt` (Flet 0.86.2, pandas, openpyxl, numpy,
+  scipy, statsmodels; pytest e ruff para desenvolvimento)
 
 ## Instalação e execução
 
 ```bash
-# 1. (opcional, mas recomendado) crie um ambiente virtual
-python3 -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-
-# 2. instale as dependências
+python -m venv venv
+source venv/bin/activate          # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# 3. execute o aplicativo
-python smartetl_app.py
+python main.py
 ```
 
-Isso abrirá o smartETL como uma janela desktop nativa (via Flet/Flutter).
+## Testes e qualidade
 
-> Caso o ambiente não consiga abrir uma janela nativa (ex.: SO sem suporte),
-> troque a última linha do arquivo para
-> `ft.run(main, view=ft.AppView.WEB_BROWSER)` para rodar no navegador.
-
-## Estrutura do projeto
-
-```
-smartetl_app.py     # aplicativo completo (interface + dados fictícios)
-requirements.txt     # dependências
-README.md            # este arquivo
+```bash
+pytest -q
+ruff check . && ruff format --check .
 ```
 
-## O que está incluído
+## Estrutura
 
-- **Barra lateral**: logo "smartETL", itens Arquivo / Histórico / Logs e um
-  cartão de status ("67 bases de dados — Carregadas com sucesso").
-- **Cabeçalho**: título "Processamento de dados" + botão "Gerar relatório".
-- **Descrição geral**: resumo executivo fictício + lista de variáveis
-  analisadas.
-- **Visualização geral**: gráfico de barras (construído sem bibliotecas
-  externas de gráfico) mostrando o faturamento total das 5 filiais com
-  melhor desempenho — calculado a partir dos mesmos dados da tabela.
-- **Tabela geral**: 67 registros fictícios (Filial, Mês, Faturamento, Taxa de
-  Conversão, Qtd. de Vendas), com paginação de 10 em 10 linhas.
+```
+main.py                    # ponto de entrada (ft.run)
+app/
+  state.py                 # estado: dataset, teste selecionado, último resultado
+  controller.py            # liga a interface ao core (sem lógica estatística)
+  ui/
+    tema.py                # paleta única, raios e tipografia
+    helpers.py             # pad(), border_all(), border_only()...
+    sidebar.py             # logo, Arquivo, lista de testes, Executar
+    tabela_dados.py        # prévia do dataset
+    painel_abas.py         # abas Parâmetros / Análise / Visualização
+    painel_parametros.py   # formulário gerado a partir dos parâmetros do teste
+    tela_principal.py      # montagem da tela
+    componentes/           # campos com estilo único e card de comparação
+core/                      # lógica de domínio, sem Flet
+  base.py                  # contratos: ParametroSpec, ResultadoTeste, TesteBase...
+  registry.py              # catálogo dos 21 testes
+  io.py                    # leitura de CSV/XLSX
+  validacao.py             # regras de validação reutilizáveis
+  testes/                  # implementações por grupo
+tests/                     # pytest (core/ e app/)
+```
 
-## Personalizando os dados
+## Licença
 
-Os dados fictícios são gerados pela função `gerar_dados()` no topo do
-arquivo. Para gerar mais ou menos registros, ou alterar filiais/meses,
-edite as listas `FILIAIS`, `MESES` e o parâmetro `total_registros`.
-
-## Próximos passos (fora do escopo deste protótipo)
-
-- Implementar upload real de bases de dados na opção "Arquivo".
-- Persistir histórico de análises e logs de processamento.
-- Conectar "Gerar relatório", "Filtros" e "Exportar" a lógica real.
-- Implementar o pipeline de ETL propriamente dito.
+Ver [LICENSE](LICENSE).
