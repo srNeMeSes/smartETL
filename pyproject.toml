@@ -1,0 +1,23 @@
+[project]
+name = "smartetl"
+version = "0.1.0"
+description = "Processamento de dados e testes de hipótese (Flet)"
+requires-python = ">=3.10"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+# Regras explícitas: o padrão do ruff não acusa `import *` (F403/F405).
+select = ["E", "W", "F", "I", "N", "UP", "B", "RUF"]
+# Símbolos gregos e matemáticos fazem parte dos textos da interface.
+allowed-confusables = ["α", "μ", "σ", "ρ", "–"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "core"]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "tests"]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"

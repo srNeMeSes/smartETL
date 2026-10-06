@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import flet as ft
 import pytest
-from conftest import iterar_controles, textos
+from ajudantes_ui import iterar_controles, textos
 
 import conteiner_parametros as cp
 import smartetl_app
@@ -158,12 +158,8 @@ def test_teste_selecionado_nao_reusa_formulario_do_t_1am():
 )
 def test_card_nao_e_compartilhado_entre_abas():
     parametro, analise, _ = cp.teste_t_1am(COLUNAS)
-    cards_p = [
-        c for c in iterar_controles(parametro) if isinstance(c, CardComparacaoTestes)
-    ]
-    cards_a = [
-        c for c in iterar_controles(analise) if isinstance(c, CardComparacaoTestes)
-    ]
+    cards_p = [c for c in iterar_controles(parametro) if isinstance(c, CardComparacaoTestes)]
+    cards_a = [c for c in iterar_controles(analise) if isinstance(c, CardComparacaoTestes)]
     assert not {id(c) for c in cards_p} & {id(c) for c in cards_a}
 
 
@@ -197,16 +193,11 @@ def test_main_monta_pagina(raiz_app):
 def test_main_tem_tres_abas_e_tabela_vazia(raiz_app):
     _, raiz = raiz_app
     rotulos = [
-        t.label.value
-        for c in iterar_controles(raiz)
-        if isinstance(c, ft.TabBar)
-        for t in c.tabs
+        t.label.value for c in iterar_controles(raiz) if isinstance(c, ft.TabBar) for t in c.tabs
     ]
     assert rotulos == ["Parâmetros", "Análise", "Visualização"]
     tabela = next(c for c in iterar_controles(raiz) if isinstance(c, ft.DataTable))
-    assert [col.label.value for col in tabela.columns] == [
-        f"column{i}" for i in range(1, 21)
-    ]
+    assert [col.label.value for col in tabela.columns] == [f"column{i}" for i in range(1, 21)]
     assert len(tabela.rows) == 12
 
 
@@ -218,9 +209,7 @@ def _botao_executar(raiz):
     )
 
 
-@pytest.mark.xfail(
-    strict=True, reason="Problema 2: botão 'Executar teste' sem on_click."
-)
+@pytest.mark.xfail(strict=True, reason="Problema 2: botão 'Executar teste' sem on_click.")
 def test_botao_executar_tem_on_click(raiz_app):
     _, raiz = raiz_app
     assert _botao_executar(raiz).on_click is not None
