@@ -536,3 +536,16 @@ def test_integracao_mann_whitney_carregar_selecionar_executar(controller, visao)
     assert (resultado.estatisticas["n1"], resultado.estatisticas["n2"]) == (6, 7)
     assert resultado.comparacao is None
     assert visao.chamadas[-1] == ("resultado", "mann_whitney")
+
+
+def test_integracao_kruskal_wallis_carregar_selecionar_executar(controller, visao):
+    # Checklist §9, item 7, para o Kruskal-Wallis (com Dunn), com a base do projeto (bases/).
+    assert controller.carregar_arquivo(str(BASES / "entregas_br.csv"))
+    controller.selecionar_teste("kruskal_wallis")
+    assert visao.ultima()[:2] == ("formulario", "kruskal_wallis")
+    visao.params = {"coluna": "prazo_dias", "grupo": "fornecedor", "dunn": True, "alfa": 0.05}
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "kruskal_wallis"
+    assert resultado.estatisticas["k"] == 4 and resultado.estatisticas["comparacoes"] == 6
+    assert "Comparações múltiplas (Dunn, Holm)" in resultado.tabelas
+    assert visao.chamadas[-1] == ("resultado", "kruskal_wallis")

@@ -1,5 +1,6 @@
 """Testes não paramétricos."""
 
+import itertools
 import math
 
 import numpy as np
@@ -8,7 +9,13 @@ from scipy import stats
 
 from core.base import ErroValidacao, ParametroSpec, ResultadoTeste, TesteBase
 from core.figuras import boxplot, histograma
-from core.interpretacao import decidir, formatar_numero, formatar_p_valor, interpretar
+from core.interpretacao import (
+    REJEITA_H0,
+    decidir,
+    formatar_numero,
+    formatar_p_valor,
+    interpretar,
+)
 from core.testes.medias import TesteT2Amostras
 from core.tipos import rotulo_nivel
 from core.validacao import converter_numero, erro_alfa, erro_numero, erro_opcao, erros_coluna
@@ -688,5 +695,233 @@ class TesteMannWhitney(TesteBase):
             interpretacao=interpretacao,
             tabelas={"Resumo": pd.DataFrame(resumo, columns=["Medida", "Valor"])},
             figuras=[boxplot([(g1, x1), (g2, x2)], f"'{coluna}' por '{grupo}'", coluna)],
+            avisos=avisos,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Kruskal-Wallis
+# ---------------------------------------------------------------------------
+MAX_GRUPOS_KW = 20
+MIN_POR_GRUPO_APROXIMACAO = 5
+
+
+def ajuste_holm(p_valores: list[float]) -> list[float]:
+    """p-valores ajustados por Holm (passo a passo descendente), na ordem original."""
+    m = len(p_valores)
+    ordem = sorted(range(m), key=lambda i: p_valores[i])
+    ajustados = [0.0] * m
+    maximo = 0.0
+    for posicao, i in enumerate(ordem):
+        maximo = max(maximo, min(1.0, (m - posicao) * p_valores[i]))
+        ajustados[i] = maximo
+    return ajustados
+
+
+def dunn(
+    postos_medios: list[float], tamanhos: list[int], n_total: int, soma_empates: float
+) -> list[tuple[int, int, float, float, float]]:
+    """Pós-teste de Dunn: (i, j, diferença de postos médios, z, p bilateral) para cada par.
+
+    z = (R̄ᵢ − R̄ⱼ) / √{[N(N+1)/12 − Σ(t³ − t)/(12(N − 1))]·(1/nᵢ + 1/nⱼ)}.
+    """
+    base = n_total * (n_total + 1) / 12 - soma_empates / (12 * (n_total - 1))
+    pares = []
+    for i in range(len(tamanhos)):
+        for j in range(i + 1, len(tamanhos)):
+            diferenca = postos_medios[i] - postos_medios[j]
+            z = diferenca / math.sqrt(base * (1 / tamanhos[i] + 1 / tamanhos[j]))
+            pares.append((i, j, diferenca, z, float(2 * stats.norm.sf(abs(z)))))
+    return pares
+
+
+class TesteKruskalWallis(TesteBase):
+    """Teste de Kruskal-Wallis para k ≥ 2 grupos independentes (H₀: mesma distribuição).
+
+    Entrada: coluna numérica + coluna de grupo com 2 a 20 níveis e ao menos 2 observações por
+    grupo; linhas incompletas descartadas (aviso). H com correção de empates e p pela
+    aproximação qui-quadrado com k − 1 gl (`scipy.stats.kruskal`); aviso quando algum grupo
+    tem menos de 5 observações. Efeito: ε² = H/(N − 1). Pós-teste de Dunn opcional (desligado
+    por padrão), exibido só quando H₀ é rejeitada, com p ajustado por Holm. Sem card. Decisão:
+    p ≤ α.
+    """
+
+    id = "kruskal_wallis"
+    nome = "Kruskal-Wallis"
+    grupo = "Não paramétricos"
+
+    def parametros(self) -> list[ParametroSpec]:
+        return [
+            ParametroSpec("coluna", "Variável", "coluna_numerica"),
+            ParametroSpec("grupo", "Grupo (2 ou mais níveis)", "coluna_categorica"),
+            ParametroSpec("dunn", "Comparações múltiplas (Dunn)", "booleano", padrao=False),
+            ParametroSpec("alfa", "Nível de significância (α)", "alfa", padrao=0.05),
+        ]
+
+    # ---------------- Validação ----------------
+    def validar(self, df: pd.DataFrame, params: dict) -> list[str]:
+        coluna, grupo = params.get("coluna"), params.get("grupo")
+        erros = erros_coluna(df, coluna) + erros_coluna(df, grupo, "o grupo", numerica=False)
+        if not erros and coluna == grupo:
+            erros.append("A variável e o grupo devem ser colunas diferentes.")
+        if not erros:
+            niveis, amostras, _ = TesteT2Amostras.separar(df, coluna, grupo)
+            k = len(niveis)
+            if not 2 <= k <= MAX_GRUPOS_KW:
+                erros.append(
+                    f"A coluna de grupo '{grupo}' deve ter de 2 a {MAX_GRUPOS_KW} níveis com "
+                    f"dados válidos (tem {k})."
+                )
+            else:
+                pequenos = [
+                    f"'{rotulo_nivel(nivel)}' ({len(x)})"
+                    for nivel, x in zip(niveis, amostras, strict=True)
+                    if len(x) < 2
+                ]
+                if pequenos:
+                    erros.append(
+                        "Cada grupo precisa de ao menos 2 observações válidas; grupos com menos: "
+                        + ", ".join(pequenos)
+                        + "."
+                    )
+                elif np.ptp(np.concatenate(amostras)) == 0:
+                    erros.append(
+                        f"Todos os valores de '{coluna}' são iguais: não há ordem para comparar."
+                    )
+        erros += erro_alfa(params.get("alfa", 0.05))
+        return erros
+
+    # ---------------- Execução ----------------
+    def executar(self, df: pd.DataFrame, params: dict) -> ResultadoTeste:
+        erros = self.validar(df, params)
+        if erros:
+            raise ErroValidacao(erros)
+
+        coluna, grupo = params["coluna"], params["grupo"]
+        alfa = float(params.get("alfa", 0.05))
+        pedir_dunn = bool(params.get("dunn", False))
+
+        niveis, amostras, descartadas = TesteT2Amostras.separar(df, coluna, grupo)
+        rotulos = [rotulo_nivel(n) for n in niveis]
+        tamanhos = [len(x) for x in amostras]
+        k, total = len(amostras), sum(tamanhos)
+
+        resultado = stats.kruskal(*amostras)
+        h, p_valor = float(resultado.statistic), float(resultado.pvalue)
+        postos = stats.rankdata(np.concatenate(amostras))
+        limites = np.cumsum([0, *tamanhos])
+        postos_medios = [float(postos[a:b].mean()) for a, b in itertools.pairwise(limites)]
+        _, contagem = np.unique(postos, return_counts=True)
+        soma_empates = float((contagem**3 - contagem).sum())
+        epsilon2 = h / (total - 1)
+
+        estatisticas = {
+            "k": float(k),
+            "n": float(total),
+            "n_descartadas": float(descartadas),
+            "h": h,
+            "gl": float(k - 1),
+            "p_valor": p_valor,
+            "epsilon2": epsilon2,
+        }
+
+        interpretacao = interpretar(
+            p_valor,
+            alfa,
+            h0=f"a distribuição de '{coluna}' é a mesma nos {k} grupos de '{grupo}'",
+            h1="ao menos um grupo difere dos demais",
+            conclusao_rejeita=(
+                f"Há evidência estatística de que '{coluna}' difere entre os grupos de '{grupo}'."
+            ),
+            conclusao_nao_rejeita=(
+                f"Não há evidência suficiente de que '{coluna}' difira entre os grupos de "
+                f"'{grupo}'."
+            ),
+        )
+        rejeita = decidir(p_valor, alfa) == REJEITA_H0
+
+        avisos = []
+        if descartadas:
+            avisos.append(f"{descartadas} linha(s) com valor ou grupo ausente foram descartadas.")
+        pequenos = [
+            f"'{r}' (n = {n})"
+            for r, n in zip(rotulos, tamanhos, strict=True)
+            if n < MIN_POR_GRUPO_APROXIMACAO
+        ]
+        if pequenos:
+            avisos.append(
+                f"Grupos com menos de {MIN_POR_GRUPO_APROXIMACAO} observações "
+                f"({', '.join(pequenos)}): a aproximação qui-quadrado do p-valor é fraca."
+            )
+        if soma_empates:
+            avisos.append(
+                "Há empates entre os valores: H foi corrigido para empates (postos médios)."
+            )
+
+        tabela_grupos = pd.DataFrame(
+            {
+                "Grupo": rotulos,
+                "n": tamanhos,
+                "Mediana": [formatar_numero(float(np.median(x))) for x in amostras],
+                "Posto médio": [formatar_numero(r, 2) for r in postos_medios],
+            }
+        )
+        resumo = [
+            ("Grupos (k)", f"{k}"),
+            ("Observações (N)", f"{total}"),
+            ("Estatística H (corrigida para empates)", formatar_numero(h)),
+            ("Graus de liberdade", f"{k - 1}"),
+            ("p-valor (qui-quadrado)", formatar_p_valor(p_valor)),
+            ("Tamanho de efeito ε² = H/(N − 1)", formatar_numero(epsilon2)),
+        ]
+        tabelas = {
+            "Resumo": pd.DataFrame(resumo, columns=["Medida", "Valor"]),
+            "Grupos": tabela_grupos,
+        }
+
+        if pedir_dunn and rejeita:
+            pares = dunn(postos_medios, tamanhos, total, soma_empates)
+            ajustados = ajuste_holm([p for *_, p in pares])
+            estatisticas["comparacoes"] = float(len(pares))
+            tabelas["Comparações múltiplas (Dunn, Holm)"] = pd.DataFrame(
+                [
+                    (
+                        f"'{rotulos[i]}' × '{rotulos[j]}'",
+                        formatar_numero(dif, 2),
+                        formatar_numero(z, 3),
+                        formatar_p_valor(p),
+                        formatar_p_valor(p_aj),
+                        "Sim" if p_aj <= alfa else "Não",
+                    )
+                    for (i, j, dif, z, p), p_aj in zip(pares, ajustados, strict=True)
+                ],
+                columns=[
+                    "Comparação",
+                    "Diferença de postos médios",
+                    "z",
+                    "p",
+                    "p ajustado (Holm)",
+                    "Diferem?",
+                ],
+            )
+        elif pedir_dunn:
+            avisos.append(
+                "Comparações múltiplas (Dunn) não exibidas: H₀ não foi rejeitada, então não há "
+                "diferença a localizar entre os grupos."
+            )
+
+        return ResultadoTeste(
+            teste_id=self.id,
+            estatisticas=estatisticas,
+            p_valor=p_valor,
+            alfa=alfa,
+            decisao=decidir(p_valor, alfa),
+            interpretacao=interpretacao,
+            tabelas=tabelas,
+            figuras=[
+                boxplot(
+                    list(zip(rotulos, amostras, strict=True)), f"'{coluna}' por '{grupo}'", coluna
+                )
+            ],
             avisos=avisos,
         )

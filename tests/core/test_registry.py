@@ -103,4 +103,5 @@ def test_testes_implementados():
         "teste_sinal",
         "wilcoxon",
         "mann_whitney",
+        "kruskal_wallis",
     ]

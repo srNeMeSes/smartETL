@@ -5,7 +5,12 @@ from dataclasses import dataclass
 from core.base import TesteBase
 from core.testes.categoricos import QuiQuadrado, TesteFisher, TesteMcNemar
 from core.testes.medias import TesteT1Amostra, TesteT2Amostras, TesteTPareado
-from core.testes.nao_parametricos import TesteMannWhitney, TesteSinal, TesteWilcoxon
+from core.testes.nao_parametricos import (
+    TesteKruskalWallis,
+    TesteMannWhitney,
+    TesteSinal,
+    TesteWilcoxon,
+)
 from core.testes.proporcoes import TesteZ1Prop, TesteZ2Prop
 
 
@@ -36,7 +41,7 @@ _CATALOGO: tuple[TesteInfo, ...] = (
     TesteInfo("teste_sinal", "Teste do sinal", "Não paramétricos", TesteSinal),
     TesteInfo("wilcoxon", "Wilcoxon", "Não paramétricos", TesteWilcoxon),
     TesteInfo("mann_whitney", "Mann-Whitney U", "Não paramétricos", TesteMannWhitney),
-    TesteInfo("kruskal_wallis", "Kruskal-Wallis", "Não paramétricos"),
+    TesteInfo("kruskal_wallis", "Kruskal-Wallis", "Não paramétricos", TesteKruskalWallis),
     TesteInfo("friedman", "Friedman", "Não paramétricos"),
     TesteInfo("anova_1fator", "ANOVA (1 fator)", "ANOVA"),
     TesteInfo("anova_2fator", "ANOVA (2 fatores)", "ANOVA"),

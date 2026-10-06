@@ -669,3 +669,19 @@ def test_mann_whitney_formulario_sem_card(tela_controller):
     assert controller.estado.ultimo_resultado.teste_id == "mann_whitney"
     assert "Deslocamento de Hodges-Lehmann (G₁ − G₂)" in _textos_aba(tela.painel.analise)
     assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
+
+
+def test_kruskal_formulario_com_dunn(tela_controller):
+    tela, controller = tela_controller
+    controller.carregar_arquivo(str(BASES / "entregas_br.csv"))
+    tela.sidebar.selecionar("kruskal_wallis")
+    form = tela.formulario
+    assert form.card is None and form.controle("dunn").value is False
+    form.controle("coluna").value = "prazo_dias"
+    form.controle("grupo").value = "fornecedor"
+    form.controle("dunn").value = True
+    tela.sidebar.botao_executar.on_click(None)
+    analise = _textos_aba(tela.painel.analise)
+    for titulo in ("Resumo", "Grupos", "Comparações múltiplas (Dunn, Holm)"):
+        assert titulo in analise
+    assert len(do_tipo(tela.painel.analise, ft.DataTable)) == 3
