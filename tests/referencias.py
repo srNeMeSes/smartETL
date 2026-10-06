@@ -91,3 +91,41 @@ def ic_exato_odds_ratio(a, b, c, d, confianca: float, alternativa: str) -> tuple
             lambda psi: _caudas_nao_central(a, b, c, d, psi)[1], cauda, crescente=False
         )
     return baixo, alto
+
+
+# ---------------------------------------------------------------------------
+# Binomial: p exato e IC de Clopper-Pearson com a biblioteca padrão
+# ---------------------------------------------------------------------------
+def _binomial_cdf(k: int, n: int, p: float) -> float:
+    return sum(math.comb(n, i) * p**i * (1 - p) ** (n - i) for i in range(k + 1))
+
+
+def binomial_exato(k: int, n: int, alternativa: str) -> float:
+    """p-valor exato de k ~ Bin(n, 1/2): bilateral = 2·min(caudas) (simetria), limitado a 1."""
+    menor = _binomial_cdf(k, n, 0.5)
+    maior = 1 - _binomial_cdf(k - 1, n, 0.5) if k > 0 else 1.0
+    if alternativa == "greater":
+        return maior
+    if alternativa == "less":
+        return menor
+    return min(1.0, 2 * min(menor, maior))
+
+
+def clopper_pearson(k: int, n: int, cauda_inf: float, cauda_sup: float) -> tuple[float, float]:
+    """Limites (L, U) com P(X ≥ k; L) = cauda_inf e P(X ≤ k; U) = cauda_sup, por bisseção."""
+
+    def resolver(funcao, alvo, crescente):
+        baixo, alto = 0.0, 1.0
+        for _ in range(200):
+            meio = (baixo + alto) / 2
+            if (funcao(meio) < alvo) == crescente:
+                baixo = meio
+            else:
+                alto = meio
+        return (baixo + alto) / 2
+
+    inferior = (
+        0.0 if k == 0 else resolver(lambda p: 1 - _binomial_cdf(k - 1, n, p), cauda_inf, True)
+    )
+    superior = 1.0 if k == n else resolver(lambda p: _binomial_cdf(k, n, p), cauda_sup, False)
+    return inferior, superior

@@ -598,3 +598,25 @@ def test_fisher_dois_eventos_dependentes_e_sem_card(tela_controller, tmp_path):
     assert "Resumo" in analise and "Tabela 2×2" in analise
     assert isinstance(tela.painel.analise, ft.Column)
     assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
+
+
+def test_mcnemar_card_exato_e_qui_quadrado(tela_controller, tmp_path):
+    tela, controller = tela_controller
+    arquivo = tmp_path / "m.csv"
+    pares = ["Sim;Sim"] * 5 + ["Sim;Não"] * 6 + ["Não;Sim"] * 1 + ["Não;Não"] * 4
+    arquivo.write_text("antes;depois\n" + "\n".join(pares) + "\n", encoding="utf-8")
+    controller.carregar_arquivo(str(arquivo))
+    tela.sidebar.selecionar("mcnemar")
+    form = tela.formulario
+    assert {"Exato (binomial)", "Qui-quadrado"} <= set(textos(form.card))
+    form.controle("coluna1").value = "antes"
+    form.controle("coluna1").on_select(None)
+    assert form.controle("evento").value == "Sim"
+    form.controle("coluna2").value = "depois"
+    tela.sidebar.botao_executar.on_click(None)
+    resultado = controller.estado.ultimo_resultado
+    assert resultado.teste_id == "mcnemar"
+    assert tela.card_analise._textos_p_esquerda[0].value != "—"
+    assert tela.card_analise._textos_p_direita[0].value != "—"
+    assert "Tabela de pares" in _textos_aba(tela.painel.analise)
+    assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1

@@ -202,9 +202,9 @@ def test_executar_sem_arquivo(controller, visao):
 
 def test_executar_teste_indisponivel(controller, visao, csv_valido):
     controller.carregar_arquivo(str(csv_valido))
-    controller.selecionar_teste("mcnemar")
+    controller.selecionar_teste("friedman")
     assert controller.executar() is None
-    assert visao.notificacoes[-1] == ("O McNemar ainda não está disponível nesta versão.", False)
+    assert visao.notificacoes[-1] == ("O Friedman ainda não está disponível nesta versão.", False)
 
 
 def test_integracao_t_1am_carregar_selecionar_executar(controller, visao, csv_valido):
@@ -450,3 +450,26 @@ def test_integracao_fisher_carregar_selecionar_executar(controller, visao, tmp_p
     assert resultado.estatisticas["odds_ratio_amostral"] == pytest.approx(6.6)
     assert resultado.comparacao is None
     assert visao.chamadas[-1] == ("resultado", "fisher")
+
+
+def test_integracao_mcnemar_carregar_selecionar_executar(controller, visao, tmp_path):
+    # Checklist §9, item 7, para o McNemar.
+    arquivo = tmp_path / "campanha.csv"
+    linhas = ["antes;depois"] + ["Sim;Sim"] * 20 + ["Sim;Não"] * 12 + ["Não;Sim"] * 3
+    linhas += ["Não;Não"] * 15
+    arquivo.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    controller.carregar_arquivo(str(arquivo))
+    controller.selecionar_teste("mcnemar")
+    assert visao.ultima()[:2] == ("formulario", "mcnemar")
+    visao.params = {
+        "coluna1": "antes",
+        "coluna2": "depois",
+        "evento": "Sim",
+        "alternativa": "p₁ ≠ p₂",
+        "alfa": 0.05,
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "mcnemar"
+    assert (resultado.estatisticas["b"], resultado.estatisticas["c"]) == (12, 3)
+    assert resultado.comparacao.titulo_esquerda == "Exato (binomial)"
+    assert visao.chamadas[-1] == ("resultado", "mcnemar")

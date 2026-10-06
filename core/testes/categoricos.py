@@ -6,7 +6,13 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from core.base import ErroValidacao, ParametroSpec, ResultadoTeste, TesteBase
+from core.base import (
+    ComparacaoPValores,
+    ErroValidacao,
+    ParametroSpec,
+    ResultadoTeste,
+    TesteBase,
+)
 from core.figuras import barras, barras_agrupadas
 from core.interpretacao import decidir, formatar_numero, formatar_p_valor, interpretar
 from core.tipos import niveis_coluna, rotulo_nivel
@@ -537,3 +543,305 @@ class TesteFisher(TesteBase):
             ],
             avisos=avisos,
         )
+
+
+# ---------------------------------------------------------------------------
+# McNemar
+# ---------------------------------------------------------------------------
+ALTERNATIVAS_MCNEMAR = {"p₁ ≠ p₂": "two-sided", "p₁ > p₂": "greater", "p₁ < p₂": "less"}
+ALTERNATIVA_PADRAO_MCNEMAR = "p₁ ≠ p₂"
+LIMITE_EXATO = 25  # b + c abaixo disso: a decisão usa o teste exato
+_TEXTO_MCNEMAR = {"two-sided": "diferente da", "greater": "maior que a", "less": "menor que a"}
+
+
+def mcnemar_exato(b: int, c: int, alternativa: str) -> float:
+    """Binomial nos pares discordantes: b ~ Bin(b + c, 1/2) sob H₀."""
+    return float(stats.binomtest(b, b + c, 0.5, alternative=alternativa).pvalue)
+
+
+def mcnemar_assintotico(b: int, c: int, alternativa: str) -> tuple[float, float]:
+    """(estatística, p) com a correção de continuidade de Edwards.
+
+    Bilateral: χ² = (|b − c| − 1)²/(b + c) com 1 gl. Unilateral: a raiz com sinal,
+    z = (b − c − 1)/√(b + c) para "maior" e (b − c + 1)/√(b + c) para "menor".
+    """
+    m = b + c
+    if alternativa == "two-sided":
+        qui2 = max(abs(b - c) - 1, 0) ** 2 / m
+        return qui2, float(stats.chi2.sf(qui2, 1))
+    if alternativa == "greater":
+        z = (b - c - 1) / math.sqrt(m)
+        return z, float(stats.norm.sf(z))
+    z = (b - c + 1) / math.sqrt(m)
+    return z, float(stats.norm.cdf(z))
+
+
+class TesteMcNemar(TesteBase):
+    """Teste de McNemar para duas medidas binárias pareadas (H₀: p₁ = p₂).
+
+    Entrada: duas colunas binárias na mesma linha (ex.: antes e depois) com os mesmos 2 valores
+    e o "evento". Linhas com valor ausente em alguma das colunas são descartadas (aviso).
+    Tabela de pares [[a, b], [c, d]]: linhas = medida 1 (evento, outro), colunas = medida 2
+    (evento, outro); só os pares discordantes b e c entram no teste; p₁ − p₂ = (b − c)/n.
+    O card mostra lado a lado o exato (binomial nos discordantes, `scipy.stats.binomtest`) e o
+    assintótico com correção de continuidade de Edwards (qui-quadrado bilateral; raiz com sinal
+    nas unilaterais). A decisão usa o exato quando b + c < 25 e o assintótico nos demais casos
+    (regra de livro-texto; decisão do autor). Efeitos: odds ratio pareada b/c com IC exato
+    (Clopper-Pearson sobre b/(b + c)) e diferença de proporções marginais com IC de Wald para
+    dados pareados. ICs unilaterais quando H₁ é unilateral. Decisão: p ≤ α.
+    """
+
+    id = "mcnemar"
+    nome = "McNemar"
+    grupo = "Categóricos"
+
+    def parametros(self) -> list[ParametroSpec]:
+        return [
+            ParametroSpec("coluna1", "Medida 1 (ex.: antes)", "coluna_binaria"),
+            ParametroSpec("coluna2", "Medida 2 (ex.: depois)", "coluna_binaria"),
+            ParametroSpec("evento", "Evento", "nivel", depende_de="coluna1"),
+            ParametroSpec(
+                "alternativa",
+                "Hipótese alternativa (H₁)",
+                "opcao",
+                padrao=ALTERNATIVA_PADRAO_MCNEMAR,
+                opcoes=list(ALTERNATIVAS_MCNEMAR),
+            ),
+            ParametroSpec("alfa", "Nível de significância (α)", "alfa", padrao=0.05),
+        ]
+
+    def comparacao_inicial(self) -> ComparacaoPValores:
+        return ComparacaoPValores(
+            titulo_esquerda="Exato (binomial)",
+            titulo_direita="Qui-quadrado",
+            hipoteses=list(ALTERNATIVAS_MCNEMAR),
+            linhas=[(None, None)] * len(ALTERNATIVAS_MCNEMAR),
+        )
+
+    @staticmethod
+    def tabela_pares(
+        df: pd.DataFrame, coluna1: str, coluna2: str, evento: str
+    ) -> tuple[list[list[int]], str, int]:
+        """([[a, b], [c, d]], valor "outro", linhas descartadas)."""
+        validas = df[[coluna1, coluna2]].dropna()
+        x = validas[coluna1].map(rotulo_nivel)
+        y = validas[coluna2].map(rotulo_nivel)
+        outro = next(n for n in niveis_coluna(df[coluna1]) if n != evento)
+        tabela = [
+            [int(((x == linha) & (y == coluna)).sum()) for coluna in (evento, outro)]
+            for linha in (evento, outro)
+        ]
+        return tabela, outro, len(df) - len(validas)
+
+    # ---------------- Validação ----------------
+    def validar(self, df: pd.DataFrame, params: dict) -> list[str]:
+        c1, c2, evento = params.get("coluna1"), params.get("coluna2"), params.get("evento")
+        erros = erros_coluna(df, c1, "a medida 1", numerica=False)
+        erros += erros_coluna(df, c2, "a medida 2", numerica=False)
+        if not erros and c1 == c2:
+            erros.append("As duas medidas devem ser colunas diferentes.")
+        if not erros:
+            n1, n2 = niveis_coluna(df[c1]), niveis_coluna(df[c2])
+            for coluna, niveis in ((c1, n1), (c2, n2)):
+                if len(niveis) != 2:
+                    erros.append(
+                        f"A coluna '{coluna}' deve ter exatamente 2 valores distintos "
+                        f"(tem {len(niveis)})."
+                    )
+            if not erros and set(n1) != set(n2):
+                erros.append(
+                    f"As duas medidas devem usar os mesmos 2 valores ('{c1}': {', '.join(n1)}; "
+                    f"'{c2}': {', '.join(n2)})."
+                )
+            if not erros:
+                if not evento:
+                    erros.append("Escolha o evento.")
+                elif str(evento) not in n1:
+                    erros.append(f"O valor '{evento}' não aparece na coluna '{c1}'.")
+        if not erros:
+            tabela, _, _ = self.tabela_pares(df, c1, c2, str(evento))
+            (_, b), (c, _) = tabela
+            if sum(map(sum, tabela)) == 0:
+                erros.append(f"Não há linhas com '{c1}' e '{c2}' preenchidas ao mesmo tempo.")
+            elif b + c == 0:
+                erros.append(
+                    "Não há pares discordantes (b + c = 0): as duas medidas concordam em todas as "
+                    "linhas e o McNemar não pode ser calculado."
+                )
+        erros += erro_opcao(
+            params.get("alternativa", ALTERNATIVA_PADRAO_MCNEMAR),
+            ALTERNATIVAS_MCNEMAR,
+            "Escolha uma hipótese alternativa válida.",
+        )
+        erros += erro_alfa(params.get("alfa", 0.05))
+        return erros
+
+    # ---------------- Execução ----------------
+    def executar(self, df: pd.DataFrame, params: dict) -> ResultadoTeste:
+        erros = self.validar(df, params)
+        if erros:
+            raise ErroValidacao(erros)
+
+        c1, c2, evento = params["coluna1"], params["coluna2"], str(params["evento"])
+        alfa = float(params.get("alfa", 0.05))
+        alternativa = ALTERNATIVAS_MCNEMAR[params.get("alternativa", ALTERNATIVA_PADRAO_MCNEMAR)]
+
+        tabela, outro, descartadas = self.tabela_pares(df, c1, c2, evento)
+        (a, b), (c, d) = tabela
+        n, discordantes = a + b + c + d, b + c
+
+        p_exato = {alt: mcnemar_exato(b, c, alt) for alt in _SIMBOLO_OR}
+        assintotico = {alt: mcnemar_assintotico(b, c, alt) for alt in _SIMBOLO_OR}
+        usa_exato = discordantes < LIMITE_EXATO
+        p_valor = p_exato[alternativa] if usa_exato else assintotico[alternativa][1]
+
+        p1, p2 = (a + b) / n, (a + c) / n
+        dif_ic = self._ic_diferenca(b, c, n, alfa, alternativa)
+        or_pareada = b / c if c else math.inf
+        or_ic = self._ic_odds_ratio(b, c, alfa, alternativa)
+
+        estatisticas = {
+            "n": float(n),
+            "n_descartadas": float(descartadas),
+            "a": float(a),
+            "b": float(b),
+            "c": float(c),
+            "d": float(d),
+            "discordantes": float(discordantes),
+            "qui2": assintotico["two-sided"][0],
+            "p_exato": p_exato[alternativa],
+            "p_assintotico": assintotico[alternativa][1],
+            "usou_exato": float(usa_exato),
+            "p_valor": p_valor,
+            "p1": p1,
+            "p2": p2,
+            "diferenca": p1 - p2,
+            "ic_inferior": dif_ic[0],
+            "ic_superior": dif_ic[1],
+            "odds_ratio_pareada": or_pareada,
+            "or_ic_inferior": or_ic[0],
+            "or_ic_superior": or_ic[1],
+        }
+
+        simbolo, texto = _SIMBOLO_OR[alternativa], _TEXTO_MCNEMAR[alternativa]
+        de_quem = f"a proporção de '{evento}' em '{c1}'"
+        em_c2 = f"proporção em '{c2}'"
+        interpretacao = interpretar(
+            p_valor,
+            alfa,
+            h0="p₁ = p₂",
+            h1=f"p₁ {simbolo} p₂",
+            conclusao_rejeita=f"Há evidência estatística de que {de_quem} é {texto} {em_c2}.",
+            conclusao_nao_rejeita=(
+                f"Não há evidência suficiente de que {de_quem} seja {texto} {em_c2}."
+            ),
+        )
+
+        metodo = (
+            f"Exato (b + c = {discordantes} < {LIMITE_EXATO})"
+            if usa_exato
+            else f"Qui-quadrado com Edwards (b + c = {discordantes} ≥ {LIMITE_EXATO})"
+        )
+        avisos = []
+        if descartadas:
+            avisos.append(
+                f"{descartadas} linha(s) com valor ausente em '{c1}' ou '{c2}' foram descartadas."
+            )
+        if usa_exato:
+            avisos.append(
+                f"Poucos pares discordantes (b + c = {discordantes}): a decisão usa o teste exato; "
+                "o valor do qui-quadrado no card é só comparativo."
+            )
+        if c == 0:
+            avisos.append("Nenhum par do tipo c: a odds ratio pareada (b/c) vai a +∞.")
+
+        confianca = f"{(1 - alfa) * 100:.0f}%"
+        tipo_ic = "" if alternativa == "two-sided" else " (unilateral)"
+        resumo = [
+            ("Pares completos (n)", f"{n}"),
+            ("Evento", f"'{evento}'"),
+            (f"Pares discordantes b ('{evento}' → '{outro}')", f"{b}"),
+            (f"Pares discordantes c ('{outro}' → '{evento}')", f"{c}"),
+            ("Método da decisão", metodo),
+            ("p-valor exato (binomial)", formatar_p_valor(p_exato[alternativa])),
+            ("Qui-quadrado de McNemar (Edwards)", formatar_numero(assintotico["two-sided"][0])),
+            ("p-valor assintótico", formatar_p_valor(assintotico[alternativa][1])),
+            (
+                f"Proporção de '{evento}' em '{c1}' (p̂₁)",
+                f"{formatar_numero(p1)} ({_percentual(p1)})",
+            ),
+            (
+                f"Proporção de '{evento}' em '{c2}' (p̂₂)",
+                f"{formatar_numero(p2)} ({_percentual(p2)})",
+            ),
+            ("Diferença (p̂₁ − p̂₂)", formatar_numero(p1 - p2)),
+            (
+                f"IC {confianca} para p₁ − p₂{tipo_ic}",
+                f"[{formatar_numero(dif_ic[0])}; {formatar_numero(dif_ic[1])}]",
+            ),
+            ("Odds ratio pareada (b/c)", formatar_numero(or_pareada)),
+            (
+                f"IC {confianca} exato para a odds ratio pareada{tipo_ic}",
+                f"[{formatar_numero(or_ic[0])}; {formatar_numero(or_ic[1])}]",
+            ),
+        ]
+        pares = pd.DataFrame(tabela, index=[evento, outro], columns=[evento, outro])
+        pares.index.name, pares.columns.name = c1, c2
+
+        return ResultadoTeste(
+            teste_id=self.id,
+            estatisticas=estatisticas,
+            p_valor=p_valor,
+            alfa=alfa,
+            decisao=decidir(p_valor, alfa),
+            interpretacao=interpretacao,
+            tabelas={
+                "Resumo": pd.DataFrame(resumo, columns=["Medida", "Valor"]),
+                "Tabela de pares": QuiQuadrado._tabela_com_totais(pares),
+            },
+            figuras=[
+                barras(
+                    [(c1, p1), (c2, p2)],
+                    f"Proporção de '{evento}' em '{c1}' e '{c2}'",
+                    "Proporção",
+                    maximo=1.0,
+                    percentual=True,
+                )
+            ],
+            avisos=avisos,
+            comparacao=ComparacaoPValores(
+                titulo_esquerda="Exato (binomial)",
+                titulo_direita="Qui-quadrado",
+                hipoteses=list(ALTERNATIVAS_MCNEMAR),
+                linhas=[
+                    (p_exato[alt], assintotico[alt][1]) for alt in ALTERNATIVAS_MCNEMAR.values()
+                ],
+            ),
+        )
+
+    @staticmethod
+    def _ic_diferenca(b: int, c: int, n: int, alfa: float, alternativa: str) -> tuple[float, float]:
+        """Wald para dados pareados: Var(p̂₁ − p̂₂) = [(b + c) − (b − c)²/n] / n²."""
+        dif = (b - c) / n
+        ep = math.sqrt(max((b + c) - (b - c) ** 2 / n, 0.0)) / n
+        if alternativa == "two-sided":
+            z = float(stats.norm.ppf(1 - alfa / 2))
+            return dif - z * ep, dif + z * ep
+        z = float(stats.norm.ppf(1 - alfa))
+        return (dif - z * ep, 1.0) if alternativa == "greater" else (-1.0, dif + z * ep)
+
+    @staticmethod
+    def _ic_odds_ratio(b: int, c: int, alfa: float, alternativa: str) -> tuple[float, float]:
+        """IC exato condicional para b/c: Clopper-Pearson para θ = b/(b + c), OR = θ/(1 − θ)."""
+        cauda = alfa / 2 if alternativa == "two-sided" else alfa
+
+        def razao(theta: float) -> float:
+            return math.inf if theta >= 1 else theta / (1 - theta)
+
+        baixo = float(stats.beta.ppf(cauda, b, c + 1)) if b > 0 else 0.0
+        alto = float(stats.beta.ppf(1 - cauda, b + 1, c)) if c > 0 else 1.0
+        if alternativa == "greater":
+            return razao(baixo), math.inf
+        if alternativa == "less":
+            return 0.0, razao(alto)
+        return razao(baixo), razao(alto)
