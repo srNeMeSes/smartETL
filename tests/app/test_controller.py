@@ -308,3 +308,24 @@ def test_execucao_em_andamento_ignora_novo_clique(controller, visao, csv_valido)
         assert controller.executar() is None
     assert ("processando",) not in visao.chamadas
     assert controller.executar() is not None  # liberado, executa normalmente
+
+
+def test_integracao_t_2am_carregar_selecionar_executar(controller, visao, tmp_path):
+    # Checklist §9, item 7, para o teste t de duas amostras.
+    arquivo = tmp_path / "turmas.csv"
+    arquivo.write_text("nota;turma\n7,5;A\n8,0;A\n6,5;A\n9,0;B\n8,5;B\n9,5;B\n", encoding="utf-8")
+    controller.carregar_arquivo(str(arquivo))
+    controller.selecionar_teste("teste_t_2am")
+    assert visao.ultima()[:2] == ("formulario", "teste_t_2am")
+    visao.params = {
+        "coluna": "nota",
+        "grupo": "turma",
+        "variancias": "Diferentes (Welch)",
+        "alternativa": "μ₁ < μ₂",
+        "alfa": 0.05,
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "teste_t_2am"
+    assert (resultado.estatisticas["n1"], resultado.estatisticas["n2"]) == (3, 3)
+    assert resultado.comparacao.titulo_direita == "Mann-Whitney"
+    assert visao.chamadas[-1] == ("resultado", "teste_t_2am")

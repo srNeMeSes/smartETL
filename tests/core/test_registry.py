@@ -89,5 +89,6 @@ def test_classes_registradas_sao_consistentes():
         assert (teste.id, teste.nome, teste.grupo) == (info.id, info.nome, info.grupo)
 
 
-def test_somente_t_1am_disponivel_na_fase_1():
-    assert [t.id for t in registry.listar() if t.disponivel] == ["teste_t_1am"]
+def test_testes_implementados():
+    # Fase 3: atualizar a cada teste implementado (ordem da seção 7).
+    assert [t.id for t in registry.listar() if t.disponivel] == ["teste_t_1am", "teste_t_2am"]

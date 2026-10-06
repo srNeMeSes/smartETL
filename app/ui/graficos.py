@@ -16,6 +16,8 @@ def desenhar_figura(figura: Figura, largura: float = LARGURA, altura: float = AL
     """Título + gráfico + legenda."""
     if figura.tipo == "histograma":
         grafico, legenda = histograma(figura.dados, largura, altura)
+    elif figura.tipo == "boxplot":
+        grafico, legenda = boxplot(figura.dados, largura, altura)
     else:
         raise ValueError(f"Tipo de figura desconhecido: {figura.tipo}")
     titulo = ft.Text(figura.titulo, size=14, weight=ft.FontWeight.W_600, color=tema.TEXTO)
@@ -96,27 +98,100 @@ def histograma(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, f
         formas.append(cv.Line(x, _MARGEM_TOPO, x, base, paint=_paint_referencia(ref["estilo"])))
 
     canvas = cv.Canvas(width=largura, height=altura, shapes=formas)
-    legenda = _legenda(referencias) if referencias else None
+    legenda = _legenda([(r["rotulo"], r["estilo"]) for r in referencias]) if referencias else None
     return canvas, legenda
 
 
-def _legenda(referencias: list[dict]) -> ft.Row:
-    itens = []
-    for ref in referencias:
-        tracejado = ref["estilo"] == "tracejado"
-        cor = tema.GRAFICO_REFERENCIA if tracejado else tema.GRAFICO_DESTAQUE
-        amostra = ft.Row(
-            [ft.Container(width=5, height=2, bgcolor=cor) for _ in range(3 if tracejado else 1)],
+def _amostra_legenda(estilo: str) -> ft.Control:
+    """Pedacinho de linha cheia, tracejada ou um ponto, para a legenda."""
+    if estilo == "tracejado":
+        return ft.Row(
+            [ft.Container(width=5, height=2, bgcolor=tema.GRAFICO_REFERENCIA) for _ in range(3)],
             spacing=3,
             tight=True,
         )
-        if not tracejado:
-            amostra.controls[0].width = 21
-        itens.append(
+    if estilo == "ponto":
+        return ft.Container(width=8, height=8, border_radius=4, bgcolor=tema.GRAFICO_DESTAQUE)
+    return ft.Container(width=21, height=2, bgcolor=tema.GRAFICO_DESTAQUE)
+
+
+def _legenda(itens: list[tuple[str, str]]) -> ft.Row:
+    """Itens (rótulo, estilo) com estilo "destaque", "tracejado" ou "ponto"."""
+    return ft.Row(
+        [
             ft.Row(
-                [amostra, ft.Text(ref["rotulo"], size=12, color=tema.TEXTO)],
+                [_amostra_legenda(estilo), ft.Text(rotulo, size=12, color=tema.TEXTO)],
                 spacing=6,
                 tight=True,
             )
+            for rotulo, estilo in itens
+        ],
+        spacing=20,
+    )
+
+
+def boxplot(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.Control]:
+    """Boxplots verticais lado a lado: caixa Q1–Q3, mediana, bigodes, média (ponto) e outliers."""
+    grupos: list[dict] = dados["grupos"]
+    esq = 70  # espaço para os rótulos do eixo y
+    area_l = largura - esq - _MARGEM_DIR
+    area_a = altura - _MARGEM_TOPO - _MARGEM_BASE
+    base = _MARGEM_TOPO + area_a
+
+    valores = [
+        v for g in grupos for v in (g["bigode_inf"], g["bigode_sup"], g["media"], *g["outliers"])
+    ]
+    minimo, maximo = min(valores), max(valores)
+    if minimo == maximo:
+        minimo, maximo = minimo - 0.5, maximo + 0.5
+    folga = (maximo - minimo) * 0.08
+    minimo, maximo = minimo - folga, maximo + folga
+
+    def sy(valor: float) -> float:
+        return base - (valor - minimo) / (maximo - minimo) * area_a
+
+    traco = ft.Paint(color=tema.GRAFICO_REFERENCIA, stroke_width=1, style=ft.PaintingStyle.STROKE)
+    preenchimento = ft.Paint(color=tema.GRAFICO_BARRA, style=ft.PaintingStyle.FILL)
+    contorno = ft.Paint(
+        color=tema.GRAFICO_BARRA_BORDA, stroke_width=1.5, style=ft.PaintingStyle.STROKE
+    )
+    mediana = ft.Paint(color=tema.GRAFICO_DESTAQUE, stroke_width=2, style=ft.PaintingStyle.STROKE)
+    ponto = ft.Paint(color=tema.GRAFICO_DESTAQUE, style=ft.PaintingStyle.FILL)
+
+    eixo = ft.Paint(color=tema.BORDA, stroke_width=1, style=ft.PaintingStyle.STROKE)
+    formas: list[cv.Shape] = [
+        cv.Line(esq, base, esq + area_l, base, paint=eixo),
+        cv.Line(esq, _MARGEM_TOPO, esq, base, paint=eixo),
+    ]
+    for valor in (minimo, (minimo + maximo) / 2, maximo):
+        formas.append(
+            _texto(esq - 6, sy(valor), formatar_numero(valor, 2), ft.Alignment.CENTER_RIGHT)
         )
-    return ft.Row(itens, spacing=20)
+
+    vaga = area_l / len(grupos)
+    meia = min(vaga * 0.22, 45)
+    for i, g in enumerate(grupos):
+        cx = esq + vaga * (i + 0.5)
+        formas += [
+            cv.Line(cx, sy(g["bigode_sup"]), cx, sy(g["q3"]), paint=traco),
+            cv.Line(cx, sy(g["q1"]), cx, sy(g["bigode_inf"]), paint=traco),
+            cv.Line(
+                cx - meia / 2, sy(g["bigode_sup"]), cx + meia / 2, sy(g["bigode_sup"]), paint=traco
+            ),
+            cv.Line(
+                cx - meia / 2, sy(g["bigode_inf"]), cx + meia / 2, sy(g["bigode_inf"]), paint=traco
+            ),
+        ]
+        topo, altura_caixa = sy(g["q3"]), max(sy(g["q1"]) - sy(g["q3"]), 1)
+        for paint in (preenchimento, contorno):
+            formas.append(cv.Rect(cx - meia, topo, 2 * meia, altura_caixa, paint=paint))
+        formas.append(
+            cv.Line(cx - meia, sy(g["mediana"]), cx + meia, sy(g["mediana"]), paint=mediana)
+        )
+        formas.append(cv.Circle(cx, sy(g["media"]), 3.5, paint=ponto))
+        formas += [cv.Circle(cx, sy(v), 3, paint=contorno) for v in g["outliers"]]
+        rotulo = f"{g['rotulo']} (n = {g['n']})"
+        formas.append(_texto(cx, base + 6, rotulo, ft.Alignment.TOP_CENTER))
+
+    canvas = cv.Canvas(width=largura, height=altura, shapes=formas)
+    return canvas, _legenda([("Mediana", "destaque"), ("Média", "ponto")])

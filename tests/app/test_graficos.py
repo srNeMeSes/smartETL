@@ -8,7 +8,7 @@ from ajudantes_ui import do_tipo, textos
 from app.ui import tema
 from app.ui.graficos import ALTURA, LARGURA, desenhar_figura
 from core.base import Figura
-from core.figuras import histograma
+from core.figuras import boxplot, histograma
 
 
 @pytest.fixture
@@ -73,3 +73,26 @@ def test_tipo_desconhecido():
 
 def test_retorna_controle_flet(figura):
     assert isinstance(desenhar_figura(figura), ft.Column)
+
+
+def test_boxplot_desenha_um_por_grupo():
+    fig = boxplot([("A", [1, 2, 3, 4, 100]), ("B", [5, 6, 7])], "'y' por 'g'", "y")
+    controle = desenhar_figura(fig)
+    canvas = _canvas(controle)
+    caixas = [s for s in canvas.shapes if isinstance(s, cv.Rect)]
+    assert len(caixas) == 2 * 2  # preenchimento + contorno por grupo
+    circulos = [s for s in canvas.shapes if isinstance(s, cv.Circle)]
+    assert len(circulos) == 2 + 1  # uma média por grupo + o outlier 100
+    rotulos = [s.value for s in canvas.shapes if isinstance(s, cv.Text)]
+    assert "A (n = 5)" in rotulos and "B (n = 3)" in rotulos
+    assert {"Mediana", "Média"} <= set(textos(controle))
+    for forma in canvas.shapes:
+        if isinstance(forma, cv.Rect):
+            assert 0 <= forma.y and forma.y + forma.height <= ALTURA
+        if isinstance(forma, cv.Circle):
+            assert 0 <= forma.y <= ALTURA
+
+
+def test_boxplot_grupo_constante():
+    canvas = _canvas(desenhar_figura(boxplot([("A", [5, 5, 5])], "t", "y")))
+    assert any(isinstance(s, cv.Rect) and s.height >= 1 for s in canvas.shapes)

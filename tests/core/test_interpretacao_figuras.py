@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from core.figuras import MAX_CLASSES, histograma
+from core.figuras import MAX_CLASSES, boxplot, histograma, resumo_boxplot
 from core.interpretacao import (
     NAO_REJEITA_H0,
     REJEITA_H0,
@@ -106,3 +106,30 @@ def test_histograma_valor_unico_e_vazio():
     assert sum(fig.dados["contagens"]) == 2
     with pytest.raises(ValueError):
         histograma([np.nan], "t", "x")
+
+
+def test_resumo_boxplot_tukey():
+    # Quartis com interpolação linear (numpy): Q1 = 2, Q3 = 4, IQR = 2 → cercas em -1 e 7.
+    r = resumo_boxplot([1, 2, 3, 4, 100])
+    assert (r["q1"], r["mediana"], r["q3"]) == (2.0, 3.0, 4.0)
+    assert (r["bigode_inf"], r["bigode_sup"]) == (1.0, 4.0)
+    assert r["outliers"] == [100.0]
+    assert r["media"] == 22.0 and r["n"] == 5
+
+
+def test_resumo_boxplot_sem_outliers_e_vazio():
+    r = resumo_boxplot([1.0, 2.0, np.nan, 3.0])
+    assert r["n"] == 3 and r["outliers"] == []
+    assert (r["bigode_inf"], r["bigode_sup"]) == (1.0, 3.0)
+    with pytest.raises(ValueError):
+        resumo_boxplot([np.nan])
+
+
+def test_boxplot_figura():
+    fig = boxplot([("A", [1, 2, 3]), ("B", [4, 5, 6, 7])], "'y' por 'g'", "y")
+    assert fig.tipo == "boxplot" and fig.titulo == "'y' por 'g'"
+    assert fig.dados["rotulo_y"] == "y"
+    assert [(g["rotulo"], g["n"], g["mediana"]) for g in fig.dados["grupos"]] == [
+        ("A", 3, 2.0),
+        ("B", 4, 5.5),
+    ]

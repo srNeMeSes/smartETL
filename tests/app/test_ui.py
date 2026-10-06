@@ -444,3 +444,24 @@ def test_csv_brasileiro_alimenta_formulario(tela_controller, tmp_path):
     assert [c.label.value for c in tela.tabela.tabela.columns] == ["nome", "nota", "turma"]
     assert [o.key for o in tela.formulario.controle("coluna").options] == ["nota"]
     assert tela.tabela.tabela.rows[0].cells[0].content.value == "João"
+
+
+def test_formulario_t_2am_filtra_grupo_binario(tela_controller, tmp_path, page):
+    tela, controller = tela_controller
+    arquivo = tmp_path / "t.csv"
+    arquivo.write_text(
+        "nota;turma;cidade\n7,5;A;x\n8,0;A;y\n6,5;A;z\n9,0;B;x\n8,5;B;y\n9,5;B;z\n",
+        encoding="utf-8",
+    )
+    controller.carregar_arquivo(str(arquivo))
+    tela.sidebar.selecionar("teste_t_2am")
+    form = tela.formulario
+    assert [o.key for o in form.controle("coluna").options] == ["nota"]
+    assert [o.key for o in form.controle("grupo").options] == ["turma"]  # "cidade" tem 3 níveis
+    assert form.controle("variancias").value == "Diferentes (Welch)"
+    assert "Mann-Whitney" in textos(form.card)
+    form.controle("coluna").value = "nota"
+    form.controle("grupo").value = "turma"
+    tela.sidebar.botao_executar.on_click(None)
+    assert controller.estado.ultimo_resultado.teste_id == "teste_t_2am"
+    assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1

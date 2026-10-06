@@ -46,3 +46,41 @@ def histograma(
             ],
         },
     )
+
+
+def resumo_boxplot(valores: Sequence[float] | np.ndarray) -> dict[str, float | list[float]]:
+    """Cinco números de Tukey: quartis (interpolação linear do numpy), bigodes até o dado mais
+    extremo dentro de 1,5·IQR e pontos além disso como outliers; inclui a média."""
+    x = np.asarray(valores, dtype=float)
+    x = x[np.isfinite(x)]
+    if x.size == 0:
+        raise ValueError("boxplot sem valores")
+    q1, mediana, q3 = (float(v) for v in np.percentile(x, [25, 50, 75]))
+    iqr = q3 - q1
+    dentro = x[(x >= q1 - 1.5 * iqr) & (x <= q3 + 1.5 * iqr)]
+    return {
+        "n": int(x.size),
+        "q1": q1,
+        "mediana": mediana,
+        "q3": q3,
+        "bigode_inf": float(dentro.min()),
+        "bigode_sup": float(dentro.max()),
+        "media": float(x.mean()),
+        "outliers": sorted(float(v) for v in x[(x < dentro.min()) | (x > dentro.max())]),
+    }
+
+
+def boxplot(
+    grupos: Sequence[tuple[str, Sequence[float] | np.ndarray]],
+    titulo: str,
+    rotulo_y: str,
+) -> Figura:
+    """Boxplots lado a lado, um por grupo: (rótulo, valores)."""
+    return Figura(
+        tipo="boxplot",
+        titulo=titulo,
+        dados={
+            "rotulo_y": rotulo_y,
+            "grupos": [{"rotulo": rotulo, **resumo_boxplot(valores)} for rotulo, valores in grupos],
+        },
+    )
