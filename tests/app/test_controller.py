@@ -374,3 +374,26 @@ def test_integracao_z_1prop_carregar_selecionar_executar(controller, visao, tmp_
     assert resultado.estatisticas["p_hat"] == pytest.approx(0.6)
     assert resultado.comparacao.titulo_direita == "Binomial exato"
     assert visao.chamadas[-1] == ("resultado", "teste_z_1prop")
+
+
+def test_integracao_z_2prop_carregar_selecionar_executar(controller, visao, tmp_path):
+    # Checklist §9, item 7, para o teste Z de duas proporções.
+    arquivo = tmp_path / "lojas.csv"
+    linhas = ["comprou;loja"] + ["Sim;A"] * 30 + ["Não;A"] * 20 + ["Sim;B"] * 18 + ["Não;B"] * 27
+    arquivo.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    controller.carregar_arquivo(str(arquivo))
+    controller.selecionar_teste("teste_z_2prop")
+    assert visao.ultima()[:2] == ("formulario", "teste_z_2prop")
+    visao.params = {
+        "coluna": "comprou",
+        "sucesso": "Sim",
+        "grupo": "loja",
+        "alternativa": "p₁ ≠ p₂",
+        "alfa": 0.05,
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "teste_z_2prop"
+    assert (resultado.estatisticas["p1"], resultado.estatisticas["p2"]) == pytest.approx((0.6, 0.4))
+    assert resultado.estatisticas["odds_ratio"] == pytest.approx(2.25)
+    assert resultado.comparacao.titulo_direita == "Fisher exato"
+    assert visao.chamadas[-1] == ("resultado", "teste_z_2prop")

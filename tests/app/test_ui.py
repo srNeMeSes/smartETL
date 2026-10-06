@@ -522,3 +522,28 @@ def test_campo_sucesso_vazio_gera_erro(tela_controller, tmp_path, page):
     mensagem = page.show_dialog.call_args.args[0].content.value
     assert "Preencha o campo 'Variável (binária)'." in mensagem
     assert "Preencha o campo 'Valor que conta como sucesso'." in mensagem
+
+
+def test_formulario_z_2prop_e_duas_tabelas(tela_controller, tmp_path):
+    tela, controller = tela_controller
+    arquivo = tmp_path / "lojas.csv"
+    linhas = ["comprou;loja;cidade"] + [
+        f"{c};{lj};{cid}" for c, lj, cid in zip("SNSSNSNN", "AABBAABB", "xyzxyzxy", strict=True)
+    ]
+    arquivo.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    controller.carregar_arquivo(str(arquivo))
+    tela.sidebar.selecionar("teste_z_2prop")
+    form = tela.formulario
+    assert [o.key for o in form.controle("grupo").options] == ["comprou", "loja"]  # binárias
+    form.controle("coluna").value = "comprou"
+    form.controle("coluna").on_select(None)
+    assert [o.key for o in form.controle("sucesso").options] == ["N", "S"]
+    assert form.controle("sucesso").value == "S"
+    form.controle("grupo").value = "loja"
+    assert "Fisher exato" in textos(form.card)
+    tela.sidebar.botao_executar.on_click(None)
+    assert controller.estado.ultimo_resultado.teste_id == "teste_z_2prop"
+    analise = _textos_aba(tela.painel.analise)
+    assert "Resumo" in analise and "Tabela 2×2" in analise
+    assert len(do_tipo(tela.painel.analise, ft.DataTable)) == 2
+    assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
