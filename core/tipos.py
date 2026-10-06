@@ -65,3 +65,38 @@ def perfilar_coluna(nome: str, serie: pd.Series) -> PerfilColuna:
 def detectar_tipos(df: pd.DataFrame) -> dict[str, PerfilColuna]:
     """Perfil de todas as colunas, na ordem do DataFrame."""
     return {str(nome): perfilar_coluna(str(nome), df[nome]) for nome in df.columns}
+
+
+# ---------------------------------------------------------------------------
+# Níveis (valores distintos) de colunas categóricas/binárias
+# ---------------------------------------------------------------------------
+# Valores que costumam indicar "sucesso" (comparação sem maiúsculas/acentos de caixa).
+_SUCESSO_PROVAVEL = ("1", "sim", "s", "yes", "y", "true", "verdadeiro", "aprovado", "sucesso")
+
+
+def rotulo_nivel(valor: object) -> str:
+    """Texto de um nível (1.0 → "1")."""
+    if isinstance(valor, float) and valor.is_integer():
+        return str(int(valor))
+    return str(valor)
+
+
+def ordenar_niveis(niveis: list) -> list:
+    """Ordem crescente (numérica ou alfabética); tipos misturados caem para ordem textual."""
+    try:
+        return sorted(niveis)
+    except TypeError:
+        return sorted(niveis, key=str)
+
+
+def niveis_coluna(serie: pd.Series) -> list[str]:
+    """Rótulos dos valores distintos não nulos, em ordem crescente."""
+    return [rotulo_nivel(v) for v in ordenar_niveis(list(pd.unique(serie.dropna())))]
+
+
+def nivel_sucesso_padrao(niveis: list[str]) -> str | None:
+    """Sugestão de "sucesso": um valor típico ("1", "Sim", "Aprovado"...) ou o último nível."""
+    for nivel in niveis:
+        if nivel.strip().lower() in _SUCESSO_PROVAVEL:
+            return nivel
+    return niveis[-1] if niveis else None

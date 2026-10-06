@@ -15,6 +15,7 @@ TipoParametro = Literal[
     "alfa",
     "opcao",
     "booleano",
+    "nivel",  # um valor de outra coluna (ver ParametroSpec.depende_de)
 ]
 
 TIPOS_COLUNA: frozenset[str] = frozenset(
@@ -34,6 +35,7 @@ class ParametroSpec:
     padrao: Any = None
     opcoes: list[str] | None = None
     obrigatorio: bool = True
+    depende_de: str | None = None  # tipo "nivel": nome do parâmetro de coluna de origem
 
 
 @dataclass
@@ -46,7 +48,7 @@ class ComparacaoPValores:
     linhas: list[tuple[float | None, float | None]]  # (p_param, p_nao_param); None = não calculado
 
 
-TipoFigura = Literal["histograma", "boxplot"]
+TipoFigura = Literal["histograma", "boxplot", "barras"]
 
 
 @dataclass

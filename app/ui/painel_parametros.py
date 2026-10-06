@@ -6,8 +6,9 @@ import pandas as pd
 from app.ui import tema
 from app.ui.componentes import campos
 from app.ui.componentes.card_comparacao import CardComparacaoTestes
+from app.ui.helpers import esta_na_pagina
 from core.base import ALFAS, TIPOS_COLUNA, ErroValidacao, ParametroSpec, TesteBase
-from core.tipos import PerfilColuna, detectar_tipos
+from core.tipos import PerfilColuna, detectar_tipos, niveis_coluna, nivel_sucesso_padrao
 from core.validacao import colunas_por_tipo, converter_numero
 
 
@@ -76,7 +77,8 @@ class PainelParametros(ft.Row):
                 )
             controle = campos.dropdown_campo(spec.rotulo, opcoes, valor=spec.padrao)
         elif spec.tipo == "numero":
-            valor = None if spec.padrao is None else str(spec.padrao)
+            # Padrão exibido com vírgula decimal (pt-BR); converter_numero aceita os dois formatos.
+            valor = None if spec.padrao is None else str(spec.padrao).replace(".", ",")
             controle = campos.campo_texto(spec.rotulo, valor=valor)
         elif spec.tipo == "alfa":
             controle = campos.dropdown_campo(spec.rotulo, ALFAS, valor=_alfa_texto(spec.padrao))
@@ -84,10 +86,30 @@ class PainelParametros(ft.Row):
             controle = campos.dropdown_campo(spec.rotulo, spec.opcoes or [], valor=spec.padrao)
         elif spec.tipo == "booleano":
             controle = campos.caixa_selecao(spec.rotulo, bool(spec.padrao))
+        elif spec.tipo == "nivel":
+            controle = campos.dropdown_campo(spec.rotulo, [], icone=ft.Icons.CHECK_CIRCLE_OUTLINE)
+            origem = self._controles.get(spec.depende_de or "")
+            if origem is not None:
+                self._ligar_niveis(origem, controle)
         else:
             raise ValueError(f"Tipo de parâmetro desconhecido: {spec.tipo}")
         self._controles[spec.nome] = controle
         return controle
+
+    def _ligar_niveis(self, origem: ft.Dropdown, destino: ft.Dropdown) -> None:
+        """Quando a coluna de `origem` muda, `destino` passa a listar os valores dessa coluna."""
+
+        def atualizar(_evento=None) -> None:
+            coluna = origem.value
+            niveis = niveis_coluna(self._df[coluna]) if coluna in self._df.columns else []
+            campos.definir_opcoes(destino, niveis)
+            if destino.value not in niveis:
+                destino.value = nivel_sucesso_padrao(niveis)
+            if esta_na_pagina(destino):
+                destino.update()
+
+        origem.on_select = atualizar
+        atualizar()
 
     def controle(self, nome: str) -> ft.Control:
         """Campo do parâmetro `nome` (por referência, nunca por índice)."""

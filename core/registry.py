@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from core.base import TesteBase
 from core.testes.medias import TesteT1Amostra, TesteT2Amostras, TesteTPareado
+from core.testes.proporcoes import TesteZ1Prop
 
 
 @dataclass(frozen=True)
@@ -25,7 +26,7 @@ _CATALOGO: tuple[TesteInfo, ...] = (
     TesteInfo("teste_t_1am", "Teste t (uma amostra)", "Médias", TesteT1Amostra),
     TesteInfo("teste_t_2am", "Teste t (duas amostras)", "Médias", TesteT2Amostras),
     TesteInfo("teste_t_pareado", "Teste t (pareado)", "Médias", TesteTPareado),
-    TesteInfo("teste_z_1prop", "Teste Z (uma proporção)", "Proporções"),
+    TesteInfo("teste_z_1prop", "Teste Z (uma proporção)", "Proporções", TesteZ1Prop),
     TesteInfo("teste_z_2prop", "Teste Z (duas proporções)", "Proporções"),
     TesteInfo("qui_quadrado", "Qui-quadrado", "Categóricos"),
     TesteInfo("fisher", "Teste exato de Fisher", "Categóricos"),

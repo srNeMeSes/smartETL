@@ -95,4 +95,5 @@ def test_testes_implementados():
         "teste_t_1am",
         "teste_t_2am",
         "teste_t_pareado",
+        "teste_z_1prop",
     ]

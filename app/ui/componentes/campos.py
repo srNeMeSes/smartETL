@@ -22,6 +22,11 @@ def _opcao(chave: str) -> ft.dropdown.Option:
     return ft.dropdown.Option(chave, style=ft.ButtonStyle(color=tema.CAMPO_TEXTO))
 
 
+def definir_opcoes(dropdown: ft.Dropdown, opcoes: Sequence[str]) -> None:
+    """Troca as opções de um dropdown já criado, mantendo o estilo."""
+    dropdown.options = [_opcao(str(o)) for o in opcoes]
+
+
 def dropdown_campo(
     rotulo: str,
     opcoes: Sequence[str],

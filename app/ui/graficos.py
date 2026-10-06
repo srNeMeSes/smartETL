@@ -18,6 +18,8 @@ def desenhar_figura(figura: Figura, largura: float = LARGURA, altura: float = AL
         grafico, legenda = histograma(figura.dados, largura, altura)
     elif figura.tipo == "boxplot":
         grafico, legenda = boxplot(figura.dados, largura, altura)
+    elif figura.tipo == "barras":
+        grafico, legenda = barras(figura.dados, largura, altura)
     else:
         raise ValueError(f"Tipo de figura desconhecido: {figura.tipo}")
     titulo = ft.Text(figura.titulo, size=14, weight=ft.FontWeight.W_600, color=tema.TEXTO)
@@ -195,3 +197,62 @@ def boxplot(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.C
 
     canvas = cv.Canvas(width=largura, height=altura, shapes=formas)
     return canvas, _legenda([("Mediana", "destaque"), ("Média", "ponto")])
+
+
+def _formatar_valor(valor: float, percentual: bool) -> str:
+    if percentual:
+        return f"{formatar_numero(valor * 100, 1)}%"
+    return formatar_numero(valor, 2)
+
+
+def barras(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.Control | None]:
+    """Barras verticais com o valor sobre cada barra e linhas horizontais de referência."""
+    categorias: list[dict] = dados["categorias"]
+    referencias: list[dict] = dados.get("referencias", [])
+    percentual = bool(dados.get("percentual"))
+    maximo = float(dados["maximo"])
+    esq = 56
+    area_l = largura - esq - _MARGEM_DIR
+    area_a = altura - _MARGEM_TOPO - _MARGEM_BASE
+    base = _MARGEM_TOPO + area_a
+
+    def sy(valor: float) -> float:
+        return base - min(max(valor, 0.0), maximo) / maximo * area_a
+
+    eixo = ft.Paint(color=tema.BORDA, stroke_width=1, style=ft.PaintingStyle.STROKE)
+    preenchimento = ft.Paint(color=tema.GRAFICO_BARRA, style=ft.PaintingStyle.FILL)
+    contorno = ft.Paint(
+        color=tema.GRAFICO_BARRA_BORDA, stroke_width=1.5, style=ft.PaintingStyle.STROKE
+    )
+    formas: list[cv.Shape] = [
+        cv.Line(esq, base, esq + area_l, base, paint=eixo),
+        cv.Line(esq, _MARGEM_TOPO, esq, base, paint=eixo),
+    ]
+    for valor in (0.0, maximo / 2, maximo):
+        formas.append(
+            _texto(
+                esq - 6, sy(valor), _formatar_valor(valor, percentual), ft.Alignment.CENTER_RIGHT
+            )
+        )
+
+    vaga = area_l / len(categorias)
+    meia = min(vaga * 0.3, 60)
+    for i, categoria in enumerate(categorias):
+        cx = esq + vaga * (i + 0.5)
+        topo = sy(categoria["valor"])
+        altura_barra = max(base - topo, 1)
+        for paint in (preenchimento, contorno):
+            formas.append(
+                cv.Rect(cx - meia, base - altura_barra, 2 * meia, altura_barra, paint=paint)
+            )
+        valor_txt = _formatar_valor(categoria["valor"], percentual)
+        formas.append(_texto(cx, base - altura_barra - 4, valor_txt, ft.Alignment.BOTTOM_CENTER))
+        formas.append(_texto(cx, base + 6, categoria["rotulo"], ft.Alignment.TOP_CENTER))
+
+    for ref in referencias:
+        y = sy(ref["valor"])
+        formas.append(cv.Line(esq, y, esq + area_l, y, paint=_paint_referencia(ref["estilo"])))
+
+    canvas = cv.Canvas(width=largura, height=altura, shapes=formas)
+    legenda = _legenda([(r["rotulo"], r["estilo"]) for r in referencias]) if referencias else None
+    return canvas, legenda

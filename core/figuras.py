@@ -84,3 +84,36 @@ def boxplot(
             "grupos": [{"rotulo": rotulo, **resumo_boxplot(valores)} for rotulo, valores in grupos],
         },
     )
+
+
+def barras(
+    categorias: Sequence[tuple[str, float]],
+    titulo: str,
+    rotulo_y: str,
+    maximo: float | None = None,
+    referencias: Sequence[tuple[str, float, str]] = (),
+    percentual: bool = False,
+) -> Figura:
+    """Barras verticais (rótulo, valor) com linhas horizontais de referência opcionais.
+
+    `maximo` fixa o topo do eixo (ex.: 1 para proporções); `percentual` exibe os valores como %.
+    """
+    valores = [float(v) for _, v in categorias]
+    topo = maximo if maximo is not None else max([*valores, *(v for _, v, _ in referencias)])
+    return Figura(
+        tipo="barras",
+        titulo=titulo,
+        dados={
+            "rotulo_y": rotulo_y,
+            "maximo": float(topo) if topo > 0 else 1.0,
+            "percentual": percentual,
+            "categorias": [
+                {"rotulo": rotulo, "valor": valor}
+                for (rotulo, _), valor in zip(categorias, valores, strict=True)
+            ],
+            "referencias": [
+                {"rotulo": rotulo, "valor": float(valor), "estilo": estilo}
+                for rotulo, valor, estilo in referencias
+            ],
+        },
+    )

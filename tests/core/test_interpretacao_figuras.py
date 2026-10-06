@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from core.figuras import MAX_CLASSES, boxplot, histograma, resumo_boxplot
+from core.figuras import MAX_CLASSES, barras, boxplot, histograma, resumo_boxplot
 from core.interpretacao import (
     NAO_REJEITA_H0,
     REJEITA_H0,
@@ -133,3 +133,27 @@ def test_boxplot_figura():
         ("A", 3, 2.0),
         ("B", 4, 5.5),
     ]
+
+
+def test_barras_figura():
+    fig = barras(
+        [("Sim", 0.62), ("Não", 0.38)],
+        "Proporções",
+        "Proporção",
+        maximo=1.0,
+        referencias=[("p₀", 0.5, "tracejado")],
+        percentual=True,
+    )
+    assert fig.tipo == "barras"
+    assert fig.dados["categorias"] == [
+        {"rotulo": "Sim", "valor": 0.62},
+        {"rotulo": "Não", "valor": 0.38},
+    ]
+    assert fig.dados["maximo"] == 1.0 and fig.dados["percentual"] is True
+    assert fig.dados["referencias"] == [{"rotulo": "p₀", "valor": 0.5, "estilo": "tracejado"}]
+
+
+def test_barras_maximo_automatico():
+    assert barras([("a", 3), ("b", 7)], "t", "y").dados["maximo"] == 7.0
+    assert barras([("a", 3)], "t", "y", referencias=[("r", 9, "tracejado")]).dados["maximo"] == 9
+    assert barras([("a", 0)], "t", "y").dados["maximo"] == 1.0

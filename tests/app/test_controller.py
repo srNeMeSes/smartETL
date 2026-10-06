@@ -352,3 +352,25 @@ def test_integracao_t_pareado_carregar_selecionar_executar(controller, visao, tm
     assert resultado.estatisticas["n"] == 5
     assert any("1 linha(s) com valor ausente" in a for a in resultado.avisos)
     assert visao.chamadas[-1] == ("resultado", "teste_t_pareado")
+
+
+def test_integracao_z_1prop_carregar_selecionar_executar(controller, visao, tmp_path):
+    # Checklist §9, item 7, para o teste Z de uma proporção.
+    arquivo = tmp_path / "votos.csv"
+    linhas = ["voto"] + ["Sim"] * 30 + ["Não"] * 20
+    arquivo.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    controller.carregar_arquivo(str(arquivo))
+    controller.selecionar_teste("teste_z_1prop")
+    assert visao.ultima()[:2] == ("formulario", "teste_z_1prop")
+    visao.params = {
+        "coluna": "voto",
+        "sucesso": "Sim",
+        "p0": 0.5,
+        "alternativa": "p > p₀",
+        "alfa": 0.05,
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "teste_z_1prop"
+    assert resultado.estatisticas["p_hat"] == pytest.approx(0.6)
+    assert resultado.comparacao.titulo_direita == "Binomial exato"
+    assert visao.chamadas[-1] == ("resultado", "teste_z_1prop")

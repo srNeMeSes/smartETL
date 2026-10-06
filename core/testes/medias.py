@@ -16,6 +16,7 @@ from core.base import (
 )
 from core.figuras import boxplot, histograma
 from core.interpretacao import decidir, formatar_numero, formatar_p_valor, interpretar
+from core.tipos import ordenar_niveis, rotulo_nivel
 from core.validacao import converter_numero, erro_alfa, erro_numero, erro_opcao, erros_coluna
 
 # Rótulo exibido na UI → valor de `alternative` do scipy. A ordem é a das linhas do card.
@@ -252,21 +253,6 @@ VARIANCIAS = {"Diferentes (Welch)": False, "Iguais (pooled)": True}  # → equal
 VARIANCIA_PADRAO = "Diferentes (Welch)"
 _TEXTO_2 = {"two-sided": "diferente da", "greater": "maior que a", "less": "menor que a"}
 RAZAO_VARIANCIAS_AVISO = 4.0
-
-
-def rotulo_nivel(valor: object) -> str:
-    """Texto de um nível de grupo (1.0 → "1")."""
-    if isinstance(valor, float) and valor.is_integer():
-        return str(int(valor))
-    return str(valor)
-
-
-def ordenar_niveis(niveis: list) -> list:
-    """Ordem crescente (numérica ou alfabética); tipos misturados caem para ordem textual."""
-    try:
-        return sorted(niveis)
-    except TypeError:
-        return sorted(niveis, key=str)
 
 
 class TesteT2Amostras(TesteBase):

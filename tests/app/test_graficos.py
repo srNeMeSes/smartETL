@@ -8,7 +8,7 @@ from ajudantes_ui import do_tipo, textos
 from app.ui import tema
 from app.ui.graficos import ALTURA, LARGURA, desenhar_figura
 from core.base import Figura
-from core.figuras import boxplot, histograma
+from core.figuras import barras, boxplot, histograma
 
 
 @pytest.fixture
@@ -96,3 +96,27 @@ def test_boxplot_desenha_um_por_grupo():
 def test_boxplot_grupo_constante():
     canvas = _canvas(desenhar_figura(boxplot([("A", [5, 5, 5])], "t", "y")))
     assert any(isinstance(s, cv.Rect) and s.height >= 1 for s in canvas.shapes)
+
+
+def test_barras_desenha_valores_em_percentual_e_referencia():
+    fig = barras(
+        [("Sim (sucesso)", 0.62), ("Não", 0.38)],
+        "Proporções em 'r'",
+        "Proporção",
+        maximo=1.0,
+        referencias=[("p₀ = 0,5", 0.5, "tracejado")],
+        percentual=True,
+    )
+    controle = desenhar_figura(fig)
+    canvas = _canvas(controle)
+    barras_ = [s for s in canvas.shapes if isinstance(s, cv.Rect)]
+    assert len(barras_) == 2 * 2
+    alturas = sorted({round(b.height, 6) for b in barras_})
+    assert alturas[1] / alturas[0] == pytest.approx(0.62 / 0.38)
+    rotulos = [s.value for s in canvas.shapes if isinstance(s, cv.Text)]
+    assert {"62,0%", "38,0%", "Sim (sucesso)", "Não", "0,0%", "100,0%"} <= set(rotulos)
+    tracejadas = [
+        s for s in canvas.shapes if isinstance(s, cv.Line) and s.paint.stroke_dash_pattern
+    ]
+    assert len(tracejadas) == 1 and tracejadas[0].y1 == tracejadas[0].y2  # linha horizontal
+    assert "p₀ = 0,5" in textos(controle)

@@ -482,3 +482,43 @@ def test_formulario_t_pareado_e_execucao(tela_controller, tmp_path):
     tela.sidebar.botao_executar.on_click(None)
     assert controller.estado.ultimo_resultado.teste_id == "teste_t_pareado"
     assert "Diferenças 'antes' − 'depois'" in _textos_aba(tela.painel.visualizacao)
+
+
+def test_campo_sucesso_acompanha_a_coluna(tela_controller, tmp_path):
+    tela, controller = tela_controller
+    arquivo = tmp_path / "pesquisa.csv"
+    arquivo.write_text(
+        "comprou;resposta;nota\n1;Sim;3\n0;Não;4\n1;Sim;5\n1;Não;2\n0;Sim;1\n", encoding="utf-8"
+    )
+    controller.carregar_arquivo(str(arquivo))
+    tela.sidebar.selecionar("teste_z_1prop")
+    form = tela.formulario
+    coluna, sucesso = form.controle("coluna"), form.controle("sucesso")
+    assert [o.key for o in coluna.options] == ["comprou", "resposta"]  # binárias
+    assert sucesso.options == [] and sucesso.value is None  # sem coluna escolhida
+    coluna.value = "resposta"
+    coluna.on_select(None)  # mesmo caminho da seleção na tela
+    assert [o.key for o in sucesso.options] == ["Não", "Sim"]
+    assert sucesso.value == "Sim"
+    coluna.value = "comprou"
+    coluna.on_select(None)
+    assert [o.key for o in sucesso.options] == ["0", "1"] and sucesso.value == "1"
+    assert form.controle("p0").value == "0,5"  # padrão com vírgula decimal
+    assert "Binomial exato" in textos(form.card)
+    tela.sidebar.botao_executar.on_click(None)
+    resultado = controller.estado.ultimo_resultado
+    assert resultado.teste_id == "teste_z_1prop"
+    assert resultado.estatisticas["sucessos"] == 3
+    assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
+
+
+def test_campo_sucesso_vazio_gera_erro(tela_controller, tmp_path, page):
+    tela, controller = tela_controller
+    arquivo = tmp_path / "p.csv"
+    arquivo.write_text("resposta\nSim\nNão\nSim\n", encoding="utf-8")
+    controller.carregar_arquivo(str(arquivo))
+    tela.sidebar.selecionar("teste_z_1prop")
+    tela.sidebar.botao_executar.on_click(None)
+    mensagem = page.show_dialog.call_args.args[0].content.value
+    assert "Preencha o campo 'Variável (binária)'." in mensagem
+    assert "Preencha o campo 'Valor que conta como sucesso'." in mensagem

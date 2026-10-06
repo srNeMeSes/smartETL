@@ -4,7 +4,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from core.tipos import MAX_NIVEIS_CATEGORICA, detectar_tipos, perfilar_coluna
+from core.tipos import (
+    MAX_NIVEIS_CATEGORICA,
+    detectar_tipos,
+    niveis_coluna,
+    nivel_sucesso_padrao,
+    ordenar_niveis,
+    perfilar_coluna,
+    rotulo_nivel,
+)
 
 
 def _papeis(serie: pd.Series) -> tuple[bool, bool, bool]:
@@ -51,3 +59,25 @@ def test_detectar_tipos_preserva_ordem(df_exemplo):
     assert list(perfis) == list(df_exemplo.columns)
     assert [n for n, p in perfis.items() if p.numerica] == ["id", "qtd", "valor", "total"]
     assert perfis["users"].categorica and not perfis["users"].numerica
+
+
+def test_niveis_coluna_ordenados_e_sem_nulos():
+    assert niveis_coluna(pd.Series(["b", None, "a", "b"])) == ["a", "b"]
+    assert niveis_coluna(pd.Series([1.0, 0.0, np.nan, 1.0])) == ["0", "1"]
+    assert ordenar_niveis([2, "a", 1]) == [1, 2, "a"]
+    assert [rotulo_nivel(v) for v in (2.0, 2.5, True)] == ["2", "2.5", "True"]
+
+
+@pytest.mark.parametrize(
+    ("niveis", "esperado"),
+    [
+        (["Não", "Sim"], "Sim"),
+        (["0", "1"], "1"),
+        (["Aprovado", "Reprovado"], "Aprovado"),
+        (["N", "S"], "S"),
+        (["azul", "verde"], "verde"),  # nenhum típico: o último
+        ([], None),
+    ],
+)
+def test_nivel_sucesso_padrao(niveis, esperado):
+    assert nivel_sucesso_padrao(niveis) == esperado
