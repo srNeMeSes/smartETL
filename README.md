@@ -35,6 +35,8 @@ diagnósticos de pressupostos.
   Hodges-Lehmann com IC, probabilidade de superioridade, r e boxplot.
 - **Kruskal-Wallis** completo: 2 ou mais grupos, H corrigido para empates, ε², tabela por grupo,
   pós-teste de Dunn opcional (p ajustado por Holm) e boxplot.
+- **Friedman** completo: 3 ou mais medidas repetidas, W de Kendall, tabela por medida, comparações
+  opcionais (Wilcoxon pareado + Holm) e boxplot.
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
