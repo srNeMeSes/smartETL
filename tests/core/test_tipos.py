@@ -81,3 +81,13 @@ def test_niveis_coluna_ordenados_e_sem_nulos():
 )
 def test_nivel_sucesso_padrao(niveis, esperado):
     assert nivel_sucesso_padrao(niveis) == esperado
+
+
+def test_texto_identificador_nao_e_categorico():
+    ids = pd.Series([f"cliente {i}" for i in range(MAX_NIVEIS_CATEGORICA + 1)])
+    assert _papeis(ids) == (False, False, False)
+    # Poucos valores distintos (mesmo que todos diferentes) continuam categóricos.
+    assert _papeis(pd.Series(["a", "b", "c"])) == (False, True, False)
+    # Texto com repetição continua categórico, mesmo com muitos níveis.
+    repetido = pd.Series([f"cidade {i % 12}" for i in range(30)])
+    assert _papeis(repetido) == (False, True, False)

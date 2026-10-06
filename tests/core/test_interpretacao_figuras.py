@@ -5,7 +5,14 @@ import math
 import numpy as np
 import pytest
 
-from core.figuras import MAX_CLASSES, barras, boxplot, histograma, resumo_boxplot
+from core.figuras import (
+    MAX_CLASSES,
+    barras,
+    barras_agrupadas,
+    boxplot,
+    histograma,
+    resumo_boxplot,
+)
 from core.interpretacao import (
     NAO_REJEITA_H0,
     REJEITA_H0,
@@ -157,3 +164,13 @@ def test_barras_maximo_automatico():
     assert barras([("a", 3), ("b", 7)], "t", "y").dados["maximo"] == 7.0
     assert barras([("a", 3)], "t", "y", referencias=[("r", 9, "tracejado")]).dados["maximo"] == 9
     assert barras([("a", 0)], "t", "y").dados["maximo"] == 1.0
+
+
+def test_barras_agrupadas_figura():
+    fig = barras_agrupadas([("m", [0.5, 0.5]), ("n", [0.2, 0.8])], ["A", "B"], "t", "y", maximo=1)
+    assert fig.tipo == "barras_agrupadas"
+    assert fig.dados["series"] == ["A", "B"]
+    assert fig.dados["grupos"][1] == {"rotulo": "n", "valores": [0.2, 0.8]}
+    assert fig.dados["maximo"] == 1.0
+    with pytest.raises(ValueError):
+        barras_agrupadas([("m", [1.0])], ["A", "B"], "t", "y")

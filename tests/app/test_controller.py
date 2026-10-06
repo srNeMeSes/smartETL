@@ -397,3 +397,32 @@ def test_integracao_z_2prop_carregar_selecionar_executar(controller, visao, tmp_
     assert resultado.estatisticas["odds_ratio"] == pytest.approx(2.25)
     assert resultado.comparacao.titulo_direita == "Fisher exato"
     assert visao.chamadas[-1] == ("resultado", "teste_z_2prop")
+
+
+def test_integracao_qui_quadrado_carregar_selecionar_executar(controller, visao, tmp_path):
+    # Checklist §9, item 7, para o qui-quadrado (independência e aderência).
+    arquivo = tmp_path / "turmas.csv"
+    linhas = ["turno;conceito"] + ["Manhã;A"] * 20 + ["Manhã;B"] * 15 + ["Manhã;C"] * 5
+    linhas += ["Noite;A"] * 10 + ["Noite;B"] * 15 + ["Noite;C"] * 25
+    arquivo.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    controller.carregar_arquivo(str(arquivo))
+    controller.selecionar_teste("qui_quadrado")
+    assert visao.ultima()[:2] == ("formulario", "qui_quadrado")
+    visao.params = {
+        "modo": "Independência",
+        "coluna1": "turno",
+        "coluna2": "conceito",
+        "correcao": False,
+        "alfa": 0.05,
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "qui_quadrado"
+    assert resultado.estatisticas["gl"] == 2 and resultado.comparacao is None
+    visao.params = visao.params | {
+        "modo": "Aderência",
+        "coluna1": "conceito",
+        "coluna2": None,
+    }
+    resultado = controller.executar()
+    assert resultado.estatisticas["k"] == 3
+    assert visao.chamadas[-1] == ("resultado", "qui_quadrado")

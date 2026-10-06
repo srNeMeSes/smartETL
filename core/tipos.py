@@ -41,7 +41,8 @@ def perfilar_coluna(nome: str, serie: pd.Series) -> PerfilColuna:
 
     - numérica: dtype numérico (exceto booleano) com ao menos um valor;
     - binária: exatamente 2 valores distintos (ignorando NaN);
-    - categórica: não numérica, ou numérica discreta com até `MAX_NIVEIS_CATEGORICA` níveis;
+    - categórica: não numérica (exceto identificadores: texto com todos os valores distintos e
+      mais de `MAX_NIVEIS_CATEGORICA` valores), ou numérica discreta com até esse número de níveis;
     - coluna sem nenhum valor válido não tem papel algum.
     """
     validos = serie.dropna()
@@ -50,7 +51,11 @@ def perfilar_coluna(nome: str, serie: pd.Series) -> PerfilColuna:
     if n_validos == 0:
         return PerfilColuna(nome, False, False, False, 0, int(serie.size), 0)
     numerica = e_numerica(serie)
-    categorica = not numerica or (_discreta(validos) and n_distintos <= MAX_NIVEIS_CATEGORICA)
+    # Texto com todos os valores distintos (nomes, códigos...) é identificador, não categoria.
+    identificador = n_distintos == n_validos > MAX_NIVEIS_CATEGORICA
+    categorica = (not numerica and not identificador) or (
+        numerica and _discreta(validos) and n_distintos <= MAX_NIVEIS_CATEGORICA
+    )
     return PerfilColuna(
         nome=nome,
         numerica=numerica,

@@ -6,9 +6,9 @@ import pytest
 from ajudantes_ui import do_tipo, textos
 
 from app.ui import tema
-from app.ui.graficos import ALTURA, LARGURA, desenhar_figura
+from app.ui.graficos import ALTURA, LARGURA, cor_serie, desenhar_figura
 from core.base import Figura
-from core.figuras import barras, boxplot, histograma
+from core.figuras import barras, barras_agrupadas, boxplot, histograma
 
 
 @pytest.fixture
@@ -120,3 +120,28 @@ def test_barras_desenha_valores_em_percentual_e_referencia():
     ]
     assert len(tracejadas) == 1 and tracejadas[0].y1 == tracejadas[0].y2  # linha horizontal
     assert "p₀ = 0,5" in textos(controle)
+
+
+def test_barras_agrupadas_uma_cor_por_serie():
+    fig = barras_agrupadas(
+        [("manhã", [0.5, 0.375, 0.125]), ("noite", [0.2, 0.3, 0.5])],
+        ["A", "B", "C"],
+        "'nota' por 'turno'",
+        "Proporção",
+        maximo=1.0,
+        percentual=True,
+    )
+    controle = desenhar_figura(fig)
+    barras_ = [s for s in _canvas(controle).shapes if isinstance(s, cv.Rect)]
+    assert len(barras_) == 6
+    assert [b.paint.color for b in barras_] == [cor_serie(j) for j in range(3)] * 2
+    assert cor_serie(0) == tema.LARANJA and cor_serie(1) == tema.ROXO
+    rotulos = [s.value for s in _canvas(controle).shapes if isinstance(s, cv.Text)]
+    assert {"manhã", "noite", "50,0%", "12,5%"} <= set(rotulos)
+    assert {"A", "B", "C"} <= set(textos(controle))  # legenda
+    for b in barras_:
+        assert 0 <= b.x and b.x + b.width <= LARGURA and b.y + b.height <= ALTURA
+
+
+def test_paleta_de_series_cicla():
+    assert cor_serie(len(tema.GRAFICO_SERIES)) == cor_serie(0)

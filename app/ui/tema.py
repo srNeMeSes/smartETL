@@ -34,6 +34,8 @@ GRAFICO_BARRA = LARANJA_SUAVE
 GRAFICO_BARRA_BORDA = LARANJA
 GRAFICO_DESTAQUE = TEXTO  # linha cheia (ex.: média amostral)
 GRAFICO_REFERENCIA = TEXTO_SECUNDARIO  # linha tracejada (ex.: μ₀)
+# Séries (barras agrupadas): começa pela identidade (laranja, roxo) e segue com tons sóbrios.
+GRAFICO_SERIES = (LARANJA, ROXO, "#0F9D8A", "#E0A100", "#5B6B7F", "#D9467A", "#3B82C4", "#8C6D46")
 
 SOMBRA_CARTAO = ft.Colors.with_opacity(0.06, ft.Colors.BLACK)
 

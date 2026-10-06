@@ -48,7 +48,7 @@ class ComparacaoPValores:
     linhas: list[tuple[float | None, float | None]]  # (p_param, p_nao_param); None = não calculado
 
 
-TipoFigura = Literal["histograma", "boxplot", "barras"]
+TipoFigura = Literal["histograma", "boxplot", "barras", "barras_agrupadas"]
 
 
 @dataclass

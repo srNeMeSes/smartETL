@@ -20,6 +20,8 @@ def desenhar_figura(figura: Figura, largura: float = LARGURA, altura: float = AL
         grafico, legenda = boxplot(figura.dados, largura, altura)
     elif figura.tipo == "barras":
         grafico, legenda = barras(figura.dados, largura, altura)
+    elif figura.tipo == "barras_agrupadas":
+        grafico, legenda = barras_agrupadas(figura.dados, largura, altura)
     else:
         raise ValueError(f"Tipo de figura desconhecido: {figura.tipo}")
     titulo = ft.Text(figura.titulo, size=14, weight=ft.FontWeight.W_600, color=tema.TEXTO)
@@ -256,3 +258,74 @@ def barras(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.Co
     canvas = cv.Canvas(width=largura, height=altura, shapes=formas)
     legenda = _legenda([(r["rotulo"], r["estilo"]) for r in referencias]) if referencias else None
     return canvas, legenda
+
+
+def cor_serie(indice: int) -> str:
+    return tema.GRAFICO_SERIES[indice % len(tema.GRAFICO_SERIES)]
+
+
+def barras_agrupadas(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.Control]:
+    """Um grupo de barras por categoria do eixo x; cada série com uma cor da paleta."""
+    grupos: list[dict] = dados["grupos"]
+    series: list[str] = dados["series"]
+    percentual = bool(dados.get("percentual"))
+    maximo = float(dados["maximo"])
+    esq = 56
+    area_l = largura - esq - _MARGEM_DIR
+    area_a = altura - _MARGEM_TOPO - _MARGEM_BASE
+    base = _MARGEM_TOPO + area_a
+
+    def sy(valor: float) -> float:
+        return base - min(max(valor, 0.0), maximo) / maximo * area_a
+
+    eixo = ft.Paint(color=tema.BORDA, stroke_width=1, style=ft.PaintingStyle.STROKE)
+    formas: list[cv.Shape] = [
+        cv.Line(esq, base, esq + area_l, base, paint=eixo),
+        cv.Line(esq, _MARGEM_TOPO, esq, base, paint=eixo),
+    ]
+    for valor in (0.0, maximo / 2, maximo):
+        formas.append(
+            _texto(
+                esq - 6, sy(valor), _formatar_valor(valor, percentual), ft.Alignment.CENTER_RIGHT
+            )
+        )
+
+    vaga = area_l / len(grupos)
+    largura_barra = min(vaga * 0.75 / len(series), 40)
+    for i, grupo in enumerate(grupos):
+        cx = esq + vaga * (i + 0.5)
+        inicio = cx - largura_barra * len(series) / 2
+        for j, valor in enumerate(grupo["valores"]):
+            altura_barra = max(base - sy(valor), 1)
+            x = inicio + j * largura_barra
+            paint = ft.Paint(color=cor_serie(j), style=ft.PaintingStyle.FILL)
+            formas.append(
+                cv.Rect(x + 1, base - altura_barra, largura_barra - 2, altura_barra, paint=paint)
+            )
+            if largura_barra >= 26:  # rótulo só quando cabe sobre a barra
+                formas.append(
+                    _texto(
+                        x + largura_barra / 2,
+                        base - altura_barra - 3,
+                        _formatar_valor(valor, percentual),
+                        ft.Alignment.BOTTOM_CENTER,
+                    )
+                )
+        formas.append(_texto(cx, base + 6, grupo["rotulo"], ft.Alignment.TOP_CENTER))
+
+    legenda = ft.Row(
+        [
+            ft.Row(
+                [
+                    ft.Container(width=10, height=10, border_radius=2, bgcolor=cor_serie(j)),
+                    ft.Text(serie, size=12, color=tema.TEXTO),
+                ],
+                spacing=6,
+                tight=True,
+            )
+            for j, serie in enumerate(series)
+        ],
+        spacing=16,
+        wrap=True,
+    )
+    return cv.Canvas(width=largura, height=altura, shapes=formas), legenda

@@ -547,3 +547,29 @@ def test_formulario_z_2prop_e_duas_tabelas(tela_controller, tmp_path):
     assert "Resumo" in analise and "Tabela 2×2" in analise
     assert len(do_tipo(tela.painel.analise, ft.DataTable)) == 2
     assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
+
+
+def test_qui_quadrado_sem_card_com_tres_tabelas(tela_controller, tmp_path):
+    tela, controller = tela_controller
+    arquivo = tmp_path / "t.csv"
+    linhas = ["turno;conceito;nota"] + [
+        f"{t};{c};{i},5" for i, (t, c) in enumerate(zip("MMMMNNNNMN", "ABABCCABCA", strict=True))
+    ]
+    arquivo.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    controller.carregar_arquivo(str(arquivo))
+    tela.sidebar.selecionar("qui_quadrado")
+    form = tela.formulario
+    assert form.card is None and tela.card_analise is None  # teste sem card
+    assert form.controle("modo").value == "Independência"
+    assert form.controle("correcao").value is False
+    assert [o.key for o in form.controle("coluna1").options] == ["turno", "conceito"]
+    form.controle("coluna1").value = "turno"
+    form.controle("coluna2").value = "conceito"
+    tela.sidebar.botao_executar.on_click(None)
+    assert controller.estado.ultimo_resultado.teste_id == "qui_quadrado"
+    analise = _textos_aba(tela.painel.analise)
+    for titulo in ("Resumo", "Frequências observadas", "Frequências esperadas"):
+        assert titulo in analise
+    assert len(do_tipo(tela.painel.analise, ft.DataTable)) == 3
+    assert isinstance(tela.painel.analise, ft.Column)  # sem card: só a coluna de detalhes
+    assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1

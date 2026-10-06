@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from core.base import TesteBase
+from core.testes.categoricos import QuiQuadrado
 from core.testes.medias import TesteT1Amostra, TesteT2Amostras, TesteTPareado
 from core.testes.proporcoes import TesteZ1Prop, TesteZ2Prop
 
@@ -28,7 +29,7 @@ _CATALOGO: tuple[TesteInfo, ...] = (
     TesteInfo("teste_t_pareado", "Teste t (pareado)", "Médias", TesteTPareado),
     TesteInfo("teste_z_1prop", "Teste Z (uma proporção)", "Proporções", TesteZ1Prop),
     TesteInfo("teste_z_2prop", "Teste Z (duas proporções)", "Proporções", TesteZ2Prop),
-    TesteInfo("qui_quadrado", "Qui-quadrado", "Categóricos"),
+    TesteInfo("qui_quadrado", "Qui-quadrado", "Categóricos", QuiQuadrado),
     TesteInfo("fisher", "Teste exato de Fisher", "Categóricos"),
     TesteInfo("mcnemar", "McNemar", "Categóricos"),
     TesteInfo("teste_sinal", "Teste do sinal", "Não paramétricos"),

@@ -117,3 +117,32 @@ def barras(
             ],
         },
     )
+
+
+def barras_agrupadas(
+    grupos: Sequence[tuple[str, Sequence[float]]],
+    series: Sequence[str],
+    titulo: str,
+    rotulo_y: str,
+    maximo: float | None = None,
+    percentual: bool = False,
+) -> Figura:
+    """Barras agrupadas: para cada grupo (rótulo, [valor por série]), uma barra por série."""
+    valores = [[float(v) for v in vals] for _, vals in grupos]
+    if any(len(v) != len(series) for v in valores):
+        raise ValueError("cada grupo precisa de um valor por série")
+    topo = maximo if maximo is not None else max((v for vals in valores for v in vals), default=0)
+    return Figura(
+        tipo="barras_agrupadas",
+        titulo=titulo,
+        dados={
+            "rotulo_y": rotulo_y,
+            "maximo": float(topo) if topo > 0 else 1.0,
+            "percentual": percentual,
+            "series": [str(s) for s in series],
+            "grupos": [
+                {"rotulo": rotulo, "valores": vals}
+                for (rotulo, _), vals in zip(grupos, valores, strict=True)
+            ],
+        },
+    )
