@@ -7,6 +7,8 @@ diagnósticos de pressupostos.
 
 ## Estado atual
 
+- Leitura de CSV (inclusive o formato brasileiro: separador `;`, vírgula decimal, latin-1/cp1252) e XLSX,
+  com mensagens de erro e avisos em português.
 - Interface completa: carregamento de arquivo, prévia de até 100 linhas, lista de testes
   agrupada por categoria e abas **Parâmetros**, **Análise** e **Visualização**.
 - O **Teste t (uma amostra)** já tem formulário e card de comparação (t Student × Wilcoxon).
@@ -55,7 +57,8 @@ app/
 core/                      # lógica de domínio, sem Flet
   base.py                  # contratos: ParametroSpec, ResultadoTeste, TesteBase...
   registry.py              # catálogo dos 21 testes
-  io.py                    # leitura de CSV/XLSX
+  io.py                    # leitura de CSV/XLSX (encoding, separador e decimal automáticos)
+  tipos.py                 # detecção de colunas numéricas, categóricas e binárias
   validacao.py             # regras de validação reutilizáveis
   testes/                  # implementações por grupo
 tests/                     # pytest (core/ e app/)

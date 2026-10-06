@@ -8,7 +8,7 @@ Aplicativo desktop de **processamento e análise de dados** com foco em **testes
 - **Interface:** Flet **`0.86.2`** (versão fixada em `requirements.txt`)
 - **Estatística:** `scipy.stats`, `statsmodels`, `pandas`, `numpy`
 - **Idioma da interface e das interpretações:** português do Brasil
-- **Estado atual:** Fases 0 e 1 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`); **só o `teste_t_1am` tem formulário (via `ParametroSpec`) e nenhum cálculo estatístico está implementado** — o próximo passo é a Fase 2.
+- **Estado atual:** Fases 0, 1 e 2 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos; **só o `teste_t_1am` tem formulário (via `ParametroSpec`) e nenhum cálculo estatístico está implementado** — o próximo passo é a Fase 3, começando pelo `teste_t_1am`.
 
 ## 2. Missão do Claude neste projeto
 
@@ -53,7 +53,7 @@ A estrutura plana original (`smartetl_app.py`, `utils.py`, `conteiner_parametros
 | 6 | Formulário sem referência aos campos, sem filtro de tipo e sem validação; estilos repetidos | Resolvido (`painel_parametros.py`, `campos.py`, `core/validacao.py`) |
 | 7 | Cores duplicadas: 3 laranjas, **3 bordas**, 3 laranjas suaves e 4 cinzas de texto | Resolvido (`tema.py`; teste impede hex fora dele) |
 | 8 | `import *`, imports e código morto | Resolvido (ruff com F403/F405, I, N, UP, B, RUF) |
-| 9 | Leitura sem robustez; callback sem `try/except` | **Parcial:** erros tratados no controller; CSV brasileiro (`;`, vírgula, latin-1) fica para a **Fase 2** (teste `xfail` em `tests/core/test_io.py`) |
+| 9 | Leitura sem robustez; callback sem `try/except` | Resolvido na Fase 2 (`core/io.py`: encoding, separador, decimal/milhar, `ErroLeitura`) |
 | 10 | Placeholders misturados aos dados; coluna real "column…" pintada como fantasma | Resolvido (`TabelaDados.mostrar_vazio` / `mostrar`) |
 | 11 | Dependências incompletas; README com Python 3.9 | Resolvido (`requirements.txt` fixado, README reescrito) |
 | 12 | Nomes `ConteinerTestes.py` / `conteiner_parametros.py` | Resolvido (`card_comparacao.py`, `painel_parametros.py`) |
@@ -87,8 +87,8 @@ smartetl/
 ├── core/
 │   ├── base.py                   # contratos (ver abaixo) e exceções de domínio
 │   ├── registry.py               # TesteInfo(id, nome, grupo, classe) dos 21 testes
-│   ├── io.py                     # leitura CSV/XLSX (robustez na Fase 2)
-│   ├── validacao.py              # converter_numero, colunas_por_tipo...
+│   ├── io.py                     # carregar_dados → DadosCarregados; ErroLeitura
+│   ├── tipos.py                  # PerfilColuna / detectar_tipos (numérica, categórica, binária)
 │   ├── interpretacao.py          # (Fase 3) textos em pt-BR a partir de p-valor e α
 │   └── testes/
 │       ├── medias.py             # TesteT1Amostra (só formulário, por enquanto)
@@ -129,7 +129,7 @@ Os testes rodam sem janela: a `Page` é um `MagicMock` e o controller é testado
 
 ### Fluxo da aplicação
 
-1. **Arquivo** → `controller.carregar_arquivo()` → `core/io.py` → `state.df` → atualiza prévia e o painel de parâmetros (se já houver teste selecionado).
+1. **Arquivo** → `controller.carregar_arquivo()` → `core/io.carregar_dados()` → `state.dados` (df + perfis de tipo + avisos) → atualiza prévia e o painel de parâmetros (se já houver teste selecionado); avisos da leitura vão na notificação.
 2. **Seleção de teste** (inclusive o inicial) → `controller.selecionar_teste(id)` → painel de parâmetros renderiza o formulário a partir de `teste.parametros()`.
 3. **Executar teste** → coleta valores dos campos → `teste.validar(df, params)` → `teste.executar(df, params)` (fora da thread da UI) → preenche **Análise** e **Visualização**.
 4. Estados vazios claros em vez de "Processando...": sem arquivo ("Carregue um arquivo para começar"), sem execução ("Configure os parâmetros e clique em Executar teste"). "Processando..." só durante a execução real.
@@ -212,7 +212,7 @@ Duas colunas, fundo claro, cartões brancos, texto cinza escuro, **laranja como 
 
 Melhorias já feitas na Fase 1 (sem alterar a identidade):
 - Sidebar agrupada por categoria com cabeçalhos (os grupos da seção 7: Médias, Proporções, Categóricos, Não paramétricos, ANOVA, Regressão, Diagnóstico).
-- Dropdowns de variável filtrados pelo tipo exigido pelo teste (`core/validacao.colunas_por_tipo`; regras provisórias até a detecção de tipos da Fase 2).
+- Dropdowns de variável filtrados pelo tipo exigido pelo teste (`core/validacao.colunas_por_tipo` sobre os perfis de `core/tipos.py`, calculados uma vez na leitura).
 - Mensagens de erro amigáveis em português via `page.show_dialog(ft.SnackBar(...))`, nunca traceback na tela.
 - Tabela de prévia: estado vazio separado do estado com dados.
 
@@ -305,11 +305,18 @@ Rodar o app e conferir os 12 problemas da seção 3. Escrever testes de caracter
 **Fase 1 — Reestruturação (sem lógica estatística)** ✅ concluída
 Criar a estrutura da seção 4 seguindo o mapa de migração: `tema.py` com paleta única, `state.py`, `controller.py`, `core/base.py`, `registry.py`, `painel_abas.py` com API própria (fim dos índices), `campos.py` com o estilo único. Corrigir os itens 1–8 da seção 3. O app deve abrir e parecer idêntico, agora com estados vazios corretos e o botão Executar conectado ao controller.
 
-Pendências deixadas para as próximas fases: execução fora da thread da UI (hoje `controller.executar` é síncrono; mover para `page.run_thread`/tarefa quando houver cálculo real — Fase 3); `core/interpretacao.py` (Fase 3); robustez da leitura de CSV (Fase 2).
+Pendências deixadas para as próximas fases: execução fora da thread da UI (hoje `controller.executar` é síncrono; mover para `page.run_thread`/tarefa quando houver cálculo real — Fase 3); `core/interpretacao.py` (Fase 3).
 
-**Fase 2 — Dados**
+**Fase 2 — Dados** ✅ concluída
 `core/io.py`: CSV com detecção de separador/encoding/decimal, XLSX via `openpyxl`, detecção de tipos (numérica, categórica, binária), erros tratados e exibidos ao usuário. Prévia limitada a 100 linhas. Testes: arquivo válido, vazio, com NaN, colunas mistas, encoding errado, extensão inválida.
 
+Regras de leitura implementadas (detalhes na docstring de `core/io.py`):
+- **Encoding:** BOM UTF-8/UTF-16 → UTF-8 estrito → cp1252 → latin-1.
+- **Separador:** `;`, `,`, tab ou `|`, o que dá o mesmo número de campos (≥ 2) no cabeçalho e na maioria das linhas; nenhum → arquivo de uma coluna.
+- **Decimal/milhar:** separador `,` implica decimal `.`; senão decimal `,` quando "1,5"/"1.234,5" predominam sobre "1.5" ("1.234" isolado é ambíguo e vale como ponto decimal). Milhar `.` só com decimal `,` e sem nenhum "1.5" na amostra.
+- **Tipos** (`core/tipos.py`): numérica = dtype numérico não booleano; binária = 2 valores distintos; categórica = não numérica, ou numérica discreta (só inteiros, inclusive float com NaN) com até 10 níveis. Uma coluna pode ter mais de um papel.
+- **Erros** (`ErroLeitura`, mensagem pronta em pt-BR): vazio, só cabeçalho, inexistente/bloqueado, binário, linha com colunas a mais (com número da linha), XLSX inválido, extensão não suportada. **Avisos:** coluna que mistura números e texto; XLSX com várias planilhas (lê a primeira). Colunas sem nome e vazias (separador sobrando) são descartadas.
+- A prévia mostra até 100 linhas, com NaN vazio e decimais com vírgula. Ler arquivos grandes ainda acontece na thread da UI (otimizar na Fase 5, se medido como lento).
 **Fase 3 — Testes de hipótese (um por um)**
 Itens 1–15 da seção 7, cada um com o checklist da seção 9. Começar pelo `teste_t_1am`, que já tem formulário e card prontos para ligar ao cálculo.
 
