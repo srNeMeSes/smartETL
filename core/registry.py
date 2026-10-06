@@ -6,6 +6,7 @@ from core.base import TesteBase
 from core.testes.categoricos import QuiQuadrado, TesteFisher, TesteMcNemar
 from core.testes.medias import TesteT1Amostra, TesteT2Amostras, TesteTPareado
 from core.testes.nao_parametricos import (
+    TesteFriedman,
     TesteKruskalWallis,
     TesteMannWhitney,
     TesteSinal,
@@ -42,7 +43,7 @@ _CATALOGO: tuple[TesteInfo, ...] = (
     TesteInfo("wilcoxon", "Wilcoxon", "Não paramétricos", TesteWilcoxon),
     TesteInfo("mann_whitney", "Mann-Whitney U", "Não paramétricos", TesteMannWhitney),
     TesteInfo("kruskal_wallis", "Kruskal-Wallis", "Não paramétricos", TesteKruskalWallis),
-    TesteInfo("friedman", "Friedman", "Não paramétricos"),
+    TesteInfo("friedman", "Friedman", "Não paramétricos", TesteFriedman),
     TesteInfo("anova_1fator", "ANOVA (1 fator)", "ANOVA"),
     TesteInfo("anova_2fator", "ANOVA (2 fatores)", "ANOVA"),
     TesteInfo("regres_linear", "Regressão Linear", "Regressão"),

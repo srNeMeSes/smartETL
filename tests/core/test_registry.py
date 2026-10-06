@@ -104,4 +104,5 @@ def test_testes_implementados():
         "wilcoxon",
         "mann_whitney",
         "kruskal_wallis",
+        "friedman",
     ]

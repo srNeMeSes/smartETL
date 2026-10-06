@@ -925,3 +925,210 @@ class TesteKruskalWallis(TesteBase):
             ],
             avisos=avisos,
         )
+
+
+# ---------------------------------------------------------------------------
+# Friedman
+# ---------------------------------------------------------------------------
+MIN_BLOCOS_APROXIMACAO = 10
+
+
+class TesteFriedman(TesteBase):
+    """Teste de Friedman para k ≥ 3 medidas repetidas (H₀: as k medidas têm a mesma distribuição).
+
+    Entrada: 3 ou mais colunas numéricas na mesma linha; cada linha é um bloco (ex.: um aluno em
+    k provas). Linhas com valor ausente em alguma coluna escolhida são descartadas (aviso).
+    Postos dentro de cada linha (postos médios nos empates); estatística com correção de empates
+    e p pela qui-quadrado com k − 1 gl (`scipy.stats.friedmanchisquare`); aviso com menos de 10
+    blocos. Efeito: W de Kendall = Q/(n(k − 1)). Comparações múltiplas opcionais (desligadas),
+    exibidas só quando H₀ é rejeitada: Wilcoxon pareado entre cada par de colunas (mesmas
+    opções do teste de Wilcoxon) com p ajustado por Holm. Sem card. Decisão: p ≤ α.
+    """
+
+    id = "friedman"
+    nome = "Friedman"
+    grupo = "Não paramétricos"
+
+    def parametros(self) -> list[ParametroSpec]:
+        return [
+            ParametroSpec("colunas", "Medidas repetidas (3 ou mais colunas)", "multi_coluna"),
+            ParametroSpec(
+                "comparacoes", "Comparações múltiplas (Wilcoxon + Holm)", "booleano", padrao=False
+            ),
+            ParametroSpec("alfa", "Nível de significância (α)", "alfa", padrao=0.05),
+        ]
+
+    @staticmethod
+    def blocos(df: pd.DataFrame, colunas: list[str]) -> tuple[np.ndarray, int]:
+        """(matriz n × k com as linhas completas, linhas descartadas)."""
+        completos = df[colunas].dropna().astype(float)
+        return completos.to_numpy(), len(df) - len(completos)
+
+    # ---------------- Validação ----------------
+    def validar(self, df: pd.DataFrame, params: dict) -> list[str]:
+        colunas = list(params.get("colunas") or [])
+        erros: list[str] = []
+        if len(colunas) < 3:
+            erros.append(f"Selecione ao menos 3 colunas (há {len(colunas)}).")
+        elif len(set(colunas)) != len(colunas):
+            erros.append("As colunas escolhidas devem ser diferentes.")
+        else:
+            for coluna in colunas:
+                erros += erros_coluna(df, coluna)
+        if not erros:
+            dados, _ = self.blocos(df, colunas)
+            if len(dados) < 2:
+                erros.append(
+                    f"São necessárias ao menos 2 linhas completas nas colunas escolhidas "
+                    f"(há {len(dados)})."
+                )
+            elif (np.ptp(dados, axis=1) == 0).all():
+                erros.append(
+                    "Em todas as linhas as medidas são iguais entre si: não há ordem para comparar."
+                )
+        erros += erro_alfa(params.get("alfa", 0.05))
+        return erros
+
+    # ---------------- Execução ----------------
+    def executar(self, df: pd.DataFrame, params: dict) -> ResultadoTeste:
+        erros = self.validar(df, params)
+        if erros:
+            raise ErroValidacao(erros)
+
+        colunas = list(params["colunas"])
+        alfa = float(params.get("alfa", 0.05))
+        pedir_comparacoes = bool(params.get("comparacoes", False))
+
+        dados, descartadas = self.blocos(df, colunas)
+        n, k = dados.shape
+        resultado = stats.friedmanchisquare(*dados.T)
+        q, p_valor = float(resultado.statistic), float(resultado.pvalue)
+        postos = np.apply_along_axis(stats.rankdata, 1, dados)
+        postos_medios = postos.mean(axis=0)
+        tem_empates = any(len(np.unique(linha)) < k for linha in dados)
+        w_kendall = q / (n * (k - 1))
+
+        estatisticas = {
+            "k": float(k),
+            "n": float(n),
+            "n_descartadas": float(descartadas),
+            "q": q,
+            "gl": float(k - 1),
+            "p_valor": p_valor,
+            "w_kendall": w_kendall,
+        }
+
+        interpretacao = interpretar(
+            p_valor,
+            alfa,
+            h0=f"as {k} medidas têm a mesma distribuição",
+            h1="ao menos uma medida difere das demais",
+            conclusao_rejeita=(
+                "Há evidência estatística de diferença entre as medidas "
+                + ", ".join(f"'{c}'" for c in colunas)
+                + "."
+            ),
+            conclusao_nao_rejeita=(
+                "Não há evidência suficiente de diferença entre as medidas "
+                + ", ".join(f"'{c}'" for c in colunas)
+                + "."
+            ),
+        )
+        rejeita = decidir(p_valor, alfa) == REJEITA_H0
+
+        avisos = []
+        if descartadas:
+            avisos.append(
+                f"{descartadas} linha(s) com valor ausente em alguma das colunas foram descartadas."
+            )
+        if n < MIN_BLOCOS_APROXIMACAO:
+            avisos.append(
+                f"Poucas linhas completas (n = {n} < {MIN_BLOCOS_APROXIMACAO}): a aproximação "
+                "qui-quadrado do p-valor é fraca."
+            )
+        if tem_empates:
+            avisos.append(
+                "Há empates dentro de linhas: postos médios e estatística corrigida para empates."
+            )
+
+        tabelas = {
+            "Resumo": pd.DataFrame(
+                [
+                    ("Medidas (k)", f"{k}"),
+                    ("Linhas completas (n)", f"{n}"),
+                    ("Estatística de Friedman (corrigida para empates)", formatar_numero(q)),
+                    ("Graus de liberdade", f"{k - 1}"),
+                    ("p-valor (qui-quadrado)", formatar_p_valor(p_valor)),
+                    ("W de Kendall", formatar_numero(w_kendall)),
+                ],
+                columns=["Medida", "Valor"],
+            ),
+            "Medidas": pd.DataFrame(
+                {
+                    "Coluna": colunas,
+                    "Mediana": [formatar_numero(float(np.median(dados[:, j]))) for j in range(k)],
+                    "Posto médio": [formatar_numero(float(r), 2) for r in postos_medios],
+                }
+            ),
+        }
+
+        if pedir_comparacoes and rejeita:
+            pares = []
+            for i, j in itertools.combinations(range(k), 2):
+                d = dados[:, i] - dados[:, j]
+                nao_nulas = d[d != 0]
+                if len(nao_nulas) == 0:
+                    p_par = 1.0
+                else:
+                    sem_empates = len(np.unique(np.abs(nao_nulas))) == len(nao_nulas)
+                    metodo = (
+                        "exact"
+                        if len(nao_nulas) <= LIMITE_EXATO_WILCOXON and sem_empates
+                        else "approx"
+                    )
+                    p_par = float(stats.wilcoxon(nao_nulas, method=metodo).pvalue)
+                pares.append((i, j, float(np.median(d)), p_par))
+            ajustados = ajuste_holm([p for *_, p in pares])
+            estatisticas["comparacoes"] = float(len(pares))
+            tabelas["Comparações múltiplas (Wilcoxon, Holm)"] = pd.DataFrame(
+                [
+                    (
+                        f"'{colunas[i]}' × '{colunas[j]}'",
+                        formatar_numero(mediana_dif, 2),
+                        formatar_p_valor(p),
+                        formatar_p_valor(p_aj),
+                        "Sim" if p_aj <= alfa else "Não",
+                    )
+                    for (i, j, mediana_dif, p), p_aj in zip(pares, ajustados, strict=True)
+                ],
+                columns=[
+                    "Comparação",
+                    "Mediana das diferenças",
+                    "p",
+                    "p ajustado (Holm)",
+                    "Diferem?",
+                ],
+            )
+        elif pedir_comparacoes:
+            avisos.append(
+                "Comparações múltiplas não exibidas: H₀ não foi rejeitada, então não há diferença "
+                "a localizar entre as medidas."
+            )
+
+        return ResultadoTeste(
+            teste_id=self.id,
+            estatisticas=estatisticas,
+            p_valor=p_valor,
+            alfa=alfa,
+            decisao=decidir(p_valor, alfa),
+            interpretacao=interpretacao,
+            tabelas=tabelas,
+            figuras=[
+                boxplot(
+                    [(c, dados[:, j]) for j, c in enumerate(colunas)],
+                    "Medidas repetidas: " + ", ".join(f"'{c}'" for c in colunas),
+                    "valor",
+                )
+            ],
+            avisos=avisos,
+        )

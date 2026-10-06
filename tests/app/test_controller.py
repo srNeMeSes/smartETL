@@ -98,10 +98,10 @@ def test_carregar_arquivo_atualiza_tabela_e_painel(controller, visao, csv_valido
 
 def test_arquivo_carregado_depois_da_selecao_atualiza_painel(controller, visao, csv_valido):
     controller.iniciar()
-    controller.selecionar_teste("friedman")
+    controller.selecionar_teste("durbin_watson")
     assert visao.ultima() == ("sem_arquivo",)
     controller.carregar_arquivo(str(csv_valido))
-    assert visao.ultima() == ("indisponivel", "friedman")
+    assert visao.ultima() == ("indisponivel", "durbin_watson")
     controller.selecionar_teste("teste_t_1am")
     assert visao.ultima()[:2] == ("formulario", "teste_t_1am")
 
@@ -203,9 +203,12 @@ def test_executar_sem_arquivo(controller, visao):
 
 def test_executar_teste_indisponivel(controller, visao, csv_valido):
     controller.carregar_arquivo(str(csv_valido))
-    controller.selecionar_teste("friedman")
+    controller.selecionar_teste("durbin_watson")
     assert controller.executar() is None
-    assert visao.notificacoes[-1] == ("O Friedman ainda não está disponível nesta versão.", False)
+    assert visao.notificacoes[-1] == (
+        "O Durbin-Watson ainda não está disponível nesta versão.",
+        False,
+    )
 
 
 def test_integracao_t_1am_carregar_selecionar_executar(controller, visao, csv_valido):
@@ -549,3 +552,16 @@ def test_integracao_kruskal_wallis_carregar_selecionar_executar(controller, visa
     assert resultado.estatisticas["k"] == 4 and resultado.estatisticas["comparacoes"] == 6
     assert "Comparações múltiplas (Dunn, Holm)" in resultado.tabelas
     assert visao.chamadas[-1] == ("resultado", "kruskal_wallis")
+
+
+def test_integracao_friedman_carregar_selecionar_executar(controller, visao):
+    # Checklist §9, item 7, para o Friedman, com a base do projeto (bases/).
+    assert controller.carregar_arquivo(str(BASES / "provas_br.csv"))
+    controller.selecionar_teste("friedman")
+    assert visao.ultima()[:2] == ("formulario", "friedman")
+    visao.params = {"colunas": ["prova1", "prova2", "prova3"], "comparacoes": True, "alfa": 0.05}
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "friedman"
+    assert (resultado.estatisticas["n"], resultado.estatisticas["k"]) == (14, 3)
+    assert "Comparações múltiplas (Wilcoxon, Holm)" in resultado.tabelas
+    assert visao.chamadas[-1] == ("resultado", "friedman")

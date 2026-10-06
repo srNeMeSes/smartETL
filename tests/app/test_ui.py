@@ -350,9 +350,9 @@ def test_teste_nao_implementado_nao_reusa_formulario_do_t_1am(tela_controller, c
     # Problema 3: qualquer teste mostrava o formulário do t de uma amostra.
     tela, controller = tela_controller
     controller.carregar_arquivo(str(csv_valido))
-    tela.sidebar.selecionar("friedman")
+    tela.sidebar.selecionar("durbin_watson")
     assert tela.formulario is None
-    assert "Friedman ainda não está disponível" in _textos_aba(tela.painel.parametros)
+    assert "Durbin-Watson ainda não está disponível" in _textos_aba(tela.painel.parametros)
     assert not do_tipo(tela.painel.parametros, ft.TextField)
 
 
@@ -685,3 +685,19 @@ def test_kruskal_formulario_com_dunn(tela_controller):
     for titulo in ("Resumo", "Grupos", "Comparações múltiplas (Dunn, Holm)"):
         assert titulo in analise
     assert len(do_tipo(tela.painel.analise, ft.DataTable)) == 3
+
+
+def test_friedman_caixas_de_selecao(tela_controller):
+    tela, controller = tela_controller
+    controller.carregar_arquivo(str(BASES / "provas_br.csv"))
+    tela.sidebar.selecionar("friedman")
+    form = tela.formulario
+    caixas = form.controle("colunas").controls
+    assert [c.label for c in caixas] == ["prova1", "prova2", "prova3"]
+    for caixa in caixas:
+        caixa.value = True
+    tela.sidebar.botao_executar.on_click(None)
+    resultado = controller.estado.ultimo_resultado
+    assert resultado.teste_id == "friedman" and resultado.estatisticas["k"] == 3
+    assert "Medidas" in _textos_aba(tela.painel.analise)
+    assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
