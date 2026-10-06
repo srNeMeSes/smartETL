@@ -1,0 +1,33 @@
+paciente;hábito;condição
+P31;Não fumante;Saudável
+P13;Fumante;Saudável
+P14;Fumante;Saudável
+P22;Não fumante;Saudável
+P18;Não fumante;Doente
+P30;Não fumante;Saudável
+P10;Fumante;Doente
+P7;Fumante;Doente
+P16;Fumante;Saudável
+P25;Não fumante;Saudável
+P27;Não fumante;Saudável
+P20;Não fumante;Doente
+P3;Fumante;Doente
+P2;Fumante;Doente
+P1;Fumante;Doente
+P12;Fumante;Doente
+P5;Fumante;Doente
+P21;Não fumante;Doente
+P15;Fumante;Saudável
+P9;Fumante;Doente
+P4;Fumante;Doente
+P26;Não fumante;Saudável
+P32;Não fumante;Saudável
+P24;Não fumante;Saudável
+P28;Não fumante;Saudável
+P19;Não fumante;Doente
+P23;Não fumante;Saudável
+P29;Não fumante;Saudável
+P6;Fumante;Doente
+P8;Fumante;Doente
+P17;Fumante;Saudável
+P11;Fumante;Doente

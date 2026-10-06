@@ -79,6 +79,7 @@ core/                      # lógica de domínio, sem Flet
   figuras.py               # dados dos gráficos (sem Flet)
   testes/                  # implementações por grupo
 tests/                     # pytest (core/ e app/)
+bases/                     # bases de exemplo para testar cada teste no app (ver bases/README.md)
 ```
 
 ## Licença
