@@ -23,6 +23,8 @@ diagnósticos de pressupostos.
   tabela 2×2, comparação com o Fisher exato e barras por grupo.
 - **Qui-quadrado** completo: independência (tabela de contingência, V de Cramér, frequências
   observadas e esperadas, barras agrupadas) ou aderência com proporções iguais (w de Cohen).
+- **Teste exato de Fisher** completo: tabela 2×2 com escolha do evento de cada variável, p exato,
+  odds ratio amostral e condicional com IC exato (como o `fisher.test` do R) e barras agrupadas.
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
