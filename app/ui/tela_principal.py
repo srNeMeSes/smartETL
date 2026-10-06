@@ -14,6 +14,7 @@ from app.ui.sidebar import Sidebar
 from app.ui.tabela_dados import TabelaDados
 from core import registry
 from core.base import ResultadoTeste, TesteBase
+from core.io import DadosCarregados
 
 if TYPE_CHECKING:
     from app.controller import Controller
@@ -116,9 +117,9 @@ class TelaPrincipal:
         self.painel.definir_visualizacao(mensagem(texto))
         self._atualizar()
 
-    def exibir_formulario(self, teste: TesteBase, df: pd.DataFrame) -> None:
+    def exibir_formulario(self, teste: TesteBase, dados: DadosCarregados) -> None:
         self._teste = teste
-        self.formulario = PainelParametros(teste, df)
+        self.formulario = PainelParametros(teste, dados.df, dados.perfis)
         self.painel.definir_parametros(self.formulario)
         self._definir_abas_sem_resultado()
         self._atualizar()

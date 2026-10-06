@@ -10,7 +10,7 @@ import pandas as pd
 from app.state import AppState
 from core import registry
 from core.base import ErroExecucao, ErroValidacao, ResultadoTeste, TesteBase
-from core.io import ErroLeitura, importar_dados
+from core.io import DadosCarregados, ErroLeitura, carregar_dados
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class Visao(Protocol):
     def exibir_dados(self, df: pd.DataFrame) -> None: ...
     def exibir_sem_arquivo(self) -> None: ...
     def exibir_indisponivel(self, info: registry.TesteInfo) -> None: ...
-    def exibir_formulario(self, teste: TesteBase, df: pd.DataFrame) -> None: ...
+    def exibir_formulario(self, teste: TesteBase, dados: DadosCarregados) -> None: ...
     def coletar_parametros(self) -> dict: ...
     def exibir_processando(self) -> None: ...
     def exibir_sem_resultado(self) -> None: ...
@@ -59,7 +59,7 @@ class Controller:
     def carregar_arquivo(self, caminho: str) -> bool:
         nome = Path(caminho).name
         try:
-            df = importar_dados(caminho)
+            dados = carregar_dados(caminho)
         except ErroLeitura as erro:
             self.visao.notificar(str(erro), erro=True)
             return False
@@ -72,14 +72,30 @@ class Controller:
             )
             return False
 
-        log.info("Arquivo carregado: %s (%d linhas, %d colunas)", caminho, *df.shape)
-        self.estado.df = df
-        self.estado.caminho = caminho
+        linhas, colunas = dados.df.shape
+        log.info(
+            "Arquivo carregado: %s (%d linhas, %d colunas; encoding=%s, separador=%r, decimal=%r)",
+            caminho,
+            linhas,
+            colunas,
+            dados.encoding,
+            dados.separador,
+            dados.decimal,
+        )
+        for aviso in dados.avisos:
+            log.warning("%s: %s", nome, aviso)
+        self.estado.dados = dados
         self.estado.ultimo_resultado = None
-        self.visao.exibir_dados(df)
+        self.visao.exibir_dados(dados.df)
         self._renderizar_painel()
-        self.visao.notificar(f"{nome}: {df.shape[0]} linhas e {df.shape[1]} colunas carregadas.")
+        self.visao.notificar(self._resumo_carga(dados))
         return True
+
+    @staticmethod
+    def _resumo_carga(dados: DadosCarregados) -> str:
+        linhas, colunas = dados.df.shape
+        resumo = f"{dados.nome_arquivo}: {linhas} linhas e {colunas} colunas carregadas."
+        return "\n".join([resumo, *(f"Atenção: {aviso}" for aviso in dados.avisos)])
 
     # ---------------- Teste ----------------
     def selecionar_teste(self, teste_id: str) -> None:
@@ -96,7 +112,7 @@ class Controller:
         elif not info.disponivel:
             self.visao.exibir_indisponivel(info)
         else:
-            self.visao.exibir_formulario(info.criar(), self.estado.df)
+            self.visao.exibir_formulario(info.criar(), self.estado.dados)
 
     def executar(self) -> ResultadoTeste | None:
         info = self._obter_teste(self.estado.teste_id)

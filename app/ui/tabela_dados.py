@@ -1,6 +1,9 @@
 """Prévia do dataset: estado vazio (colunas fantasmas) separado do estado com dados."""
 
+from numbers import Integral, Real
+
 import flet as ft
+import numpy as np
 import pandas as pd
 
 from app.ui import tema
@@ -12,12 +15,14 @@ LINHAS_VAZIAS = 12
 
 
 def formatar_celula(valor: object) -> str:
-    """Texto de uma célula; NaN/None viram vazio."""
+    """Texto de uma célula; NaN/None viram vazio e números decimais usam vírgula."""
     try:
         if pd.isna(valor):
             return ""
     except (TypeError, ValueError):  # valores não escalares
         pass
+    if isinstance(valor, Real) and not isinstance(valor, (Integral, bool, np.bool_)):
+        return str(valor).replace(".", ",")
     return str(valor)
 
 

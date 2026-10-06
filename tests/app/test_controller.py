@@ -42,8 +42,9 @@ class VisaoFalsa:
     def exibir_indisponivel(self, info):
         self.chamadas.append(("indisponivel", info.id))
 
-    def exibir_formulario(self, teste, df):
-        self.chamadas.append(("formulario", teste.id, tuple(df.columns)))
+    def exibir_formulario(self, teste, dados):
+        self.chamadas.append(("formulario", teste.id, tuple(dados.df.columns)))
+        self.perfis = dados.perfis
 
     def coletar_parametros(self):
         if isinstance(self.params, Exception):
@@ -151,6 +152,44 @@ def test_abrir_arquivo_cancelado_ou_com_erro(caminho):
     assert controller.estado.df is None
     if caminho is not None:
         assert visao.notificacoes[-1][1] is True
+
+
+def test_csv_brasileiro_de_ponta_a_ponta(controller, visao, tmp_path):
+    arquivo = tmp_path / "vendas.csv"
+    arquivo.write_bytes("região;receita;qtd\nSão Paulo;1.234,50;3\nRio;980,00;2\n".encode("cp1252"))
+    assert controller.carregar_arquivo(str(arquivo))
+    df = controller.estado.df
+    assert list(df.columns) == ["região", "receita", "qtd"]
+    assert df["receita"].tolist() == [1234.5, 980.0]
+    assert visao.perfis is controller.estado.perfis  # perfis calculados uma vez, na leitura
+    assert visao.perfis["receita"].numerica
+    assert visao.notificacoes[-1] == ("vendas.csv: 2 linhas e 3 colunas carregadas.", False)
+
+
+def test_avisos_da_leitura_aparecem_na_notificacao(controller, visao, tmp_path):
+    arquivo = tmp_path / "misto.csv"
+    arquivo.write_text("id;valor\n1;10\n2;20\n3;x\n", encoding="utf-8")
+    assert controller.carregar_arquivo(str(arquivo))
+    mensagem, erro = visao.notificacoes[-1]
+    assert not erro
+    linhas = mensagem.split("\n")
+    assert linhas[0] == "misto.csv: 3 linhas e 2 colunas carregadas."
+    assert linhas[1].startswith("Atenção: A coluna 'valor' mistura números e texto")
+
+
+def test_arquivo_novo_substitui_o_anterior(controller, csv_valido, tmp_path):
+    controller.carregar_arquivo(str(csv_valido))
+    outro = tmp_path / "outro.csv"
+    outro.write_text("a;b\n1;2\n", encoding="utf-8")
+    controller.carregar_arquivo(str(outro))
+    assert controller.estado.nome_arquivo == "outro.csv"
+    assert controller.estado.df.shape == (1, 2)
+
+
+def test_falha_na_leitura_mantem_arquivo_anterior(controller, csv_valido, csv_vazio):
+    controller.carregar_arquivo(str(csv_valido))
+    assert not controller.carregar_arquivo(str(csv_vazio))
+    assert controller.estado.nome_arquivo == "dados.csv"
 
 
 # ---------------- Executar ----------------

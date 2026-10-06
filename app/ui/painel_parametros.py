@@ -7,6 +7,7 @@ from app.ui import tema
 from app.ui.componentes import campos
 from app.ui.componentes.card_comparacao import CardComparacaoTestes
 from core.base import ALFAS, TIPOS_COLUNA, ErroValidacao, ParametroSpec, TesteBase
+from core.tipos import PerfilColuna, detectar_tipos
 from core.validacao import colunas_por_tipo, converter_numero
 
 
@@ -17,9 +18,15 @@ def _alfa_texto(padrao: float | None) -> str:
 class PainelParametros(ft.Row):
     """Aba Parâmetros: formulário à esquerda e card de comparação (se houver) à direita."""
 
-    def __init__(self, teste: TesteBase, df: pd.DataFrame):
+    def __init__(
+        self,
+        teste: TesteBase,
+        df: pd.DataFrame,
+        perfis: dict[str, PerfilColuna] | None = None,
+    ):
         self.specs = teste.parametros()
         self._df = df
+        self._perfis = perfis if perfis is not None else detectar_tipos(df)
         self._controles: dict[str, ft.Control] = {}
         self._opcoes_coluna: dict[str, list[str]] = {}
 
@@ -53,7 +60,7 @@ class PainelParametros(ft.Row):
     # ---------------- Montagem ----------------
     def _criar_campo(self, spec: ParametroSpec) -> ft.Control:
         if spec.tipo in TIPOS_COLUNA:
-            opcoes = colunas_por_tipo(self._df, spec.tipo)
+            opcoes = colunas_por_tipo(self._df, spec.tipo, self._perfis)
             self._opcoes_coluna[spec.nome] = opcoes
             if spec.tipo == "multi_coluna":
                 caixas = [campos.caixa_selecao(c) for c in opcoes]

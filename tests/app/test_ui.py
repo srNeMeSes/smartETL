@@ -123,7 +123,17 @@ def test_tabela_limita_linhas_e_formata_nan():
 
 
 @pytest.mark.parametrize(
-    ("valor", "esperado"), [(None, ""), (np.nan, ""), (pd.NaT, ""), (1.5, "1.5"), ("a", "a")]
+    ("valor", "esperado"),
+    [
+        (None, ""),
+        (np.nan, ""),
+        (pd.NaT, ""),
+        (1.5, "1,5"),
+        (np.float64(980.0), "980,0"),
+        (np.int64(3), "3"),
+        (True, "True"),
+        ("a", "a"),
+    ],
 )
 def test_formatar_celula(valor, esperado):
     assert formatar_celula(valor) == esperado
@@ -369,3 +379,13 @@ def test_processando_e_sem_resultado(tela_controller, csv_valido):
     assert "Processando..." in _textos_aba(tela.painel.analise)
     tela.exibir_sem_resultado()
     assert SEM_EXECUCAO in _textos_aba(tela.painel.analise)
+
+
+def test_csv_brasileiro_alimenta_formulario(tela_controller, tmp_path):
+    tela, controller = tela_controller
+    arquivo = tmp_path / "br.csv"
+    arquivo.write_bytes("nome;nota;turma\nJoão;7,5;A\nAna;8,0;B\n".encode("latin-1"))
+    controller.carregar_arquivo(str(arquivo))
+    assert [c.label.value for c in tela.tabela.tabela.columns] == ["nome", "nota", "turma"]
+    assert [o.key for o in tela.formulario.controle("coluna").options] == ["nota"]
+    assert tela.tabela.tabela.rows[0].cells[0].content.value == "João"
