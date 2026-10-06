@@ -7,11 +7,12 @@ import pandas as pd
 
 from app.ui import tema
 from app.ui.componentes.card_comparacao import CardComparacaoTestes
-from app.ui.helpers import pad
+from app.ui.graficos import desenhar_figura
+from app.ui.helpers import border_all, pad
 from app.ui.painel_abas import ABA_ANALISE, PainelAbas, mensagem, processando
 from app.ui.painel_parametros import PainelParametros
 from app.ui.sidebar import Sidebar
-from app.ui.tabela_dados import TabelaDados
+from app.ui.tabela_dados import TabelaDados, formatar_celula
 from core import registry
 from core.base import ResultadoTeste, TesteBase
 from core.io import DadosCarregados
@@ -86,7 +87,8 @@ class TelaPrincipal:
         self._controller.selecionar_teste(teste_id)
 
     def _ao_clicar_executar(self, e: ft.Event) -> None:
-        self._controller.executar()
+        # Fora da thread da UI: "Processando..." aparece e a janela não congela.
+        self.page.run_thread(self._controller.executar)
 
     # ---------------- Visao ----------------
     async def escolher_arquivo(self) -> str | None:
@@ -137,14 +139,26 @@ class TelaPrincipal:
         self._atualizar()
 
     def exibir_resultado(self, resultado: ResultadoTeste) -> None:
-        resumo = self._resumo(resultado)
-        controles: list[ft.Control] = [resumo]
-        if resultado.comparacao is not None:
+        detalhes: list[ft.Control] = [self._resumo(resultado)]
+        detalhes += [self._tabela(nome, df) for nome, df in resultado.tabelas.items()]
+        if resultado.comparacao is None:
+            self.card_analise = None
+            analise: ft.Control = ft.Column(
+                detalhes, spacing=16, scroll=ft.ScrollMode.AUTO, expand=True
+            )
+        else:
             self.card_analise = CardComparacaoTestes.de_comparacao(resultado.comparacao)
-            controles.append(self.card_analise)
             if self.formulario is not None and self.formulario.card is not None:
                 self.formulario.card.aplicar(resultado.comparacao, atualizar_pagina=False)
-        self.painel.definir_analise(ft.Column(controls=controles, expand=True, spacing=12))
+            analise = ft.Row(
+                [
+                    ft.Column(detalhes, spacing=16, scroll=ft.ScrollMode.AUTO, width=440),
+                    ft.Column(width=12),
+                    self.card_analise,
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            )
+        self.painel.definir_analise(analise)
         self.painel.definir_visualizacao(self._visualizacao(resultado))
         self.painel.ir_para(ABA_ANALISE)
         self._atualizar()
@@ -177,31 +191,61 @@ class TelaPrincipal:
 
     @staticmethod
     def _resumo(resultado: ResultadoTeste) -> ft.Column:
-        linhas = [
-            ft.Text(resultado.decisao, size=16, weight=ft.FontWeight.BOLD, color=tema.TEXTO),
+        decisao = resultado.decisao.replace("H0", "H₀")
+        linhas: list[ft.Control] = [
+            ft.Text(decisao, size=16, weight=ft.FontWeight.BOLD, color=tema.TEXTO),
             ft.Text(resultado.interpretacao, size=14, color=tema.TEXTO),
         ]
         linhas += [
-            ft.Text(f"Aviso: {aviso}", size=13, color=tema.TEXTO_SECUNDARIO)
+            ft.Row(
+                [
+                    ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, size=16, color=tema.LARANJA),
+                    ft.Text(aviso, size=13, color=tema.TEXTO_SECUNDARIO, expand=True),
+                ],
+                spacing=6,
+                vertical_alignment=ft.CrossAxisAlignment.START,
+            )
             for aviso in resultado.avisos
         ]
         return ft.Column(controls=linhas, spacing=6)
+
+    @staticmethod
+    def _tabela(nome: str, df: pd.DataFrame) -> ft.Column:
+        def celula(valor: object) -> ft.DataCell:
+            return ft.DataCell(ft.Text(formatar_celula(valor), size=13, color=tema.TEXTO))
+
+        tabela = ft.DataTable(
+            columns=[
+                ft.DataColumn(
+                    ft.Text(
+                        str(c), size=13, weight=ft.FontWeight.W_600, color=tema.TEXTO_SECUNDARIO
+                    )
+                )
+                for c in df.columns
+            ],
+            rows=[
+                ft.DataRow(cells=[celula(v) for v in linha])
+                for linha in df.itertuples(index=False, name=None)
+            ],
+            heading_row_color=tema.FUNDO,
+            heading_row_height=36,
+            data_row_min_height=32,
+            data_row_max_height=32,
+            column_spacing=28,
+            border=border_all(1, tema.BORDA),
+            border_radius=tema.RAIO_PEQUENO,
+            horizontal_lines=ft.BorderSide(1, tema.BORDA),
+        )
+        titulo = ft.Text(nome, size=14, weight=ft.FontWeight.W_600, color=tema.TEXTO)
+        return ft.Column([titulo, tabela], spacing=8)
 
     @staticmethod
     def _visualizacao(resultado: ResultadoTeste) -> ft.Control:
         if not resultado.figuras:
             return mensagem("Nenhum gráfico gerado para este teste.", titulo="Visualização")
         return ft.Column(
-            controls=[
-                ft.Column(
-                    [
-                        ft.Text(fig.titulo, size=14, weight=ft.FontWeight.W_600, color=tema.TEXTO),
-                        ft.Image(src=fig.png),
-                    ],
-                    spacing=6,
-                )
-                for fig in resultado.figuras
-            ],
+            controls=[desenhar_figura(fig) for fig in resultado.figuras],
+            spacing=24,
             scroll=ft.ScrollMode.AUTO,
             expand=True,
         )

@@ -46,12 +46,19 @@ class ComparacaoPValores:
     linhas: list[tuple[float | None, float | None]]  # (p_param, p_nao_param); None = não calculado
 
 
+TipoFigura = Literal["histograma"]
+
+
 @dataclass
 class Figura:
-    """Gráfico para a aba Visualização (formato definitivo decidido na Fase 3)."""
+    """Especificação de um gráfico (sem Flet). A UI desenha com componentes nativos do Flet.
 
+    `dados` depende do `tipo`; ver os construtores em core/figuras.py.
+    """
+
+    tipo: TipoFigura
     titulo: str
-    png: bytes
+    dados: dict[str, Any]
 
 
 @dataclass

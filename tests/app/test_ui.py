@@ -4,6 +4,7 @@ from typing import ClassVar
 from unittest.mock import MagicMock
 
 import flet as ft
+import flet.canvas as cv
 import numpy as np
 import pandas as pd
 import pytest
@@ -21,6 +22,7 @@ from app.ui.tabela_dados import MAX_LINHAS, TabelaDados, formatar_celula
 from app.ui.tela_principal import SEM_ARQUIVO, SEM_EXECUCAO, TelaPrincipal
 from core import registry
 from core.base import ComparacaoPValores, ErroValidacao, ParametroSpec, ResultadoTeste, TesteBase
+from core.figuras import histograma
 from core.testes.medias import TesteT1Amostra
 
 # --------------------------------------------------------------------------
@@ -276,7 +278,10 @@ def test_form_renderiza_todos_os_tipos():
 
 @pytest.fixture
 def page():
-    return MagicMock()
+    pagina = MagicMock()
+    # run_thread executa na hora, para os testes serem determinísticos.
+    pagina.run_thread.side_effect = lambda funcao, *args, **kwargs: funcao(*args, **kwargs)
+    return pagina
 
 
 @pytest.fixture
@@ -351,6 +356,7 @@ def test_executar_pelo_botao_notifica(tela_controller, csv_valido, page):
     tela.formulario.controle("coluna").value = "qtd"
     tela.formulario.controle("mu0").value = "5"
     tela.sidebar.botao_executar.on_click(None)
+    page.run_thread.assert_called_once_with(controller.executar)  # fora da thread da UI
     snack = page.show_dialog.call_args.args[0]
     assert isinstance(snack, ft.SnackBar)
     assert "ainda não foi implementado" in snack.content.value
@@ -362,14 +368,41 @@ def test_exibir_resultado_preenche_analise_e_cards(tela_controller, csv_valido):
     controller.carregar_arquivo(str(csv_valido))
     comparacao = ComparacaoPValores("t Student", "Wilcoxon", ["a", "b", "c"], [(0.01, 0.02)] * 3)
     resultado = ResultadoTeste(
-        "teste_t_1am", {"t": 2.0}, 0.01, 0.05, "Rejeita H0", "Há evidência.", comparacao=comparacao
+        "teste_t_1am",
+        {"t": 2.0},
+        0.01,
+        0.05,
+        "Rejeita H0",
+        "Há evidência.",
+        tabelas={"Resumo": pd.DataFrame({"Medida": ["t", "gl"], "Valor": ["2,0000", "9"]})},
+        avisos=["Amostra pequena."],
+        comparacao=comparacao,
     )
     tela.exibir_resultado(resultado)
-    assert "Rejeita H0" in _textos_aba(tela.painel.analise)
+    analise = _textos_aba(tela.painel.analise)
+    for esperado in ("Rejeita H₀", "Há evidência.", "Amostra pequena.", "Resumo", "2,0000"):
+        assert esperado in analise
+    assert do_tipo(tela.painel.analise, ft.DataTable)
+    assert tela.card_analise in list(iterar_controles(tela.painel.analise))
     assert tela.card_analise._textos_p_esquerda[0].value == "0,010"
     assert tela.formulario.card._textos_p_direita[0].value == "0,020"
     assert tela.painel.tabs.selected_index == ABA_ANALISE
     assert "Nenhum gráfico" in _textos_aba(tela.painel.visualizacao)
+
+
+def test_exibir_resultado_sem_card_com_figura(tela_controller, csv_valido):
+    tela, controller = tela_controller
+    controller.carregar_arquivo(str(csv_valido))
+    figura = histograma(
+        [1.0, 2.0, 2.5, 4.0], "Distribuição de 'x'", "x", [("μ₀", 3.0, "tracejado")]
+    )
+    resultado = ResultadoTeste("x", {}, 0.5, 0.05, "Não rejeita H0", "ok", figuras=[figura])
+    tela.exibir_resultado(resultado)
+    assert tela.card_analise is None
+    assert "Não rejeita H₀" in _textos_aba(tela.painel.analise)
+    canvas = do_tipo(tela.painel.visualizacao, cv.Canvas)
+    assert len(canvas) == 1
+    assert "Distribuição de 'x'" in _textos_aba(tela.painel.visualizacao)
 
 
 def test_processando_e_sem_resultado(tela_controller, csv_valido):

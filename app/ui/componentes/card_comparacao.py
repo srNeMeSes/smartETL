@@ -5,8 +5,8 @@ import flet as ft
 from app.ui import tema
 from app.ui.helpers import esta_na_pagina
 from core.base import ComparacaoPValores
+from core.interpretacao import SEM_VALOR, formatar_p_valor
 
-SEM_VALOR = "—"
 NOTA_RODAPE = "Os valores de p (p-value) serão calculados após a execução do teste de hipótese."
 
 # Ícones (esquerda, direita) de cada linha: ≠, >, <
@@ -15,15 +15,6 @@ _ICONES_LINHAS = [
     (ft.Icons.TRENDING_UP, ft.Icons.TRENDING_UP),
     (ft.Icons.TRENDING_DOWN, ft.Icons.TRENDING_DOWN),
 ]
-
-
-def formatar_p_valor(p: float | None) -> str:
-    """p-valor com vírgula decimal; "—" quando ainda não calculado."""
-    if p is None:
-        return SEM_VALOR
-    if p < 0.001:
-        return "< 0,001"
-    return f"{p:.3f}".replace(".", ",")
 
 
 def _icone_caixa(icone: str, cor: str, cor_fundo: str) -> ft.Container:

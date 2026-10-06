@@ -29,6 +29,12 @@ CAMPO_BORDA = ft.Colors.BLACK_54
 NOTIFICACAO = TEXTO
 NOTIFICACAO_ERRO = "#B42318"
 
+# Gráficos
+GRAFICO_BARRA = LARANJA_SUAVE
+GRAFICO_BARRA_BORDA = LARANJA
+GRAFICO_DESTAQUE = TEXTO  # linha cheia (ex.: média amostral)
+GRAFICO_REFERENCIA = TEXTO_SECUNDARIO  # linha tracejada (ex.: μ₀)
+
 SOMBRA_CARTAO = ft.Colors.with_opacity(0.06, ft.Colors.BLACK)
 
 # Tipografia
