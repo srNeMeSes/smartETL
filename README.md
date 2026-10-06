@@ -29,6 +29,8 @@ diagnósticos de pressupostos.
   (binomial) e o qui-quadrado com correção de Edwards lado a lado, odds ratio pareada e barras.
 - **Teste do sinal** completo: uma amostra (mediana contra M₀) ou pareado (mediana das diferenças),
   p exato, IC exato da mediana e histograma.
+- **Wilcoxon** completo: uma amostra ou pareado, p exato ou aproximado (informado), pseudomediana
+  de Hodges-Lehmann com IC (como o `wilcox.test` do R), tamanho de efeito r e histograma.
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
