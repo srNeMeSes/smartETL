@@ -105,4 +105,5 @@ def test_testes_implementados():
         "mann_whitney",
         "kruskal_wallis",
         "friedman",
+        "anova_1fator",
     ]

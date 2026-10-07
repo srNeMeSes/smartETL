@@ -237,7 +237,9 @@ class TelaPrincipal:
             horizontal_lines=ft.BorderSide(1, tema.BORDA),
         )
         titulo = ft.Text(nome, size=14, weight=ft.FontWeight.W_600, color=tema.TEXTO)
-        return ft.Column([titulo, tabela], spacing=8)
+        # Rolagem horizontal: a tabela mantém a largura natural em vez de quebrar o texto das
+        # células (cortado pela altura fixa da linha) quando a coluna é estreita (ao lado do card).
+        return ft.Column([titulo, ft.Row([tabela], scroll=ft.ScrollMode.AUTO)], spacing=8)
 
     @staticmethod
     def _visualizacao(resultado: ResultadoTeste) -> ft.Control:

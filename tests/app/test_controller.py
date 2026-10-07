@@ -565,3 +565,23 @@ def test_integracao_friedman_carregar_selecionar_executar(controller, visao):
     assert (resultado.estatisticas["n"], resultado.estatisticas["k"]) == (14, 3)
     assert "Comparações múltiplas (Wilcoxon, Holm)" in resultado.tabelas
     assert visao.chamadas[-1] == ("resultado", "friedman")
+
+
+def test_integracao_anova_1fator_carregar_selecionar_executar(controller, visao):
+    # Checklist §9, item 7, para a ANOVA (1 fator), com a base do projeto (bases/).
+    assert controller.carregar_arquivo(str(BASES / "fertilizantes_br.csv"))
+    controller.selecionar_teste("anova_1fator")
+    assert visao.ultima()[:2] == ("formulario", "anova_1fator")
+    visao.params = {
+        "coluna": "produtividade",
+        "grupo": "fertilizante",
+        "variante": "Clássica (variâncias iguais)",
+        "tukey": True,
+        "alfa": 0.05,
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "anova_1fator"
+    assert resultado.estatisticas["k"] == 4 and resultado.estatisticas["comparacoes"] == 6
+    assert "Comparações múltiplas (Tukey HSD)" in resultado.tabelas
+    assert resultado.comparacao.titulo_direita == "Kruskal-Wallis"
+    assert visao.chamadas[-1] == ("resultado", "anova_1fator")

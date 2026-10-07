@@ -701,3 +701,26 @@ def test_friedman_caixas_de_selecao(tela_controller):
     assert resultado.teste_id == "friedman" and resultado.estatisticas["k"] == 3
     assert "Medidas" in _textos_aba(tela.painel.analise)
     assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
+
+
+def test_anova_card_de_uma_linha_e_tukey(tela_controller):
+    tela, controller = tela_controller
+    controller.carregar_arquivo(str(BASES / "fertilizantes_br.csv"))
+    tela.sidebar.selecionar("anova_1fator")
+    form = tela.formulario
+    assert {"ANOVA", "Kruskal-Wallis", "Hₐ:  algum μᵢ ≠ μⱼ"} <= set(textos(form.card))
+    assert len(form.card._textos_p_esquerda) == 1
+    assert form.controle("variante").value == "Clássica (variâncias iguais)"
+    assert form.controle("tukey").value is False
+    form.controle("coluna").value = "produtividade"
+    form.controle("grupo").value = "fertilizante"
+    form.controle("tukey").value = True
+    tela.sidebar.botao_executar.on_click(None)
+    assert controller.estado.ultimo_resultado.teste_id == "anova_1fator"
+    assert form.card._textos_p_esquerda[0].value == "0,001"
+    assert tela.card_analise._textos_p_direita[0].value == "0,005"
+    analise = _textos_aba(tela.painel.analise)
+    for titulo in ("Resumo", "Tabela ANOVA", "Grupos", "Comparações múltiplas (Tukey HSD)"):
+        assert titulo in analise
+    assert len(do_tipo(tela.painel.analise, ft.DataTable)) == 4
+    assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
