@@ -46,7 +46,11 @@ diagnósticos de pressupostos dentro da regressão linear).
   Durbin-Watson, Breusch-Godfrey, VIF/GVIF, Shapiro-Wilk ou Lilliefors), tabela do modelo,
   coeficientes com IC, resíduos e Q-Q, e a aba **Simulação** (equação, sliders, previsão com
   IC e intervalo de predição, contribuição de cada termo). Valores conferidos contra o R.
-- Os demais testes aparecem na lista como "ainda não disponível nesta versão".
+- **Regressão Logística** completa: y com 2 valores e o evento escolhido, diagnósticos
+  (VIF/GVIF, Box-Tidwell, Hosmer-Lemeshow, eventos por variável, separação), teste da razão
+  de verossimilhança, pseudo-R², classificação por limiar (matriz de confusão, sensibilidade,
+  especificidade, AUC), odds ratios, curva ROC e a aba **Simulação** com a probabilidade
+  prevista. Valores conferidos contra o R.
 
 ## Requisitos
 
