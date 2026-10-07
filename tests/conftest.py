@@ -7,7 +7,8 @@ import pandas as pd
 import pytest
 
 # Pasta das bases de teste manual do projeto (também usadas em testes de integração).
-BASES = Path(__file__).resolve().parent.parent / "bases"
+RAIZ = Path(__file__).resolve().parent.parent
+BASES = RAIZ / "bases"
 
 
 @pytest.fixture
