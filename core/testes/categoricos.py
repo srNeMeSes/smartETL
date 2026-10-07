@@ -13,6 +13,7 @@ from core.base import (
     ResultadoTeste,
     TesteBase,
 )
+from core.exatos import ic_odds_ratio_condicional, odds_ratio_condicional
 from core.figuras import barras, barras_agrupadas
 from core.interpretacao import decidir, formatar_numero, formatar_p_valor, interpretar
 from core.tipos import niveis_coluna, rotulo_nivel
@@ -356,8 +357,9 @@ class TesteFisher(TesteBase):
     p-valor exato: `scipy.stats.fisher_exact` (bilateral pelo método das probabilidades ≤ à
     da tabela observada, como no R). "OR > 1": o evento₁ aumenta a chance do evento₂.
     Odds ratio amostral = ad/bc; odds ratio condicional (EMV da hipergeométrica não central) com
-    IC exato condicional, `scipy.stats.contingency.odds_ratio(kind="conditional")` — os mesmos
-    valores do `fisher.test` do R; o IC é unilateral quando H₁ é unilateral. Com célula zero,
+    IC exato condicional (core/exatos.py: os valores de
+    `scipy.stats.contingency.odds_ratio(kind="conditional")` e do `fisher.test` do R,
+    vetorizados); o IC é unilateral quando H₁ é unilateral. Com célula zero,
     a odds ratio vai a 0 ou +∞ (com aviso). Sem card de comparação. Decisão: p ≤ α.
     """
 
@@ -453,9 +455,8 @@ class TesteFisher(TesteBase):
         n = a + b + c + d
 
         p_valor = float(stats.fisher_exact(tabela, alternative=alternativa).pvalue)
-        condicional = stats.contingency.odds_ratio(tabela, kind="conditional")
-        or_cond = float(condicional.statistic)
-        ic = condicional.confidence_interval(confidence_level=1 - alfa, alternative=alternativa)
+        or_cond = odds_ratio_condicional(a, b, c, d)
+        ic_inferior, ic_superior = ic_odds_ratio_condicional(a, b, c, d, 1 - alfa, alternativa)
         celula_zero = 0 in (a, b, c, d)
         or_amostral = (a * d) / (b * c) if b * c else (math.inf if a * d else math.nan)
 
@@ -469,8 +470,8 @@ class TesteFisher(TesteBase):
             "p_valor": p_valor,
             "odds_ratio_amostral": float(or_amostral),
             "odds_ratio_condicional": or_cond,
-            "ic_inferior": float(ic.low),
-            "ic_superior": float(ic.high),
+            "ic_inferior": float(ic_inferior),
+            "ic_superior": float(ic_superior),
         }
 
         simbolo = _SIMBOLO_OR[alternativa]
@@ -513,7 +514,7 @@ class TesteFisher(TesteBase):
             ("Odds ratio condicional (EMV)", formatar_numero(or_cond)),
             (
                 f"IC {confianca} exato para a odds ratio{tipo_ic}",
-                f"[{formatar_numero(float(ic.low))}; {formatar_numero(float(ic.high))}]",
+                f"[{formatar_numero(ic_inferior)}; {formatar_numero(ic_superior)}]",
             ),
         ]
         tabela_df = pd.DataFrame(tabela, index=list(niveis1), columns=list(niveis2))

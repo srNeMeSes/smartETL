@@ -268,11 +268,15 @@ def auc(y: np.ndarray, p: np.ndarray) -> float:
 def curva_roc(y: np.ndarray, p: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """(1 − especificidade, sensibilidade) para cada limiar distinto, de (0, 0) a (1, 1)."""
     y, p = np.asarray(y, dtype=float), np.asarray(p, dtype=float)
-    limiares = np.unique(p)[::-1]
+    # Ordem decrescente de p; para cada limiar t, os casos com p ≥ t são um prefixo: as somas
+    # acumuladas no fim de cada bloco de valores iguais dão as contagens (O(n log n)).
+    ordem = np.argsort(-p, kind="stable")
+    p_ordenado, y_ordenado = p[ordem], y[ordem]
+    fim_bloco = np.r_[np.nonzero(np.diff(p_ordenado))[0], len(p) - 1]
+    verdadeiros = np.cumsum(y_ordenado)[fim_bloco]
+    falsos = np.cumsum(1 - y_ordenado)[fim_bloco]
     n1, n0 = y.sum(), len(y) - y.sum()
-    tpr = [0.0] + [float(((p >= t) & (y == 1)).sum() / n1) for t in limiares]
-    fpr = [0.0] + [float(((p >= t) & (y == 0)).sum() / n0) for t in limiares]
-    return np.array(fpr), np.array(tpr)
+    return np.r_[0.0, falsos / n0], np.r_[0.0, verdadeiros / n1]
 
 
 def separacao(preditor_linear: np.ndarray, y: np.ndarray) -> str | None:

@@ -143,11 +143,26 @@ def test_extensao_invalida_vira_mensagem(controller, visao, tmp_path):
     assert "não suportado" in visao.notificacoes[-1][0]
 
 
-def test_abrir_arquivo(csv_valido):
+def test_abrir_arquivo(csv_valido, monkeypatch):
+    import threading
+
+    from app import controller as modulo
+
+    threads = []
+    original = modulo.carregar_dados
+
+    def espiao(caminho):
+        threads.append(threading.get_ident())
+        return original(caminho)
+
+    monkeypatch.setattr(modulo, "carregar_dados", espiao)
     visao = VisaoFalsa(caminho=str(csv_valido))
     controller = Controller(AppState(), visao)
     asyncio.run(controller.abrir_arquivo())
     assert controller.estado.df is not None
+    assert threads and threads[0] != threading.get_ident()  # leitura fora da thread da UI
+    assert visao.notificacoes[0] == ("Lendo 'dados.csv'...", False)
+    assert visao.notificacoes[-1][0].startswith("dados.csv: 6 linhas")
 
 
 @pytest.mark.parametrize("caminho", [None, RuntimeError("falhou")])

@@ -339,7 +339,7 @@ Regras de leitura implementadas (detalhes na docstring de `core/io.py`):
 - **Decimal/milhar:** separador `,` implica decimal `.`; senão decimal `,` quando "1,5"/"1.234,5" predominam sobre "1.5" ("1.234" isolado é ambíguo e vale como ponto decimal). Milhar `.` só com decimal `,` e sem nenhum "1.5" na amostra.
 - **Tipos** (`core/tipos.py`): numérica = dtype numérico não booleano; binária = 2 valores distintos; categórica = não numérica (exceto identificadores: texto com todos os valores distintos e mais de 10 valores, como nomes ou códigos), ou numérica discreta (só inteiros, inclusive float com NaN) com até 10 níveis. Uma coluna pode ter mais de um papel.
 - **Erros** (`ErroLeitura`, mensagem pronta em pt-BR): vazio, só cabeçalho, inexistente/bloqueado, binário, linha com colunas a mais (com número da linha), XLSX inválido, extensão não suportada. **Avisos:** coluna que mistura números e texto; XLSX com várias planilhas (lê a primeira). Colunas sem nome e vazias (separador sobrando) são descartadas.
-- A prévia mostra até 100 linhas, com NaN vazio e decimais com vírgula. Ler arquivos grandes ainda acontece na thread da UI (otimizar na Fase 5, se medido como lento).
+- A prévia mostra até 100 linhas, com NaN vazio e decimais com vírgula. A leitura roda fora da thread da UI (`Controller.abrir_arquivo` usa `asyncio.to_thread`).
 
 **Fase 3 — Testes de hipótese (um por um)** ✅ concluída
 Itens 1–15 da seção 7, cada um com o checklist da seção 9.
@@ -386,6 +386,20 @@ Itens 16 e 17. Andamento: **2/2**.
 
 **Fase 5 — Otimização e acabamento**
 Perfilar (`cProfile`/`time`) e otimizar só o que estiver medido como lento. Revisar mensagens, textos de interpretação, README.
+
+Medição: `python scripts/medir_desempenho.py [n]` (bases sintéticas com semente fixa; leitura, tipos, prévia, cada teste e figuras). Resultado com n = 100 000 (antes → depois da otimização):
+
+| Etapa | Antes | Depois | O que mudou |
+|-------|-------|--------|-------------|
+| Wilcoxon / Mann-Whitney | **falha de memória** (9 GB) | 0,8 s / 0,5 s | Hodges-Lehmann por contagem (bissecção + `searchsorted`) acima de 2 milhões de pares |
+| Regressão linear e logística (validação) | **falha de memória** (74 GB) | — | `svd(full_matrices=False)` na detecção de colinearidade |
+| Teste exato de Fisher | 20,9 s | 0,3 s | odds ratio condicional e IC vetorizados (`core/exatos.py`) |
+| Regressão logística | 25,2 s | 0,7 s | curva ROC por somas acumuladas (era O(n²)) |
+| Friedman | 9,3 s | 0,2 s | postos por linha com `rankdata(axis=1)` |
+| Teste do sinal | 3,5 s | 0,02 s | cdf binomial vetorizada no IC da mediana |
+| Leitura de arquivo | congelava a janela | em `asyncio.to_thread`, com aviso "Lendo…" | XLSX segue lento no openpyxl (5 s com 50 mil linhas) |
+
+Medidos e mantidos: regressão linear 3 s (custo do Harrison-McCabe com 1000 simulações, como o `hmctest`); abertura do app ~1,5 s (pandas/scipy; coberta pela splash; statsmodels no topo de `proporcoes.py` custa 23 ms); demais testes < 1 s. Os caminhos rápidos são conferidos contra os de referência em `tests/core/test_desempenho.py`.
 
 ## 9. Checklist de "pronto" para cada teste
 

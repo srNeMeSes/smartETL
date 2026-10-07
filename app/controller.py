@@ -1,5 +1,6 @@
 """Liga a interface ao core. Sem lógica estatística e sem Flet."""
 
+import asyncio
 import logging
 import threading
 from collections.abc import Callable
@@ -57,15 +58,26 @@ class Controller:
             self.visao.notificar("Não foi possível abrir o seletor de arquivos.", erro=True)
             return
         if caminho:
-            self.carregar_arquivo(caminho)
+            # Fora da thread da UI: arquivos grandes (XLSX, sobretudo) não congelam a janela.
+            self.visao.notificar(f"Lendo '{Path(caminho).name}'...")
+            dados = await asyncio.to_thread(self._ler, caminho)
+            if dados is not None:
+                self._aplicar_dados(dados)
 
     def carregar_arquivo(self, caminho: str) -> bool:
+        """Lê e aplica o arquivo (na thread atual). Devolve se a leitura deu certo."""
+        dados = self._ler(caminho)
+        if dados is None:
+            return False
+        self._aplicar_dados(dados)
+        return True
+
+    def _ler(self, caminho: str) -> DadosCarregados | None:
         nome = Path(caminho).name
         try:
-            dados = carregar_dados(caminho)
+            return carregar_dados(caminho)
         except ErroLeitura as erro:
             self.visao.notificar(str(erro), erro=True)
-            return False
         except Exception:
             log.exception("Falha ao ler %s", caminho)
             self.visao.notificar(
@@ -73,12 +85,13 @@ class Controller:
                 "ou corrompido.",
                 erro=True,
             )
-            return False
+        return None
 
+    def _aplicar_dados(self, dados: DadosCarregados) -> None:
         linhas, colunas = dados.df.shape
         log.info(
             "Arquivo carregado: %s (%d linhas, %d colunas; encoding=%s, separador=%r, decimal=%r)",
-            caminho,
+            dados.caminho,
             linhas,
             colunas,
             dados.encoding,
@@ -86,13 +99,12 @@ class Controller:
             dados.decimal,
         )
         for aviso in dados.avisos:
-            log.warning("%s: %s", nome, aviso)
+            log.warning("%s: %s", dados.nome_arquivo, aviso)
         self.estado.dados = dados
         self.estado.ultimo_resultado = None
         self.visao.exibir_dados(dados.df)
         self._renderizar_painel()
         self.visao.notificar(self._resumo_carga(dados))
-        return True
 
     @staticmethod
     def _resumo_carga(dados: DadosCarregados) -> str:

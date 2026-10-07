@@ -47,13 +47,12 @@ def ic_mediana_exato(
     x = np.sort(np.asarray(valores, dtype=float))
     n = len(x)
     cauda = alfa / 2 if alternativa == "two-sided" else alfa
-    k = 0
-    for j in range(1, n // 2 + 2):
-        if stats.binom.cdf(j - 1, n, 0.5) <= cauda:
-            k = j
+    # P(B ≤ j − 1) para j = 1 … ⌊n/2⌋ + 1, de uma vez (crescente em j): k = último j que serve.
+    acumuladas = stats.binom.cdf(np.arange(n // 2 + 1), n, 0.5)
+    k = int(np.searchsorted(acumuladas, cauda, side="right"))
     if k == 0:
         return -math.inf, math.inf, 1.0
-    perda = float(stats.binom.cdf(k - 1, n, 0.5))
+    perda = float(acumuladas[k - 1])
     if alternativa == "greater":
         return float(x[k - 1]), math.inf, 1 - perda
     if alternativa == "less":
@@ -268,6 +267,69 @@ def _quantil_postos(p: float, n: int) -> int:
     return int(np.searchsorted(acumulada, p - 1e-12))
 
 
+# ---------------------------------------------------------------------------
+# Estatísticas de ordem de pares sem montar todos os pares (n grande)
+# ---------------------------------------------------------------------------
+MAX_PARES_ENUMERADOS = 2_000_000  # até aqui, ordena todos os pares; acima, conta (O(n log n))
+
+
+def _bissecao_kesimo(contar, encaixar, baixo: float, alto: float, k: int) -> float:
+    """k-ésimo (base 1) menor valor de pares: bissecção sobre o valor t com `contar(t)` = nº de
+    pares ≤ t; no fim, `encaixar(t)` devolve o maior valor de par ≤ t (o próprio k-ésimo)."""
+    # Folga nos limites: recalcular um par a partir de t pode errar por 1 ulp nos extremos.
+    folga = 16 * np.finfo(float).eps * max(abs(baixo), abs(alto), 1.0)
+    baixo, alto = baixo - folga, alto + folga
+    for _ in range(200):
+        meio = (baixo + alto) / 2
+        if meio in (baixo, alto):
+            break
+        if contar(meio) >= k:
+            alto = meio
+        else:
+            baixo = meio
+        if alto - baixo <= 4 * np.finfo(float).eps * max(abs(alto), abs(baixo), 1.0):
+            break
+    return encaixar(alto)
+
+
+def kesimo_walsh(x_ordenado: np.ndarray, k: int) -> float:
+    """k-ésima menor média de Walsh (xᵢ + xⱼ)/2, i ≤ j, sem gerar as n(n+1)/2 médias."""
+    x = x_ordenado
+    indices = np.arange(len(x))
+
+    def contar(t: float) -> int:
+        limite = np.searchsorted(x, 2 * t - x, side="right")
+        return int(np.maximum(limite - indices, 0).sum())
+
+    def encaixar(t: float) -> float:
+        j = np.searchsorted(x, 2 * t - x, side="right") - 1
+        validos = j >= indices
+        return float(((x[validos] + x[j[validos]]) / 2).max())
+
+    return _bissecao_kesimo(contar, encaixar, float(x[0]), float(x[-1]), k)
+
+
+def kesimo_diferenca(x1_ordenado: np.ndarray, x2_ordenado: np.ndarray, k: int) -> float:
+    """k-ésima menor diferença x₁ᵢ − x₂ⱼ, sem gerar as n₁n₂ diferenças."""
+    x1, x2 = x1_ordenado, x2_ordenado
+
+    def contar(t: float) -> int:
+        return int((len(x2) - np.searchsorted(x2, x1 - t, side="left")).sum())
+
+    def encaixar(t: float) -> float:
+        j = np.searchsorted(x2, x1 - t, side="left")
+        validos = j < len(x2)
+        return float((x1[validos] - x2[j[validos]]).max())
+
+    return _bissecao_kesimo(contar, encaixar, float(x1[0] - x2[-1]), float(x1[-1] - x2[0]), k)
+
+
+def _mediana_por_kesimo(kesimo, m: int) -> float:
+    if m % 2:
+        return kesimo((m + 1) // 2)
+    return (kesimo(m // 2) + kesimo(m // 2 + 1)) / 2
+
+
 def hodges_lehmann(d: np.ndarray, alfa: float, alternativa: str, exato: bool) -> tuple:
     """(pseudomediana, IC inferior, IC superior) sobre as médias de Walsh de `d` (já sem zeros).
 
@@ -275,10 +337,20 @@ def hodges_lehmann(d: np.ndarray, alfa: float, alternativa: str, exato: bool) ->
     k = n(n+1)/4 − z·√(n(n+1)(2n+1)/24) para escolher as estatísticas de ordem.
     """
     n = len(d)
-    i, j = np.triu_indices(n)
-    walsh = np.sort((d[i] + d[j]) / 2)
-    estimativa = float(np.median(walsh))
-    m = len(walsh)  # = n(n+1)/2
+    m = n * (n + 1) // 2
+    if m <= MAX_PARES_ENUMERADOS:
+        i, j = np.triu_indices(n)
+        walsh = np.sort((d[i] + d[j]) / 2)
+
+        def kesimo(k: int) -> float:
+            return float(walsh[k - 1])
+    else:  # n grande: estatísticas de ordem por contagem (não cabe na memória)
+        ordenado = np.sort(np.asarray(d, dtype=float))
+
+        def kesimo(k: int) -> float:
+            return kesimo_walsh(ordenado, k)
+
+    estimativa = _mediana_por_kesimo(kesimo, m)
     cauda = alfa / 2 if alternativa == "two-sided" else alfa
     if exato:
         qu = max(_quantil_postos(cauda, n), 1)
@@ -286,7 +358,7 @@ def hodges_lehmann(d: np.ndarray, alfa: float, alternativa: str, exato: bool) ->
         z = float(stats.norm.ppf(1 - cauda))
         qu = max(int(np.floor(n * (n + 1) / 4 - z * math.sqrt(n * (n + 1) * (2 * n + 1) / 24))), 1)
     qu = min(qu, m)
-    baixo, alto = float(walsh[qu - 1]), float(walsh[m - qu])
+    baixo, alto = kesimo(qu), kesimo(m - qu + 1)
     if alternativa == "greater":
         return estimativa, baixo, math.inf
     if alternativa == "less":
@@ -499,9 +571,19 @@ def deslocamento_hodges_lehmann(
     `wilcox.test` do R) ou pela aproximação normal k = n₁n₂/2 − z·√(n₁n₂(N+1)/12).
     """
     n1, n2 = len(x1), len(x2)
-    dif = np.sort((x1[:, None] - x2[None, :]).ravel())
-    m = len(dif)
-    estimativa = float(np.median(dif))
+    m = n1 * n2
+    if m <= MAX_PARES_ENUMERADOS:
+        dif = np.sort((x1[:, None] - x2[None, :]).ravel())
+
+        def kesimo(k: int) -> float:
+            return float(dif[k - 1])
+    else:  # grupos grandes: estatísticas de ordem por contagem (não cabe na memória)
+        o1, o2 = np.sort(np.asarray(x1, dtype=float)), np.sort(np.asarray(x2, dtype=float))
+
+        def kesimo(k: int) -> float:
+            return kesimo_diferenca(o1, o2, k)
+
+    estimativa = _mediana_por_kesimo(kesimo, m)
     cauda = alfa / 2 if alternativa == "two-sided" else alfa
     if exato:
         qu = max(_quantil_u(cauda, n1, n2), 1)
@@ -509,7 +591,7 @@ def deslocamento_hodges_lehmann(
         z = float(stats.norm.ppf(1 - cauda))
         qu = max(int(np.floor(n1 * n2 / 2 - z * math.sqrt(n1 * n2 * (n1 + n2 + 1) / 12))), 1)
     qu = min(qu, m)
-    baixo, alto = float(dif[qu - 1]), float(dif[m - qu])
+    baixo, alto = kesimo(qu), kesimo(m - qu + 1)
     if alternativa == "greater":
         return estimativa, baixo, math.inf
     if alternativa == "less":
@@ -1003,7 +1085,7 @@ class TesteFriedman(TesteBase):
         n, k = dados.shape
         resultado = stats.friedmanchisquare(*dados.T)
         q, p_valor = float(resultado.statistic), float(resultado.pvalue)
-        postos = np.apply_along_axis(stats.rankdata, 1, dados)
+        postos = stats.rankdata(dados, axis=1)  # postos dentro de cada linha, vetorizado
         postos_medios = postos.mean(axis=0)
         tem_empates = any(len(np.unique(linha)) < k for linha in dados)
         w_kendall = q / (n * (k - 1))

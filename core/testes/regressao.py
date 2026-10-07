@@ -133,9 +133,10 @@ def variaveis_colineares(dados: DadosModelo) -> list[list[str]]:
     """
     x = dados.x
     escala = np.where(np.abs(x).max(axis=0) > 0, np.abs(x).max(axis=0), 1.0)
-    _, valores, vt = np.linalg.svd(x / escala, full_matrices=True)
+    # full_matrices=False: só Vᵀ (k×k) é usado; com True, U seria n×n (74 GB com n = 100 000).
+    _, valores, vt = np.linalg.svd(x / escala, full_matrices=False)
     tolerancia = max(x.shape) * np.finfo(float).eps * (valores[0] if len(valores) else 1.0) * 1e3
-    nulos = [vt[i] for i in range(x.shape[1]) if i >= len(valores) or valores[i] <= tolerancia]
+    nulos = [vt[i] for i in range(len(valores)) if valores[i] <= tolerancia]
     dono = {0: INTERCEPTO}
     for variavel in dados.variaveis:
         for indice in variavel.colunas:
