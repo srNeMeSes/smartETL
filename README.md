@@ -37,6 +37,8 @@ diagnósticos de pressupostos.
   pós-teste de Dunn opcional (p ajustado por Holm) e boxplot.
 - **Friedman** completo: 3 ou mais medidas repetidas, W de Kendall, tabela por medida, comparações
   opcionais (Wilcoxon pareado + Holm) e boxplot.
+- **ANOVA (1 fator)** completa: clássica ou de Welch, tabela ANOVA, η² e ω², média e IC por grupo,
+  aviso do teste de Levene, Tukey HSD opcional, card com o Kruskal-Wallis e boxplot.
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
