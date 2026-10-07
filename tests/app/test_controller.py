@@ -585,3 +585,23 @@ def test_integracao_anova_1fator_carregar_selecionar_executar(controller, visao)
     assert "Comparações múltiplas (Tukey HSD)" in resultado.tabelas
     assert resultado.comparacao.titulo_direita == "Kruskal-Wallis"
     assert visao.chamadas[-1] == ("resultado", "anova_1fator")
+
+
+def test_integracao_anova_2fator_carregar_selecionar_executar(controller, visao):
+    # Checklist §9, item 7, para a ANOVA (2 fatores), com a base do projeto (bases/).
+    assert controller.carregar_arquivo(str(BASES / "canteiros_br.csv"))
+    controller.selecionar_teste("anova_2fator")
+    assert visao.ultima()[:2] == ("formulario", "anova_2fator")
+    visao.params = {
+        "coluna": "producao",
+        "fator_a": "irrigacao",
+        "fator_b": "dose_adubo",
+        "interacao": True,
+        "tipo_sq": "Tipo II",
+        "alfa": 0.05,
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "anova_2fator"
+    assert resultado.p_valor == resultado.estatisticas["p_ab"]
+    assert "Médias por combinação" in resultado.tabelas and resultado.comparacao is None
+    assert visao.chamadas[-1] == ("resultado", "anova_2fator")

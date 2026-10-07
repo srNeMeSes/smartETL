@@ -724,3 +724,24 @@ def test_anova_card_de_uma_linha_e_tukey(tela_controller):
         assert titulo in analise
     assert len(do_tipo(tela.painel.analise, ft.DataTable)) == 4
     assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
+
+
+def test_anova_2fatores_formulario_e_resultado(tela_controller):
+    tela, controller = tela_controller
+    controller.carregar_arquivo(str(BASES / "canteiros_br.csv"))
+    tela.sidebar.selecionar("anova_2fator")
+    form = tela.formulario
+    assert form.card is None
+    assert [o.key for o in form.controle("fator_a").options] == ["irrigacao", "dose_adubo"]
+    assert form.controle("interacao").value is True
+    assert form.controle("tipo_sq").value == "Tipo II"
+    form.controle("coluna").value = "producao"
+    form.controle("fator_a").value = "irrigacao"
+    form.controle("fator_b").value = "dose_adubo"
+    tela.sidebar.botao_executar.on_click(None)
+    assert controller.estado.ultimo_resultado.teste_id == "anova_2fator"
+    analise = _textos_aba(tela.painel.analise)
+    for titulo in ("Resumo", "Tabela ANOVA", "Médias por combinação"):
+        assert titulo in analise
+    assert len(do_tipo(tela.painel.analise, ft.DataTable)) == 3
+    assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1

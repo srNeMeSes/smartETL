@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 from core.base import TesteBase
-from core.testes.anova import TesteAnova1Fator
+from core.testes.anova import TesteAnova1Fator, TesteAnova2Fatores
 from core.testes.categoricos import QuiQuadrado, TesteFisher, TesteMcNemar
 from core.testes.medias import TesteT1Amostra, TesteT2Amostras, TesteTPareado
 from core.testes.nao_parametricos import (
@@ -46,7 +46,7 @@ _CATALOGO: tuple[TesteInfo, ...] = (
     TesteInfo("kruskal_wallis", "Kruskal-Wallis", "Não paramétricos", TesteKruskalWallis),
     TesteInfo("friedman", "Friedman", "Não paramétricos", TesteFriedman),
     TesteInfo("anova_1fator", "ANOVA (1 fator)", "ANOVA", TesteAnova1Fator),
-    TesteInfo("anova_2fator", "ANOVA (2 fatores)", "ANOVA"),
+    TesteInfo("anova_2fator", "ANOVA (2 fatores)", "ANOVA", TesteAnova2Fatores),
     TesteInfo("regres_linear", "Regressão Linear", "Regressão"),
     TesteInfo("regres_logit", "Regressão Logística", "Regressão"),
     TesteInfo("durbin_watson", "Durbin-Watson", "Diagnóstico"),

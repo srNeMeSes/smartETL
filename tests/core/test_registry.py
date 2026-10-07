@@ -106,4 +106,5 @@ def test_testes_implementados():
         "kruskal_wallis",
         "friedman",
         "anova_1fator",
+        "anova_2fator",
     ]
