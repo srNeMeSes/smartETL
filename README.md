@@ -39,6 +39,8 @@ diagnósticos de pressupostos.
   opcionais (Wilcoxon pareado + Holm) e boxplot.
 - **ANOVA (1 fator)** completa: clássica ou de Welch, tabela ANOVA, η² e ω², média e IC por grupo,
   aviso do teste de Levene, Tukey HSD opcional, card com o Kruskal-Wallis e boxplot.
+- **ANOVA (2 fatores)** completa: com ou sem interação, somas de quadrados Tipo II ou III, η² parcial,
+  médias por combinação, aviso de desenho desbalanceado e de Levene, e barras agrupadas das médias.
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
