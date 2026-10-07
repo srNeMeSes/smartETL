@@ -8,7 +8,7 @@ Aplicativo desktop de **processamento e análise de dados** com foco em **testes
 - **Interface:** Flet **`0.86.2`** (versão fixada em `requirements.txt`)
 - **Estatística:** `scipy.stats`, `statsmodels`, `pandas`, `numpy`
 - **Idioma da interface e das interpretações:** português do Brasil
-- **Estado atual:** Fases 0, 1, 2 e 3 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 concluída (15/15): **grupos Médias, Proporções, Categóricos, Não paramétricos e ANOVA completos** (`teste_t_1am`, `teste_t_2am`, `teste_t_pareado`, `teste_z_1prop`, `teste_z_2prop`, `qui_quadrado`, `fisher`, `mcnemar`, `teste_sinal`, `wilcoxon`, `mann_whitney`, `kruskal_wallis`, `friedman`) `anova_1fator` e `anova_2fator`, cumprindo o checklist da seção 9; os demais aparecem como "ainda não disponível". Próximo: Fase 4, começando por `regres_linear`.
+- **Estado atual:** Fases 0, 1, 2 e 3 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 concluída (15/15): **grupos Médias, Proporções, Categóricos, Não paramétricos e ANOVA completos** (`teste_t_1am`, `teste_t_2am`, `teste_t_pareado`, `teste_z_1prop`, `teste_z_2prop`, `qui_quadrado`, `fisher`, `mcnemar`, `teste_sinal`, `wilcoxon`, `mann_whitney`, `kruskal_wallis`, `friedman`) `anova_1fator` e `anova_2fator`, cumprindo o checklist da seção 9. Fase 4 em andamento (1/2): **`regres_linear` implementada** (pressupostos validados contra o R, aba Simulação). Falta `regres_logit` (aparece como "ainda não disponível").
 
 ## 2. Missão do Claude neste projeto
 
@@ -77,8 +77,9 @@ smartetl/
 │   │   ├── helpers.py            # pad(), border_all(), border_only(), esta_na_pagina()
 │   │   ├── sidebar.py            # logo, Arquivo, lista de testes agrupada, Executar
 │   │   ├── tabela_dados.py       # prévia do dataset (estado vazio vs. dados)
-│   │   ├── painel_abas.py        # Parâmetros / Análise / Visualização (API, sem índices)
+│   │   ├── painel_abas.py        # Parâmetros / Análise / Visualização (+ Simulação)
 │   │   ├── painel_parametros.py  # formulário gerado a partir de ParametroSpec
+│   │   ├── painel_simulacao.py   # aba Simulação (equação, campos + sliders, previsão)
 │   │   ├── tela_principal.py     # monta a tela e implementa a Visao do controller
 │   │   ├── graficos.py           # desenha Figura com flet.canvas (nativo, minimalista)
 │   │   └── componentes/
@@ -92,7 +93,10 @@ smartetl/
 │   ├── io.py                     # carregar_dados → DadosCarregados; ErroLeitura
 │   ├── tipos.py                  # PerfilColuna / detectar_tipos (numérica, categórica, binária)
 │   ├── interpretacao.py          # decidir (p ≤ α), interpretar, formatar_numero/p_valor em pt-BR
-│   ├── figuras.py                # construtores de Figura (histograma, boxplot, barras)
+│   ├── figuras.py                # construtores de Figura (histograma, boxplot, barras,
+│   │                             #   dispersão, Q-Q, cascata)
+│   ├── diagnosticos.py           # GQ e HMC (lmtest), GVIF (car), Lilliefors (nortest),
+│   │                             #   faixas internas de DW e VIF
 │   └── testes/
 │       ├── medias.py             # TesteT1Amostra (só formulário, por enquanto)
 │       ├── proporcoes.py
@@ -148,21 +152,31 @@ class ParametroSpec:
     rotulo: str                 # texto exibido na UI (pt-BR)
     tipo: Literal["coluna_numerica", "coluna_categorica", "coluna_binaria",
                   "multi_coluna", "numero", "alfa", "opcao", "booleano",
-                  "nivel"]      # "nivel": um valor de outra coluna (ex.: o "sucesso")
+                  "nivel",      # "nivel": um valor de outra coluna (ex.: o "sucesso")
+                  "preditores", # caixas com colunas numéricas e categóricas
+                  "niveis_referencia",  # uma lista de níveis por categórica marcada em depende_de
+                  "ordenacao"]  # opcoes[0] ("Valores ajustados") + colunas numéricas
     padrao: Any = None
     opcoes: list[str] | None = None
     obrigatorio: bool = True
-    depende_de: str | None = None  # "nivel": parâmetro de coluna cujos valores são listados
+    depende_de: str | None = None  # "nivel"/"niveis_referencia": parâmetro de origem
+    ajuda: str | None = None       # texto explicativo exibido abaixo do campo
 
 @dataclass
 class Figura:                   # especificação sem Flet; a UI desenha (app/ui/graficos.py)
-    tipo: Literal["histograma", "boxplot", "barras", "barras_agrupadas"]  # core/figuras + ui/graficos
+    tipo: Literal["histograma", "boxplot", "barras", "barras_agrupadas",
+                  "dispersao", "cascata"]  # core/figuras + ui/graficos
     titulo: str
     dados: dict[str, Any]       # histograma: bordas, contagens, rotulo_x, referencias
                                 # boxplot: rotulo_y, grupos[{rotulo, n, q1, mediana, q3, bigodes, media, outliers}]
                                 # barras: rotulo_y, maximo, percentual, categorias[{rotulo, valor}], referencias
                                 # barras_agrupadas: rotulo_y, maximo, percentual, series[...], grupos[{rotulo, valores}]
+                                # dispersao: rotulo_x/y, x, y, n_total, limites, linhas[...] (Q-Q também)
+                                # cascata: rotulo_y, inicio, etapas[{rotulo, valor, de, ate}], final
                                 # (cores das séries em tema.GRAFICO_SERIES)
+# GrupoFiguras(rotulo, opcoes: dict[str, Figura], padrao): a UI mostra uma por vez, com lista.
+# Secao(titulo, nivel, destaque, textos, tabelas, notas, avisos): bloco da Análise; tabelas
+#   podem ter DataFrame.attrs["dicas"] (tooltip por coluna) e ["destaques"] (linhas em negrito).
 
 @dataclass
 class ResultadoTeste:
@@ -173,9 +187,11 @@ class ResultadoTeste:
     decisao: str                           # "Rejeita H0" / "Não rejeita H0"
     interpretacao: str                     # texto em pt-BR
     tabelas: dict[str, pd.DataFrame]       # tabelas extras (ANOVA, coeficientes...)
-    figuras: list[Figura]                  # para a aba Visualização
+    figuras: list[Figura | GrupoFiguras]   # para a aba Visualização
     avisos: list[str]                      # pressupostos duvidosos, n pequeno etc.
     comparacao: ComparacaoPValores | None  # alimenta o card (ver abaixo)
+    secoes: list[Secao]                    # se houver, a Análise segue esta ordem
+    simulacao: Any                         # Simulador (aba Simulação) ou None
 
 class TesteBase(ABC):
     id: str
@@ -341,7 +357,7 @@ Andamento: **15/15** (Médias, Proporções, Categóricos, Não paramétricos e 
 - ✅ `friedman` (`core/testes/nao_parametricos.py`, testes em `tests/core/test_friedman.py`): 3+ colunas numéricas na mesma linha (caixas de seleção, `multi_coluna`); cada linha é um bloco; estatística com correção de empates, p qui-quadrado (k − 1 gl); aviso com menos de 10 blocos; W de Kendall; tabela por coluna (mediana, posto médio); **comparações múltiplas opcionais** (Wilcoxon pareado entre pares + Holm; só com H₀ rejeitada); **sem card**; boxplot por coluna. Base: `bases/provas_br.csv`.
 - ✅ `anova_1fator` (`core/testes/anova.py`, testes em `tests/core/test_anova.py`): numérica + fator com 2 a 20 níveis (≥ 2 obs. por grupo); campo "Variante" — Clássica (padrão, `f_oneway`) ou Welch (`f_oneway(equal_var=False)`, exige variância > 0 em cada grupo); tabela ANOVA (SQ, gl, QM, F, p) e η²/ω² sempre da decomposição clássica; tabela por grupo (n, média, desvio, IC da média por t); Levene centrado na mediana (Brown-Forsythe) só como aviso quando p < 0,05; **Tukey HSD opcional** (`scipy.stats.tukey_hsd`, Tukey-Kramer; desligado; só com H₀ rejeitada; aviso se usado com Welch); **card ANOVA × Kruskal-Wallis com uma única linha** ("algum μᵢ ≠ μⱼ"); boxplot. Base: `bases/fertilizantes_br.csv`. As tabelas da Análise passaram a rolar na horizontal (`tela_principal._tabela`), para não cortar texto ao lado do card.
 - ✅ `anova_2fator` (`core/testes/anova.py`, testes em `tests/core/test_anova2.py`): numérica + Fator A + Fator B (categóricas, 2 a 20 níveis); toda combinação com ≥ 1 observação (≥ 2 com a interação); "Incluir interação A × B" (ligado) e "Soma de quadrados" Tipo II (padrão) ou III, via `ols` + `anova_lm` com codificação por soma (import tardio do statsmodels); aviso de desenho desbalanceado; tabela por fonte com η² parcial; médias por combinação; decisão principal = interação (sem ela, o menor p dos efeitos principais); interpretação comenta cada efeito e pede cautela com interação significativa; Levene (mediana) entre combinações só como aviso; sem pós-teste; **sem card**; barras agrupadas das médias (A nos grupos, B nas séries). Base: `bases/canteiros_br.csv`.
-- Próximo: Fase 4 (`regres_linear`, conforme `docs/regressao_linear.md`).
+- Próximo: Fase 4 (ver abaixo).
 - Nos testes de app, o exemplo de "teste indisponível" é o `regres_logit` (o último da Fase 4), para não precisar trocar a cada teste novo.
 - Sugestão automática de "sucesso"/"evento" (`core/tipos.nivel_sucesso_padrao`): valor típico ("1", "Sim", "Aprovado", "Doente", "Positivo"...); senão, entre "X" e "Não X"/"Sem X", sugere "X"; senão, o último nível. O usuário pode sempre trocar.
 
@@ -359,7 +375,10 @@ Padrão estabelecido pelos testes já implementados (seguir nos próximos):
 - **Bases para teste manual no app ficam em `bases/`** (pedido do autor), nunca só em pasta temporária. Cada base nova é salva lá (preferir o formato brasileiro: cp1252, `;`, vírgula decimal, sufixo `_br`) e ganha uma linha em `bases/README.md` com o teste, como preencher o formulário e o resultado esperado.
 
 **Fase 4 — Regressão**
-Itens 16 e 17. A regressão linear segue `docs/regressao_linear.md`; etapas (um commit cada): cálculo + referências do R → contrato/UI da Análise → formulário com níveis de referência → Visualização → Simulação → integração.
+Itens 16 e 17. Andamento: **1/2**.
+- ✅ `regres_linear` (`core/testes/regressao.py`, `core/diagnosticos.py`, `app/ui/painel_simulacao.py`; testes em `tests/core/test_diagnosticos.py`, `tests/core/test_regressao.py`, `tests/app/test_ui_regressao.py`): segue `docs/regressao_linear.md` (especificação do autor + escolhas de implementação). Referências do R em `tests/referencias_r/` (script, dados e JSON; o pytest não depende do R). Análise por `Secao` (Pressupostos → Modelo → Coeficientes), resíduos com lista "Eixo X" (`GrupoFiguras`) e Q-Q, aba Simulação (previsão no core, pedida pelo `controller.simular`). Base: `bases/salarios_br.csv`.
+- Próximo: `regres_logit` (confirmar as decisões com o autor antes de implementar).
+- Flet 0.86.2: com as abas já na tela, `Tabs.selected_index` não move a aba visível; `PainelAbas.ir_para` usa `Tabs.move_to` (via `page.run_task`). Mudar o número de abas exige um `page.update()` antes de selecionar.
 
 **Fase 5 — Otimização e acabamento**
 Perfilar (`cProfile`/`time`) e otimizar só o que estiver medido como lento. Revisar mensagens, textos de interpretação, README.
@@ -391,7 +410,7 @@ Só então passe ao próximo teste.
 | Cada teste em `core/testes` | checklist acima |
 | `registry` | os 17 ids registrados, sem duplicatas, rótulos idênticos à lista oficial, ordem preservada |
 | `controller` | fluxo carregar → selecionar → executar → resultado; arquivo carregado depois da seleção atualiza o painel; erros tratados |
-| `app/ui` | montagem sem exceção; sidebar com todos os testes; as 3 abas existem; estados vazios corretos; `CardComparacaoTestes.atualizar_p_values` altera os textos esperados |
+| `app/ui` | montagem sem exceção; sidebar com todos os testes; as 3 abas existem (4 com Simulação, só na regressão linear); estados vazios corretos; `CardComparacaoTestes.atualizar_p_values` altera os textos esperados |
 
 Datasets de teste pequenos e determinísticos (semente fixa) em `tests/conftest.py` ou `tests/data/`.
 

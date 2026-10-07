@@ -140,3 +140,32 @@ recuado e a linha do nível de referência com "—". Nível de confiança do IC
 - **Nível de confiança:** um campo só, usado no IC dos coeficientes e nos intervalos da Simulação
   (padrão 95%).
 - **Nome da aba:** continua "Visualização".
+
+## Escolhas de implementação (2026-10-07)
+
+Pontos que a especificação não fixava; documentados aqui e nas docstrings.
+
+- **Tipo de cada preditor:** coluna numérica entra como número; coluna não numérica (texto,
+  booleana) vira dummies. Identificadores de texto (todos os valores distintos e mais de 10) não
+  aparecem na lista de preditores. Uma coluna 0/1 numérica entra como número (o coeficiente é o
+  mesmo da dummy).
+- **Ordem das dummies:** níveis em ordem crescente, sem a referência; na tabela de coeficientes, a
+  referência vem por último, com "—". Empate no nível mais frequente: o primeiro em ordem crescente.
+- **Ordenação do Goldfeld-Quandt e do Harrison-McCabe:** um único campo ("Ordenação dos dados"),
+  usado pelos dois; pode ser qualquer coluna numérica (não precisa ser preditor).
+- **Goldfeld-Quandt com metade degenerada** (uma dummy constante numa das metades): o cálculo
+  segue o `gqtest` (gl com k colunas) e a Análise mostra um aviso de resultado pouco confiável.
+- **Classificação do DW e do VIF:** aplicada ao valor exibido (2 casas), para a interpretação
+  nunca contradizer o número na tela. Tolerância = 1/(valor classificado).
+- **Coluna "VIF / GVIF":** só quando há categórica com 3+ níveis; nesse caso a tabela ganha gl e
+  GVIF^(1/(2·gl)). Sem elas, as colunas da especificação (Preditor | VIF | Tolerância |
+  Interpretação). Com um único preditor, a seção diz que não há colinearidade a avaliar.
+- **Testes de pressuposto:** usam o mesmo α do formulário para a interpretação.
+- **Números:** coeficientes, EP e IC com pelo menos 4 algarismos significativos e 2 casas
+  (3.135,82; 35,41; 0,001013); t com 3 casas; p no formato do app ("< 0,001").
+- **Gráficos:** dispersões com mais de 2000 pontos desenham uma amostra regular (a legenda
+  informa); Q-Q com os quantis do `qqnorm` e a reta pelos quartis (`qqline`).
+- **Simulação:** o campo numérico aceita qualquer valor (o slider fica na borda da faixa e aparece
+  o aviso de extrapolação); categóricas com o nível de referência como valor inicial; a cascata vai
+  do intercepto ao previsto, um degrau por preditor original.
+

@@ -41,6 +41,11 @@ diagnósticos de pressupostos dentro da regressão linear).
   aviso do teste de Levene, Tukey HSD opcional, card com o Kruskal-Wallis e boxplot.
 - **ANOVA (2 fatores)** completa: com ou sem interação, somas de quadrados Tipo II ou III, η² parcial,
   médias por combinação, aviso de desenho desbalanceado e de Levene, e barras agrupadas das médias.
+- **Regressão Linear** completa: preditores numéricos e categóricos (nível de referência
+  escolhido), pressupostos antes de tudo (Breusch-Pagan, Goldfeld-Quandt, Harrison-McCabe,
+  Durbin-Watson, Breusch-Godfrey, VIF/GVIF, Shapiro-Wilk ou Lilliefors), tabela do modelo,
+  coeficientes com IC, resíduos e Q-Q, e a aba **Simulação** (equação, sliders, previsão com
+  IC e intervalo de predição, contribuição de cada termo). Valores conferidos contra o R.
 - Os demais testes aparecem na lista como "ainda não disponível nesta versão".
 
 ## Requisitos
