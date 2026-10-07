@@ -14,6 +14,7 @@ Regras de detecção do CSV (documentadas e testadas em tests/core/test_io.py):
 
 import csv
 import io
+import logging
 import re
 from collections import Counter
 from dataclasses import dataclass, field
@@ -22,6 +23,8 @@ from pathlib import Path
 import pandas as pd
 
 from core.tipos import PerfilColuna, detectar_tipos
+
+log = logging.getLogger(__name__)
 
 EXTENSOES_SUPORTADAS = (".xlsx", ".csv")
 SEPARADORES = (";", ",", "\t", "|")
@@ -216,15 +219,28 @@ def _avisos_colunas_mistas(df: pd.DataFrame, decimal: str, milhar: str | None) -
 # ---------------------------------------------------------------------------
 # XLSX
 # ---------------------------------------------------------------------------
+# calamine (Rust) lê ~10× mais rápido que o openpyxl; o openpyxl fica de reserva (calamine
+# ausente ou planilha que ele não abra).
+MOTORES_XLSX = ("calamine", "openpyxl")
+
+
+def _ler_planilha(conteudo: bytes, motor: str) -> tuple[list, pd.DataFrame]:
+    with pd.ExcelFile(io.BytesIO(conteudo), engine=motor) as planilha:
+        abas = planilha.sheet_names
+        return abas, planilha.parse(abas[0]) if abas else pd.DataFrame()
+
+
 def _ler_xlsx(conteudo: bytes, nome: str) -> DadosCarregados:
-    try:
-        with pd.ExcelFile(io.BytesIO(conteudo), engine="openpyxl") as planilha:
-            abas = planilha.sheet_names
-            df = planilha.parse(abas[0]) if abas else pd.DataFrame()
-    except Exception:
+    for motor in MOTORES_XLSX:
+        try:
+            abas, df = _ler_planilha(conteudo, motor)
+            break
+        except Exception:
+            log.debug("Motor %s não leu %s", motor, nome, exc_info=True)
+    else:
         raise ErroLeitura(
             f"Não foi possível ler o arquivo '{nome}': não é uma planilha Excel (.xlsx) válida."
-        ) from None
+        )
     avisos = []
     if len(abas) > 1:
         avisos.append(

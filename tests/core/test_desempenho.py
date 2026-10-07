@@ -154,3 +154,44 @@ def test_postos_por_linha_do_friedman_iguais_ao_laco():
     assert np.array_equal(
         stats.rankdata(dados, axis=1), np.apply_along_axis(stats.rankdata, 1, dados)
     )
+
+
+def _xlsx_misto(tmp_path):
+    df = pd.DataFrame(
+        {
+            "inteiro": [1, 2, 3, 4],
+            "decimal": [1.5, np.nan, 3.25, -2.0],
+            "texto": ["a", "b", None, "d"],
+            "misto": ["1,5", "x", "2", "3"],
+        }
+    )
+    caminho = tmp_path / "misto.xlsx"
+    df.to_excel(caminho, index=False)
+    return caminho
+
+
+def test_xlsx_calamine_igual_ao_openpyxl(tmp_path):
+    from core.io import _ler_planilha
+
+    conteudo = _xlsx_misto(tmp_path).read_bytes()
+    _, rapido = _ler_planilha(conteudo, "calamine")
+    _, referencia = _ler_planilha(conteudo, "openpyxl")
+    pd.testing.assert_frame_equal(rapido, referencia)
+
+
+def test_xlsx_usa_openpyxl_se_o_calamine_falhar(tmp_path, monkeypatch):
+    from core import io as modulo
+
+    original = modulo._ler_planilha
+    usados = []
+
+    def falha_no_calamine(conteudo, motor):
+        usados.append(motor)
+        if motor == "calamine":
+            raise ImportError("sem calamine")
+        return original(conteudo, motor)
+
+    monkeypatch.setattr(modulo, "_ler_planilha", falha_no_calamine)
+    dados = modulo.carregar_dados(_xlsx_misto(tmp_path))
+    assert usados == ["calamine", "openpyxl"]
+    assert list(dados.df.columns) == ["inteiro", "decimal", "texto", "misto"]

@@ -55,8 +55,8 @@ diagnósticos de pressupostos dentro da regressão linear).
 ## Requisitos
 
 - Python **3.10 ou superior** (testado com 3.13)
-- Dependências fixadas em `requirements.txt` (Flet 0.86.2, pandas, openpyxl, numpy,
-  scipy, statsmodels; pytest e ruff para desenvolvimento)
+- Dependências fixadas em `requirements.txt` (Flet 0.86.2, pandas, openpyxl, python-calamine,
+  numpy, scipy, statsmodels; pytest e ruff para desenvolvimento)
 
 ## Instalação e execução
 

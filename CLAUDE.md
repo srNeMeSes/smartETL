@@ -233,7 +233,7 @@ Nem todo teste tem essa estrutura (ex.: qui-quadrado, Kruskal-Wallis, diagnósti
 
 Pode-se delegar o cálculo a `scipy`/`statsmodels`, mas o *wrapper* deve mapear corretamente parâmetros (hipótese alternativa, correção de continuidade, `ddof`, exato vs. assintótico), e isso **precisa ser testado**.
 
-Dependências (todas em `requirements.txt`, com versões fixadas): `flet==0.86.2`, `pandas`, `numpy`, `scipy`, `statsmodels`, `openpyxl`; opcional `matplotlib`. Dev: `pytest`, `ruff`.
+Dependências (todas em `requirements.txt`, com versões fixadas): `flet==0.86.2`, `pandas`, `numpy`, `scipy`, `statsmodels`, `openpyxl`, `python-calamine` (leitor rápido de XLSX; o openpyxl é a reserva); opcional `matplotlib`. Dev: `pytest`, `ruff`.
 
 ## 6. Interface e identidade visual
 
@@ -397,7 +397,8 @@ Medição: `python scripts/medir_desempenho.py [n]` (bases sintéticas com semen
 | Regressão logística | 25,2 s | 0,7 s | curva ROC por somas acumuladas (era O(n²)) |
 | Friedman | 9,3 s | 0,2 s | postos por linha com `rankdata(axis=1)` |
 | Teste do sinal | 3,5 s | 0,02 s | cdf binomial vetorizada no IC da mediana |
-| Leitura de arquivo | congelava a janela | em `asyncio.to_thread`, com aviso "Lendo…" | XLSX segue lento no openpyxl (5 s com 50 mil linhas) |
+| Leitura de arquivo | congelava a janela | em `asyncio.to_thread`, com aviso "Lendo…" | — |
+| Leitura de XLSX (50 mil linhas) | 5,1 s | 0,6 s | `python-calamine` (decisão do autor); openpyxl de reserva |
 
 Medidos e mantidos: regressão linear 3 s (custo do Harrison-McCabe com 1000 simulações, como o `hmctest`); abertura do app ~1,5 s (pandas/scipy; coberta pela splash; statsmodels no topo de `proporcoes.py` custa 23 ms); demais testes < 1 s. Os caminhos rápidos são conferidos contra os de referência em `tests/core/test_desempenho.py`.
 
