@@ -674,3 +674,16 @@ def test_integracao_regressao_logistica_carregar_selecionar_executar_simular(con
     valores = resultado.simulacao.valores_iniciais()
     previsao = controller.simular(valores, None)
     assert 0 < previsao.valor < 1 and previsao.classe in ("Sim", "Não")
+
+
+@pytest.mark.parametrize("teste_id", ["correlacao_pearson", "correlacao_spearman"])
+def test_integracao_correlacoes_carregar_selecionar_executar(controller, visao, teste_id):
+    # Checklist §9, item 7, para as correlações, com a base do projeto (bases/).
+    assert controller.carregar_arquivo(str(BASES / "estudo_br.csv"))
+    controller.selecionar_teste(teste_id)
+    assert visao.ultima()[:2] == ("formulario", teste_id)
+    visao.params = {"x": "horas_estudo", "y": "nota", "alternativa": "ρ ≠ 0", "alfa": 0.05}
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == teste_id
+    assert resultado.estatisticas["n"] == 58 and resultado.estatisticas["n_descartadas"] == 2
+    assert visao.chamadas[-1] == ("resultado", teste_id)

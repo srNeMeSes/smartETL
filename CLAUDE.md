@@ -8,7 +8,7 @@ Aplicativo desktop de **processamento e análise de dados** com foco em **testes
 - **Interface:** Flet **`0.86.2`** (versão fixada em `requirements.txt`)
 - **Estatística:** `scipy.stats`, `statsmodels`, `pandas`, `numpy`
 - **Idioma da interface e das interpretações:** português do Brasil
-- **Estado atual:** Fases 0 a 5 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 concluída (15/15): **grupos Médias, Proporções, Categóricos, Não paramétricos e ANOVA completos** (`teste_t_1am`, `teste_t_2am`, `teste_t_pareado`, `teste_z_1prop`, `teste_z_2prop`, `qui_quadrado`, `fisher`, `mcnemar`, `teste_sinal`, `wilcoxon`, `mann_whitney`, `kruskal_wallis`, `friedman`) `anova_1fator` e `anova_2fator`, cumprindo o checklist da seção 9. Fase 4 concluída (2/2): **`regres_linear` e `regres_logit`** (valores conferidos contra o R, aba Simulação). **Os 17 testes do catálogo estão implementados.** Fase 5 (otimização e acabamento) concluída.
+- **Estado atual:** Fases 0 a 5 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 concluída (15/15): **grupos Médias, Proporções, Categóricos, Não paramétricos e ANOVA completos** (`teste_t_1am`, `teste_t_2am`, `teste_t_pareado`, `teste_z_1prop`, `teste_z_2prop`, `qui_quadrado`, `fisher`, `mcnemar`, `teste_sinal`, `wilcoxon`, `mann_whitney`, `kruskal_wallis`, `friedman`) `anova_1fator` e `anova_2fator`, cumprindo o checklist da seção 9. Fase 4 concluída (2/2): **`regres_linear` e `regres_logit`** (valores conferidos contra o R, aba Simulação). **Os 19 testes do catálogo estão implementados** (inclusive as correlações, acrescentadas depois). Fase 5 (otimização e acabamento) concluída.
 
 ## 2. Missão do Claude neste projeto
 
@@ -92,7 +92,7 @@ smartetl/
 │   └── state.py                  # df, teste selecionado, parâmetros, último resultado
 ├── core/
 │   ├── base.py                   # contratos (ver abaixo) e exceções de domínio
-│   ├── registry.py               # TesteInfo(id, nome, grupo, classe) dos 17 testes
+│   ├── registry.py               # TesteInfo(id, nome, grupo, classe) dos 19 testes
 │   ├── io.py                     # carregar_dados → DadosCarregados; ErroLeitura
 │   ├── tipos.py                  # PerfilColuna / detectar_tipos (numérica, categórica, binária)
 │   ├── interpretacao.py          # decidir (p ≤ α), interpretar, formatar_numero/p_valor em pt-BR
@@ -106,6 +106,7 @@ smartetl/
 │       ├── categoricos.py
 │       ├── nao_parametricos.py
 │       ├── anova.py
+│       ├── correlacao.py
 │       └── regressao.py
 └── tests/
     ├── conftest.py               # datasets pequenos, determinísticos
@@ -240,7 +241,7 @@ Dependências (todas em `requirements.txt`, com versões fixadas): `flet==0.86.2
 Duas colunas, fundo claro, cartões brancos, texto cinza escuro, **laranja como destaque**, cantos arredondados, visual minimalista e profissional. Nenhum componente deve ter cor hardcoded fora de `tema.py`.
 
 Melhorias já feitas na Fase 1 (sem alterar a identidade):
-- Sidebar agrupada por categoria com cabeçalhos (os grupos da seção 7: Médias, Proporções, Categóricos, Não paramétricos, ANOVA, Regressão).
+- Sidebar agrupada por categoria com cabeçalhos (os grupos da seção 7: Médias, Proporções, Categóricos, Não paramétricos, ANOVA, Correlação, Regressão).
 - Dropdowns de variável filtrados pelo tipo exigido pelo teste (`core/validacao.colunas_por_tipo` sobre os perfis de `core/tipos.py`, calculados uma vez na leitura).
 - Mensagens de erro amigáveis em português via `page.show_dialog(ft.SnackBar(...))`, nunca traceback na tela.
 - Tabela de prévia: estado vazio separado do estado com dados.
@@ -268,6 +269,10 @@ Implementar **nesta ordem**, um de cada vez.
 | 15 | `anova_2fator` | ANOVA (2 fatores) | ANOVA | `statsmodels.formula.api.ols` + `anova_lm` | numérica + 2 fatores (± interação) |
 | 16 | `regres_linear` | Regressão Linear | Regressão | `statsmodels.api.OLS` | y + 1..n preditores (numéricos e categóricos); pressupostos (BP, Goldfeld-Quandt, Harrison-McCabe, DW, Breusch-Godfrey, VIF/GVIF, normalidade) dentro do teste — especificação completa em `docs/regressao_linear.md` |
 | 17 | `regres_logit` | Regressão Logística | Regressão | `statsmodels.api.Logit` | y binário + preditores; odds ratio |
+| 18 | `correlacao_pearson` | Correlação de Pearson | Correlação | `scipy.stats.pearsonr` | 2 colunas numéricas; card com a Spearman |
+| 19 | `correlacao_spearman` | Correlação de Spearman | Correlação | `scipy.stats.spearmanr` | 2 colunas numéricas |
+
+Os itens 18 e 19 foram acrescentados depois da Fase 5, a pedido do autor (2026-10-07); na barra lateral o grupo Correlação fica entre ANOVA e Regressão.
 
 Os antigos itens 18–21 (`durbin_watson`, `breusch_pagan`, `white`, `vif`, grupo Diagnóstico) foram **removidos da lista** por decisão do autor (2026-10-06): DW, BP e VIF passaram para dentro da regressão linear.
 
@@ -299,6 +304,10 @@ testes_hipotese = [
     # ANOVA
     ("anova_1fator", "ANOVA (1 fator)"),
     ("anova_2fator", "ANOVA (2 fatores)"),
+
+    # Correlação
+    ("correlacao_pearson", "Correlação de Pearson"),
+    ("correlacao_spearman", "Correlação de Spearman"),
 
     # Regressão
     ("regres_linear", "Regressão Linear"),
@@ -436,7 +445,7 @@ Só então passe ao próximo teste.
 | `core/io` | leitura de CSV (`,` e `;`, decimal `,`, encodings) e XLSX, detecção de tipos, NaN, arquivos inválidos |
 | `core/validacao` | cada regra isoladamente |
 | Cada teste em `core/testes` | checklist acima |
-| `registry` | os 17 ids registrados, sem duplicatas, rótulos idênticos à lista oficial, ordem preservada |
+| `registry` | os 19 ids registrados, sem duplicatas, rótulos idênticos à lista oficial, ordem preservada |
 | `controller` | fluxo carregar → selecionar → executar → resultado; arquivo carregado depois da seleção atualiza o painel; erros tratados |
 | `app/ui` | montagem sem exceção; sidebar com todos os testes; as 3 abas existem (4 com Simulação, só na regressão linear); estados vazios corretos; `CardComparacaoTestes.atualizar_p_values` altera os textos esperados |
 
@@ -489,5 +498,6 @@ No Windows (PowerShell 5.1), passe mensagens de commit com `git commit -F arquiv
 - ~~Gráficos nativos do Flet ou imagens do matplotlib?~~ Decidido na Fase 3: **nativos do Flet, simples e minimalistas**, desenhados com `flet.canvas` (no Flet 0.86.2 `BarChart`/`LineChart` saíram do pacote principal para a extensão `flet-charts`; o canvas é do núcleo e não exige dependência nova). matplotlib não é usado.
 - Pós-testes (Tukey, Dunn) e pressupostos extras (Shapiro-Wilk, Levene) como funcionalidade adicional. **Decidido em parte:** Dunn com Holm no Kruskal-Wallis, opcional e desligado por padrão. Tukey HSD na ANOVA de 1 fator, opcional e desligado; Levene (centrado na mediana) só como aviso não bloqueante quando p < 0,05. Shapiro-Wilk segue em aberto.
 - **Regressão logística (decidido e implementado, 2026-10-07):** `docs/regressao_logistica.md`.
+- **Correlações (decidido e implementado, 2026-10-07):** grupo novo Correlação (entre ANOVA e Regressão), dois testes. Entrada: X e Y numéricas, linhas completas (aviso), n ≥ 3, variação nas duas. H₀: ρ = 0 com ≠ / > / <. Pearson: r, r², t (n − 2 gl), IC pela z de Fisher (unilateral quando H₁ é), força pelas faixas de Cohen (|r| < 0,1 desprezível, < 0,3 fraca, < 0,5 moderada, senão forte), aviso se |r − ρₛ| > 0,2, dispersão com a reta de mínimos quadrados e **card Pearson × Spearman**. Spearman: ρₛ com postos médios, p pela aproximação t (= `cor.test(exact = FALSE)`), IC pela z de Fisher com a variância de Bonett-Wright, aviso de empates, dispersão de valores ou postos (lista "Escala"), **sem card**. Referências do R em `tests/referencias_r/gerar_referencias_correlacao.R`; base `bases/estudo_br.csv`.
 - **Regressão linear (decidido, 2026-10-06):** especificação e decisões em `docs/regressao_linear.md` (referências geradas com o R instalado na máquina; entradas do grupo Diagnóstico removidas; teste F na seção do modelo; aba Simulação só para a regressão).
 - Formatos de arquivo além de CSV/XLSX e exportação de resultados (PDF/HTML/CSV).

@@ -801,3 +801,31 @@ def test_card_em_portugues_e_rodape_apos_executar():
         atualizar_pagina=False,
     )
     assert NOTA_CALCULADO in textos(card) and NOTA_RODAPE not in textos(card)
+
+
+def test_correlacoes_na_interface(tela_controller):
+    tela, controller = tela_controller
+    controller.carregar_arquivo(str(BASES / "estudo_br.csv"))
+    tela.sidebar.selecionar("correlacao_pearson")
+    form = tela.formulario
+    assert [o.key for o in form.controle("x").options] == [
+        "horas_estudo",
+        "nota",
+        "faltas",
+        "altura_cm",
+    ]
+    assert {"Pearson", "Spearman", "Hₐ:  ρ ≠ 0"} <= set(textos(form.card))
+    form.controle("x").value = "horas_estudo"
+    form.controle("y").value = "nota"
+    tela.sidebar.botao_executar.on_click(None)
+    assert tela.card_analise._textos_p_esquerda[0].value == "< 0,001"
+    assert "Correlação positiva forte" in _textos_aba(tela.painel.analise)
+    assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
+    tela.sidebar.selecionar("correlacao_spearman")
+    form = tela.formulario
+    assert form.card is None
+    form.controle("x").value = "horas_estudo"
+    form.controle("y").value = "nota"
+    tela.sidebar.botao_executar.on_click(None)
+    (lista,) = [d for d in do_tipo(tela.painel.visualizacao, ft.Dropdown) if d.label == "Escala"]
+    assert [o.key for o in lista.options] == ["Valores", "Postos"]

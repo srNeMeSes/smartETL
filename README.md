@@ -2,8 +2,8 @@
 
 Aplicativo desktop para análise estatística de bases de dados. Você carrega um arquivo CSV ou
 XLSX, escolhe um teste na barra lateral, preenche os parâmetros e recebe o resultado: decisão,
-interpretação em português, tabelas e gráficos. Os 17 testes do catálogo — de testes t e
-qui-quadrado a ANOVA e regressões — têm os valores conferidos contra o R e o scipy/statsmodels.
+interpretação em português, tabelas e gráficos. Os 19 testes do catálogo — de testes t e
+qui-quadrado a ANOVA, correlações e regressões — têm os valores conferidos contra o R e o scipy/statsmodels.
 
 ## Como usar
 
@@ -47,6 +47,7 @@ formulário e qual resultado esperar.
 | Categóricos | Qui-quadrado (independência ou aderência), Teste exato de Fisher, McNemar |
 | Não paramétricos | Teste do sinal, Wilcoxon, Mann-Whitney U, Kruskal-Wallis (com Dunn), Friedman |
 | ANOVA | ANOVA (1 fator — clássica ou Welch, com Tukey HSD), ANOVA (2 fatores — Tipo II ou III) |
+| Correlação | Correlação de Pearson (com o card Pearson × Spearman), Correlação de Spearman |
 | Regressão | Regressão Linear, Regressão Logística |
 
 Destaques:
@@ -120,7 +121,7 @@ app/                       # interface (Flet) e controller
     componentes/           # campos com estilo único e card de comparação
 core/                      # lógica estatística, sem Flet
   base.py                  # contratos: ParametroSpec, ResultadoTeste, TesteBase...
-  registry.py              # catálogo dos 17 testes
+  registry.py              # catálogo dos 19 testes
   io.py, tipos.py          # leitura de CSV/XLSX e detecção de tipos de coluna
   validacao.py             # regras de validação reutilizáveis
   interpretacao.py         # decisão e textos de interpretação em pt-BR

@@ -1,4 +1,4 @@
-"""Registro dos testes: 17 ids, rótulos e ordem oficiais (CLAUDE.md §7)."""
+"""Registro dos testes: 19 ids, rótulos e ordem oficiais (CLAUDE.md §7)."""
 
 import pytest
 
@@ -26,6 +26,9 @@ LISTA_OFICIAL = [
     # ANOVA
     ("anova_1fator", "ANOVA (1 fator)"),
     ("anova_2fator", "ANOVA (2 fatores)"),
+    # Correlação
+    ("correlacao_pearson", "Correlação de Pearson"),
+    ("correlacao_spearman", "Correlação de Spearman"),
     # Regressão
     ("regres_linear", "Regressão Linear"),
     ("regres_logit", "Regressão Logística"),
@@ -37,12 +40,13 @@ GRUPOS = [
     "Categóricos",
     "Não paramétricos",
     "ANOVA",
+    "Correlação",
     "Regressão",
 ]
 
 
-def test_17_testes_registrados():
-    assert len(registry.listar()) == 17
+def test_19_testes_registrados():
+    assert len(registry.listar()) == 19
 
 
 def test_sem_ids_nem_rotulos_duplicados():
@@ -102,6 +106,8 @@ def test_testes_implementados():
         "friedman",
         "anova_1fator",
         "anova_2fator",
+        "correlacao_pearson",
+        "correlacao_spearman",
         "regres_linear",
         "regres_logit",
     ]

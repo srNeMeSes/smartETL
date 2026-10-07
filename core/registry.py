@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from core.base import TesteBase
 from core.testes.anova import TesteAnova1Fator, TesteAnova2Fatores
 from core.testes.categoricos import QuiQuadrado, TesteFisher, TesteMcNemar
+from core.testes.correlacao import TesteCorrelacaoPearson, TesteCorrelacaoSpearman
 from core.testes.medias import TesteT1Amostra, TesteT2Amostras, TesteTPareado
 from core.testes.nao_parametricos import (
     TesteFriedman,
@@ -49,6 +50,10 @@ _CATALOGO: tuple[TesteInfo, ...] = (
     TesteInfo("friedman", "Friedman", "Não paramétricos", TesteFriedman),
     TesteInfo("anova_1fator", "ANOVA (1 fator)", "ANOVA", TesteAnova1Fator),
     TesteInfo("anova_2fator", "ANOVA (2 fatores)", "ANOVA", TesteAnova2Fatores),
+    TesteInfo("correlacao_pearson", "Correlação de Pearson", "Correlação", TesteCorrelacaoPearson),
+    TesteInfo(
+        "correlacao_spearman", "Correlação de Spearman", "Correlação", TesteCorrelacaoSpearman
+    ),
     TesteInfo("regres_linear", "Regressão Linear", "Regressão", TesteRegressaoLinear),
     TesteInfo("regres_logit", "Regressão Logística", "Regressão", TesteRegressaoLogistica),
 )
