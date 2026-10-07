@@ -215,3 +215,77 @@ def normalidade(residuos: np.ndarray) -> tuple[str, float, float]:
         return "Shapiro-Wilk", float(resultado.statistic), float(resultado.pvalue)
     d, p = lilliefors(residuos)
     return "Kolmogorov-Smirnov (Lilliefors)", d, p
+
+
+# ---------------------------------------------------------------------------
+# Regressão logística
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class ResultadoHL:
+    estatistica: float
+    gl: int
+    p_valor: float
+    grupos: int
+
+
+def hosmer_lemeshow(y: np.ndarray, p: np.ndarray, g: int = 10) -> ResultadoHL | None:
+    """Hosmer-Lemeshow como `ResourceSelection::hoslem.test(y, p, g)`.
+
+    Cortes nos quantis (tipo 7, o padrão do R e do numpy) de `p`, sem repetição; intervalos
+    fechados à direita, o primeiro também à esquerda (`cut(include.lowest = TRUE)`).
+    χ² = Σ (observado − esperado)²/esperado nas duas colunas (evento e não evento);
+    gl = grupos não vazios − 2. Devolve None se houver menos de 3 grupos.
+    """
+    y, p = np.asarray(y, dtype=float), np.asarray(p, dtype=float)
+    cortes = np.unique(np.quantile(p, np.linspace(0, 1, g + 1)))
+    grupo = np.clip(np.searchsorted(cortes, p, side="left"), 1, len(cortes) - 1)
+    estatistica, nao_vazios = 0.0, 0
+    for k in range(1, len(cortes)):
+        dentro = grupo == k
+        if not dentro.any():
+            continue
+        nao_vazios += 1
+        for observado, esperado in (
+            (y[dentro].sum(), p[dentro].sum()),
+            ((1 - y[dentro]).sum(), (1 - p[dentro]).sum()),
+        ):
+            estatistica += (observado - esperado) ** 2 / esperado
+    if nao_vazios < 3:
+        return None
+    gl = nao_vazios - 2
+    return ResultadoHL(float(estatistica), gl, float(stats.chi2.sf(estatistica, gl)), nao_vazios)
+
+
+def auc(y: np.ndarray, p: np.ndarray) -> float:
+    """Área sob a curva ROC = P(p de um evento > p de um não evento), empates valendo 1/2
+    (estatística de Mann-Whitney; igual ao `pROC::auc`)."""
+    y = np.asarray(y, dtype=float)
+    postos = stats.rankdata(p)
+    n1, n0 = y.sum(), len(y) - y.sum()
+    return float((postos[y == 1].sum() - n1 * (n1 + 1) / 2) / (n1 * n0))
+
+
+def curva_roc(y: np.ndarray, p: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """(1 − especificidade, sensibilidade) para cada limiar distinto, de (0, 0) a (1, 1)."""
+    y, p = np.asarray(y, dtype=float), np.asarray(p, dtype=float)
+    limiares = np.unique(p)[::-1]
+    n1, n0 = y.sum(), len(y) - y.sum()
+    tpr = [0.0] + [float(((p >= t) & (y == 1)).sum() / n1) for t in limiares]
+    fpr = [0.0] + [float(((p >= t) & (y == 0)).sum() / n0) for t in limiares]
+    return np.array(fpr), np.array(tpr)
+
+
+def separacao(preditor_linear: np.ndarray, y: np.ndarray) -> str | None:
+    """ "completa" se o preditor linear separa as classes sem empate na fronteira, "quase" se
+    separa com empate, None se as classes se sobrepõem (o EMV existe)."""
+    eta, y = np.asarray(preditor_linear, dtype=float), np.asarray(y, dtype=float)
+    eventos, nao_eventos = eta[y == 1], eta[y == 0]
+    escala = max(1.0, float(np.abs(eta).max()))
+    tolerancia = 1e-8 * escala
+    for baixo, alto in ((nao_eventos, eventos), (eventos, nao_eventos)):
+        folga = alto.min() - baixo.max()
+        if folga > tolerancia:
+            return "completa"
+        if folga >= -tolerancia:
+            return "quase"
+    return None

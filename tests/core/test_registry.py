@@ -103,4 +103,5 @@ def test_testes_implementados():
         "anova_1fator",
         "anova_2fator",
         "regres_linear",
+        "regres_logit",
     ]

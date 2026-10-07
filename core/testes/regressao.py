@@ -152,6 +152,29 @@ def variaveis_colineares(dados: DadosModelo) -> list[list[str]]:
     return grupos
 
 
+def linhas_coeficientes(dados: DadosModelo, numeros, colunas: int) -> tuple[list[tuple], list[int]]:
+    """Linhas da tabela de coeficientes: intercepto, numéricas e, para cada categórica, um
+    cabeçalho "nome (ref.: nível)" (em branco), um nível por linha recuada e a referência por
+    último com "—". `numeros(i)` dá as `colunas` células do coeficiente da coluna i de X.
+    Devolve (linhas, posições dos cabeçalhos)."""
+    vazio, traco, recuo = ("",) * colunas, ("—",) * colunas, "    "
+    linhas = [(INTERCEPTO, *numeros(0))]
+    destaques = []
+    for variavel in dados.variaveis:
+        if not variavel.categorica:
+            linhas.append((variavel.nome, *numeros(variavel.colunas[0])))
+            continue
+        destaques.append(len(linhas))
+        linhas.append((f"{variavel.nome} (ref.: {variavel.referencia})", *vazio))
+        for nivel in variavel.niveis:
+            if nivel == variavel.referencia:
+                continue
+            indice = dados.colunas.index(f"{variavel.nome}[{nivel}]")
+            linhas.append((recuo + nivel, *numeros(indice)))
+        linhas.append((recuo + variavel.referencia, *traco))
+    return linhas, destaques
+
+
 # ---------------------------------------------------------------------------
 # Formatação
 # ---------------------------------------------------------------------------
@@ -200,6 +223,7 @@ class Previsao:
     contribuicoes: list[tuple[str, float]]  # (preditor original, coeficiente × valor)
     extrapolacoes: list[str]  # avisos de valores fora da faixa observada
     figura: Figura  # cascata do intercepto até o valor previsto
+    classe: str | None = None  # logística: classe prevista pelo limiar
 
 
 class SimuladorRegressao:
@@ -253,9 +277,54 @@ class SimuladorRegressao:
         repetido = sum(nivel in v.niveis for v in self._dados.variaveis if v.categorica) > 1
         return f"{variavel.nome}: {nivel}" if repetido else nivel
 
+    @property
+    def coeficientes(self) -> np.ndarray:
+        """β̂ na ordem das colunas de X (intercepto primeiro)."""
+        return self._beta.copy()
+
+    @property
+    def covariancia(self) -> np.ndarray:
+        return self._cov.copy()
+
+    # ---------------- Textos exibidos pela aba Simulação ----------------
+    @property
+    def lado_esquerdo(self) -> str:
+        return self.nome_y
+
+    @property
+    def titulo_resultado(self) -> str:
+        return f"Valor previsto de '{self.nome_y}'"
+
+    @property
+    def rodape_equacao(self) -> str | None:
+        return None
+
+    def textos_previsao(self, previsao: Previsao) -> tuple[str, list[tuple[str, str]], list[str]]:
+        """(valor em destaque, [(linha de intervalo, dica)], notas) para a aba Simulação."""
+        nivel = f"{previsao.confianca * 100:.0f}%"
+        return (
+            formatar_coeficiente(previsao.valor),
+            [
+                (
+                    f"IC {nivel} da média prevista: [{formatar_coeficiente(previsao.ic_inferior)}; "
+                    f"{formatar_coeficiente(previsao.ic_superior)}]",
+                    "Onde deve estar a média de y para casos com esses valores.",
+                ),
+                (
+                    f"Intervalo de predição {nivel}: "
+                    f"[{formatar_coeficiente(previsao.ip_inferior)}; "
+                    f"{formatar_coeficiente(previsao.ip_superior)}]",
+                    "Onde deve cair o valor de y de um novo caso com esses valores.",
+                ),
+            ],
+            [f"Intervalos de {nivel}: o nível de confiança escolhido na aba Parâmetros."],
+        )
+
     def equacao(self) -> list[TermoEquacao]:
         """Termos da equação "y = b₀ + b₁·(x₁) + …", cada um ligado ao seu preditor."""
-        termos = [TermoEquacao(f"{self.nome_y} = {formatar_coeficiente(self._beta[0])}", None)]
+        termos = [
+            TermoEquacao(f"{self.lado_esquerdo} = {formatar_coeficiente(self._beta[0])}", None)
+        ]
         for variavel in self._dados.variaveis:
             for indice in variavel.colunas:
                 b = self._beta[indice]
@@ -278,16 +347,13 @@ class SimuladorRegressao:
                 x0[variavel.colunas[0]] = float(valor)
         return x0
 
-    def prever(self, valores: dict[str, float | str]) -> Previsao:
-        x0 = self.linha_x(valores)
-        valor = float(x0 @ self._beta)
-        var_media = float(x0 @ self._cov @ x0)
-        ep_media = math.sqrt(max(var_media, 0.0))
-        ep_pred = math.sqrt(max(var_media, 0.0) + self._sigma2)
-        contribuicoes = [
+    def _contribuicoes(self, x0: np.ndarray) -> list[tuple[str, float]]:
+        return [
             (v.nome, float(sum(x0[i] * self._beta[i] for i in v.colunas)))
             for v in self._dados.variaveis
         ]
+
+    def _extrapolacoes(self, valores: dict[str, float | str]) -> list[str]:
         extrapolacoes = []
         for campo in self.campos:
             if campo.categorica:
@@ -299,6 +365,16 @@ class SimuladorRegressao:
                     f"[{formatar_coeficiente(campo.minimo)}; {formatar_coeficiente(campo.maximo)}]"
                     ": a previsão é uma extrapolação."
                 )
+        return extrapolacoes
+
+    def prever(self, valores: dict[str, float | str]) -> Previsao:
+        x0 = self.linha_x(valores)
+        valor = float(x0 @ self._beta)
+        var_media = float(x0 @ self._cov @ x0)
+        ep_media = math.sqrt(max(var_media, 0.0))
+        ep_pred = math.sqrt(max(var_media, 0.0) + self._sigma2)
+        contribuicoes = self._contribuicoes(x0)
+        extrapolacoes = self._extrapolacoes(valores)
         figura = cascata(
             ("Intercepto", float(self._beta[0])),
             contribuicoes,
@@ -781,8 +857,6 @@ class TesteRegressaoLinear(TesteBase):
     def _secao_coeficientes(self, dados: DadosModelo, ajuste, confianca: float) -> Secao:
         ic = np.asarray(ajuste.conf_int(alpha=1 - confianca))
         rotulo = f"{confianca * 100:.0f}%"
-        vazio = ("", "", "", "", "", "")
-        traco = ("—",) * 6
 
         def numeros(i: int) -> tuple:
             return (
@@ -794,21 +868,7 @@ class TesteRegressaoLinear(TesteBase):
                 formatar_p_valor(ajuste.pvalues[i]),
             )
 
-        linhas = [(INTERCEPTO, *numeros(0))]
-        destaques = []
-        recuo = "    "
-        for variavel in dados.variaveis:
-            if not variavel.categorica:
-                linhas.append((variavel.nome, *numeros(variavel.colunas[0])))
-                continue
-            destaques.append(len(linhas))
-            linhas.append((f"{variavel.nome} (ref.: {variavel.referencia})", *vazio))
-            for nivel in variavel.niveis:
-                if nivel == variavel.referencia:
-                    continue
-                indice = dados.colunas.index(f"{variavel.nome}[{nivel}]")
-                linhas.append((recuo + nivel, *numeros(indice)))
-            linhas.append((recuo + variavel.referencia, *traco))
+        linhas, destaques = linhas_coeficientes(dados, numeros, 6)
         tabela = pd.DataFrame(
             linhas,
             columns=[

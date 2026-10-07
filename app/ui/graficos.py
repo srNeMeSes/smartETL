@@ -1,5 +1,7 @@
 """Gráficos nativos do Flet (flet.canvas), simples e minimalistas, a partir de `Figura`."""
 
+import itertools
+
 import flet as ft
 import flet.canvas as cv
 
@@ -382,10 +384,17 @@ def dispersao(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft
     ):
         formas.append(_texto(sx(valor), base + 6, formatar_numero(valor, 2), alinhamento))
     formas.append(_texto(esq + area_l / 2, base + 20, dados["rotulo_x"], ft.Alignment.TOP_CENTER))
-    formas += [
-        cv.Circle(sx(x), sy(y), 2.5, paint=ponto)
-        for x, y in zip(dados["x"], dados["y"], strict=True)
-    ]
+    pontos = list(zip(dados["x"], dados["y"], strict=True))
+    if dados.get("conectar"):  # ex.: curva ROC
+        traco = ft.Paint(
+            color=tema.GRAFICO_BARRA_BORDA, stroke_width=2, style=ft.PaintingStyle.STROKE
+        )
+        formas += [
+            cv.Line(sx(x1), sy(y1), sx(x2), sy(y2), paint=traco)
+            for (x1, y1), (x2, y2) in itertools.pairwise(pontos)
+        ]
+    else:
+        formas += [cv.Circle(sx(x), sy(y), 2.5, paint=ponto) for x, y in pontos]
     for linha in dados.get("linhas", []):
         formas.append(
             cv.Line(

@@ -99,7 +99,9 @@ def test_carregar_arquivo_atualiza_tabela_e_painel(controller, visao, csv_valido
     assert visao.notificacoes[-1] == ("dados.csv: 6 linhas e 5 colunas carregadas.", False)
 
 
-def test_arquivo_carregado_depois_da_selecao_atualiza_painel(controller, visao, csv_valido):
+def test_arquivo_carregado_depois_da_selecao_atualiza_painel(
+    controller, visao, csv_valido, teste_indisponivel
+):
     controller.iniciar()
     controller.selecionar_teste("regres_logit")
     assert visao.ultima() == ("sem_arquivo",)
@@ -204,7 +206,7 @@ def test_executar_sem_arquivo(controller, visao):
     assert visao.notificacoes == [("Carregue um arquivo para começar.", True)]
 
 
-def test_executar_teste_indisponivel(controller, visao, csv_valido):
+def test_executar_teste_indisponivel(controller, visao, csv_valido, teste_indisponivel):
     controller.carregar_arquivo(str(csv_valido))
     controller.selecionar_teste("regres_logit")
     assert controller.executar() is None
@@ -634,3 +636,26 @@ def test_integracao_regressao_linear_carregar_selecionar_executar_simular(contro
     assert previsao.valor == pytest.approx(resultado.simulacao.prever(valores).valor)
     assert visao.chamadas[-1] == ("previsao", round(previsao.valor, 6), "experiencia")
     assert controller.simular({"experiencia": 1.0}) is None  # faltam campos: ignorado
+
+
+def test_integracao_regressao_logistica_carregar_selecionar_executar_simular(controller, visao):
+    # Checklist §9, item 7, para a Regressão Logística, com a base do projeto (bases/).
+    assert controller.carregar_arquivo(str(BASES / "credito_br.csv"))
+    controller.selecionar_teste("regres_logit")
+    assert visao.ultima()[:2] == ("formulario", "regres_logit")
+    visao.params = {
+        "y": "inadimplente",
+        "evento": "Sim",
+        "preditores": ["renda", "idade", "comprometimento_pct", "vinculo"],
+        "referencias": {"vinculo": "CLT"},
+        "limiar": 0.5,
+        "confianca": "95%",
+        "alfa": 0.05,
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "regres_logit"
+    assert resultado.estatisticas["n"] == 398 and resultado.estatisticas["eventos"] == 160
+    assert visao.chamadas[-1] == ("resultado", "regres_logit")
+    valores = resultado.simulacao.valores_iniciais()
+    previsao = controller.simular(valores, None)
+    assert 0 < previsao.valor < 1 and previsao.classe in ("Sim", "Não")

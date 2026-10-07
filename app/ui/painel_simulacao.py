@@ -35,28 +35,24 @@ class PainelSimulacao(ft.Column):
         self.equacao = ft.Text(size=15, selectable=True)
         self.valor = ft.Text(size=28, weight=ft.FontWeight.BOLD, color=tema.LARANJA)
         self.intervalos = ft.Column(spacing=4)
+        self.notas = ft.Column(spacing=2)
         self.avisos = ft.Column(spacing=4)
         self.grafico = ft.Container()
 
         entradas = ft.Column(
             [self._criar_campo(c) for c in simulador.campos], spacing=14, width=420
         )
-        nivel = f"{simulador.confianca * 100:.0f}%"
         resultado = ft.Column(
             [
                 ft.Text(
-                    f"Valor previsto de '{simulador.nome_y}'",
+                    simulador.titulo_resultado,
                     size=14,
                     weight=ft.FontWeight.W_600,
                     color=tema.TEXTO,
                 ),
                 self.valor,
                 self.intervalos,
-                ft.Text(
-                    f"Intervalos de {nivel}: o nível de confiança escolhido na aba Parâmetros.",
-                    size=12,
-                    color=tema.TEXTO_SECUNDARIO,
-                ),
+                self.notas,
                 self.avisos,
                 self.grafico,
             ],
@@ -73,6 +69,11 @@ class PainelSimulacao(ft.Column):
                         color=tema.TEXTO,
                     ),
                     self.equacao,
+                    *(
+                        [ft.Text(simulador.rodape_equacao, size=13, color=tema.TEXTO_SECUNDARIO)]
+                        if simulador.rodape_equacao
+                        else []
+                    ),
                 ],
                 spacing=6,
             ),
@@ -182,24 +183,14 @@ class PainelSimulacao(ft.Column):
         ]
 
     def mostrar(self, previsao: Previsao, variavel: str | None) -> None:
-        nivel = f"{previsao.confianca * 100:.0f}%"
         self._desenhar_equacao(variavel)
-        self.valor.value = formatar_coeficiente(previsao.valor)
+        valor, linhas, notas = self._simulador.textos_previsao(previsao)
+        self.valor.value = valor
         self.intervalos.controls = [
-            ft.Text(
-                f"IC {nivel} da média prevista: [{formatar_coeficiente(previsao.ic_inferior)}; "
-                f"{formatar_coeficiente(previsao.ic_superior)}]",
-                size=14,
-                color=tema.TEXTO,
-                tooltip="Onde deve estar a média de y para casos com esses valores.",
-            ),
-            ft.Text(
-                f"Intervalo de predição {nivel}: [{formatar_coeficiente(previsao.ip_inferior)}; "
-                f"{formatar_coeficiente(previsao.ip_superior)}]",
-                size=14,
-                color=tema.TEXTO,
-                tooltip="Onde deve cair o valor de y de um novo caso com esses valores.",
-            ),
+            ft.Text(texto, size=14, color=tema.TEXTO, tooltip=dica) for texto, dica in linhas
+        ]
+        self.notas.controls = [
+            ft.Text(nota, size=12, color=tema.TEXTO_SECUNDARIO) for nota in notas
         ]
         self.avisos.controls = [
             ft.Row(

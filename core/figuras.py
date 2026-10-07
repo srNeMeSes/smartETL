@@ -165,8 +165,10 @@ def dispersao(
     rotulo_y: str,
     linhas: Sequence[tuple[str, float, float, float, float, str]] = (),
     max_pontos: int = MAX_PONTOS,
+    conectar: bool = False,
 ) -> Figura:
-    """Pontos (x, y) e segmentos de referência (rótulo, x₁, y₁, x₂, y₂, estilo).
+    """Pontos (x, y) e segmentos de referência (rótulo, x₁, y₁, x₂, y₂, estilo); com
+    `conectar`, os pontos são ligados em ordem (ex.: curva ROC).
 
     Com mais de `max_pontos` pontos, desenha uma amostra regular (sempre a mesma) e informa o
     total em `n_total`; os limites dos eixos usam todos os pontos.
@@ -190,6 +192,7 @@ def dispersao(
             "x": [float(v) for v in xs[indices]],
             "y": [float(v) for v in ys[indices]],
             "n_total": int(xs.size),
+            "conectar": conectar,
             "x_min": float(min(limites_x)),
             "x_max": float(max(limites_x)),
             "y_min": float(min(limites_y)),

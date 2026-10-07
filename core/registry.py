@@ -15,6 +15,7 @@ from core.testes.nao_parametricos import (
 )
 from core.testes.proporcoes import TesteZ1Prop, TesteZ2Prop
 from core.testes.regressao import TesteRegressaoLinear
+from core.testes.regressao_logistica import TesteRegressaoLogistica
 
 
 @dataclass(frozen=True)
@@ -49,7 +50,7 @@ _CATALOGO: tuple[TesteInfo, ...] = (
     TesteInfo("anova_1fator", "ANOVA (1 fator)", "ANOVA", TesteAnova1Fator),
     TesteInfo("anova_2fator", "ANOVA (2 fatores)", "ANOVA", TesteAnova2Fatores),
     TesteInfo("regres_linear", "Regressão Linear", "Regressão", TesteRegressaoLinear),
-    TesteInfo("regres_logit", "Regressão Logística", "Regressão"),
+    TesteInfo("regres_logit", "Regressão Logística", "Regressão", TesteRegressaoLogistica),
 )
 
 _POR_ID = {info.id: info for info in _CATALOGO}

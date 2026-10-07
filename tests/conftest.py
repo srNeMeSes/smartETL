@@ -53,3 +53,16 @@ def xlsx_vazio(tmp_path: Path) -> Path:
     caminho = tmp_path / "vazio.xlsx"
     openpyxl.Workbook().save(caminho)
     return caminho
+
+
+@pytest.fixture
+def teste_indisponivel(monkeypatch):
+    """Torna a Regressão Logística "ainda não disponível" durante o teste (todos os testes do
+    catálogo já estão implementados; o estado indisponível continua precisando de cobertura)."""
+    from core import registry
+
+    info = registry.obter("regres_logit")
+    monkeypatch.setitem(
+        registry._POR_ID, info.id, registry.TesteInfo(info.id, info.nome, info.grupo)
+    )
+    return info.id

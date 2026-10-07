@@ -346,7 +346,9 @@ def test_cards_de_parametros_e_analise_sao_instancias_distintas(tela_controller,
     assert tela.card_analise in list(iterar_controles(tela.painel.analise))
 
 
-def test_teste_nao_implementado_nao_reusa_formulario_do_t_1am(tela_controller, csv_valido):
+def test_teste_nao_implementado_nao_reusa_formulario_do_t_1am(
+    tela_controller, csv_valido, teste_indisponivel
+):
     # Problema 3: qualquer teste mostrava o formulário do t de uma amostra.
     tela, controller = tela_controller
     controller.carregar_arquivo(str(csv_valido))
