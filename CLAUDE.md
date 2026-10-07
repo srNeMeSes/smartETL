@@ -33,6 +33,9 @@ A estrutura plana original (`smartetl_app.py`, `utils.py`, `conteiner_parametros
 
 ### Comportamento atual (preservar)
 
+- **Splash** (`app/ui/splash.py`): `main.py` só importa Flet e a splash, mostra a tela de abertura e retorna; o carregamento pesado roda em `page.run_thread` (`carregar_aplicativo`) e troca a splash pela tela principal com esmaecimento (`AnimatedSwitcher`), após no mínimo 1,2 s. No Flet 0.86.2, o que um `main` síncrono adiciona só chega à janela quando ele retorna.
+- **Decisão colorida** em todos os testes: "Rejeita H₀" em vermelho suave (`tema.DECISAO_REJEITA`) e "Não rejeita H₀" em verde suave (`tema.DECISAO_NAO_REJEITA`), via `tela_principal.cor_da_decisao`.
+- **Simulação com inteiros:** preditor com todos os valores inteiros (`CampoSimulacao.inteiro`) começa na média arredondada, mostra números sem casas e o slider anda de 1 em 1 (até 500 posições).
 - Janela 1440×900 (mín. 1150×720), **centralizada** (`page.run_task(page.window.center)` — `Window.center` é assíncrono no Flet 0.86.2); fundo `tema.FUNDO`, sem padding na página.
 - Sidebar de 260 px: logo "smartETL", subtítulo, botão **Arquivo** (fundo laranja suave), lista rolável de testes **agrupada por categoria** (cabeçalhos em maiúsculas, primeiro teste marcado por padrão), botão **Executar teste** (laranja, ícone de balança).
 - Área principal: título "Processamento de dados", subtítulo "Testes de Hipótese | paramétricos e não paramétricos", tabela de prévia (altura 320, rolagem horizontal e vertical) e painel de 3 abas (**Parâmetros**, **Análise**, **Visualização**).

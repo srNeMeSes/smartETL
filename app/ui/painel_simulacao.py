@@ -12,11 +12,20 @@ from app.ui import tema
 from app.ui.componentes import campos
 from app.ui.graficos import desenhar_figura
 from app.ui.helpers import border_all, esta_na_pagina
+from core.interpretacao import formatar_numero
 from core.testes.regressao import CampoSimulacao, Previsao, SimuladorRegressao, formatar_coeficiente
 from core.validacao import converter_numero
 
 LARGURA_SLIDER = 230
 LARGURA_VALOR = 130
+MAX_PASSOS = 500
+
+
+def _formatar(campo: CampoSimulacao, valor: float) -> str:
+    """Inteiros sem casas decimais ("3", "1.200"); demais com 4 algarismos significativos."""
+    if campo.inteiro and float(valor).is_integer():
+        return formatar_numero(valor, 0)
+    return formatar_coeficiente(valor)
 
 
 class PainelSimulacao(ft.Column):
@@ -31,6 +40,7 @@ class PainelSimulacao(ft.Column):
         self.textos: dict[str, ft.TextField] = {}
         self.sliders: dict[str, ft.Slider] = {}
         self.listas: dict[str, ft.Dropdown] = {}
+        self._campos: dict[str, CampoSimulacao] = {}
 
         self.equacao = ft.Text(size=15, selectable=True)
         self.valor = ft.Text(size=28, weight=ft.FontWeight.BOLD, color=tema.LARANJA)
@@ -109,14 +119,18 @@ class PainelSimulacao(ft.Column):
             lista.on_select = lambda _e, nome=campo.nome: self._ao_escolher(nome)
             self.listas[campo.nome] = lista
             return lista
+        self._campos[campo.nome] = campo
         texto = campos.campo_texto(
-            campo.nome, valor=formatar_coeficiente(float(campo.inicial)), largura=LARGURA_VALOR
+            campo.nome, valor=_formatar(campo, float(campo.inicial)), largura=LARGURA_VALOR
         )
         texto.on_change = lambda _e, nome=campo.nome: self._ao_digitar(nome)
+        passos = int(campo.maximo - campo.minimo)
         slider = ft.Slider(
             min=campo.minimo,
             max=campo.maximo,
             value=float(campo.inicial),
+            # Inteiros: o slider anda de 1 em 1 (até MAX_PASSOS posições; acima, contínuo).
+            divisions=passos if campo.inteiro and 1 <= passos <= MAX_PASSOS else None,
             active_color=tema.LARANJA,
             width=LARGURA_SLIDER,
         )
@@ -124,8 +138,7 @@ class PainelSimulacao(ft.Column):
         self.textos[campo.nome] = texto
         self.sliders[campo.nome] = slider
         faixa = ft.Text(
-            f"Faixa observada: {formatar_coeficiente(campo.minimo)} a "
-            f"{formatar_coeficiente(campo.maximo)}",
+            f"Faixa observada: {_formatar(campo, campo.minimo)} a {_formatar(campo, campo.maximo)}",
             size=12,
             color=tema.TEXTO_SECUNDARIO,
         )
@@ -143,9 +156,12 @@ class PainelSimulacao(ft.Column):
         self._on_alterar(dict(self.valores), None)
 
     def _ao_deslizar(self, nome: str) -> None:
+        campo = self._campos[nome]
         valor = float(self.sliders[nome].value)
+        if campo.inteiro:
+            valor = float(round(valor))
         self.valores[nome] = valor
-        self.textos[nome].value = formatar_coeficiente(valor)
+        self.textos[nome].value = _formatar(campo, valor)
         if esta_na_pagina(self.textos[nome]):
             self.textos[nome].update()
         self._on_alterar(dict(self.valores), nome)

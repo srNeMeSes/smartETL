@@ -327,3 +327,32 @@ def test_cor_da_decisao_no_modelo(tela_controller, alvo, decisao, cor):
     tela.sidebar.botao_executar.on_click(None)
     (texto,) = [t for t in do_tipo(tela.painel.analise, ft.Text) if t.value == decisao]
     assert texto.color == getattr(tema, cor)
+
+
+def test_simulacao_com_preditores_inteiros(page):
+    tela = TelaPrincipal(page)
+    controller = Controller(AppState(), tela)
+    tela.conectar(controller)
+    controller.carregar_arquivo(str(BASES / "imoveis_br.csv"))
+    tela.sidebar.selecionar("regres_linear")
+    form = tela.formulario
+    form.controle("y").value = "preco"
+    form.controle("y").on_select(None)
+    for caixa in form.controle("preditores").controls:
+        if caixa.label in ("area_m2", "quartos", "idade_anos", "distancia_centro_km"):
+            caixa.value = True
+            caixa.on_change(None)
+    tela.sidebar.botao_executar.on_click(None)
+    sim = tela.simulacao
+    campos = {c.nome: c for c in controller.estado.ultimo_resultado.simulacao.campos}
+    assert campos["quartos"].inteiro and campos["idade_anos"].inteiro
+    assert not campos["area_m2"].inteiro and not campos["distancia_centro_km"].inteiro
+    df = controller.estado.df
+    assert campos["quartos"].inicial == round(df["quartos"].mean()) == 2  # média 2,43
+    assert sim.textos["quartos"].value == "2"
+    assert sim.sliders["quartos"].divisions == 4  # 1 a 5, de 1 em 1
+    assert sim.sliders["area_m2"].divisions is None  # contínuo
+    assert "Faixa observada: 1 a 5" in " ".join(t for t in textos(sim) if t)
+    sim.sliders["quartos"].value = 3.6
+    sim.sliders["quartos"].on_change(None)
+    assert sim.valores["quartos"] == 4.0 and sim.textos["quartos"].value == "4"

@@ -119,7 +119,7 @@ def test_simulacao_probabilidade_e_classe(tela_controller):
     _executar(tela, *PREDITORES)
     assert tela.painel.rotulos[-1] == "Simulação"
     sim = tela.simulacao
-    assert sim.valor.value == "27,7%"
+    assert sim.valor.value == "27,6%"  # idade inteira: começa em 45 (média 44,88)
     texto = _texto(sim)
     assert "Probabilidade prevista de 'inadimplente' = 'Sim'" in texto
     assert "P = P('inadimplente' = 'Sim') = 1 / (1 + e^(−logit))" in texto

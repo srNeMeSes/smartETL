@@ -304,7 +304,30 @@ def _textos_aba(controle):
     return " ".join(t for t in textos(controle) if t)
 
 
-def test_main_monta_pagina(page):
+def test_splash():
+    from app.ui.splash import MENSAGEM_CARREGANDO, Splash
+
+    splash = Splash()
+    assert {"smart", "ETL", "Processamento e análise de dados", MENSAGEM_CARREGANDO} <= set(
+        textos(splash)
+    )
+    assert do_tipo(splash, ft.ProgressRing) and splash.bgcolor == tema.FUNDO
+
+
+def test_main_mostra_splash_e_troca_pela_tela(page, monkeypatch):
+    from app.ui.splash import Splash
+
+    monkeypatch.setattr(app_main, "DURACAO_MINIMA", 0)
+    exibidos = []
+    page.add.side_effect = lambda raiz: exibidos.append(raiz.content)
+    app_main.main(page)
+    assert isinstance(exibidos[0], Splash)  # a splash entra antes da tela principal
+    raiz = page.add.call_args.args[0]
+    assert isinstance(raiz, ft.AnimatedSwitcher) and not isinstance(raiz.content, Splash)
+
+
+def test_main_monta_pagina(page, monkeypatch):
+    monkeypatch.setattr(app_main, "DURACAO_MINIMA", 0)
     app_main.main(page)
     assert page.title == "smartETL — Processamento de dados"
     assert (page.window.width, page.window.height) == (1440, 900)
@@ -747,3 +770,20 @@ def test_anova_2fatores_formulario_e_resultado(tela_controller):
         assert titulo in analise
     assert len(do_tipo(tela.painel.analise, ft.DataTable)) == 3
     assert len(do_tipo(tela.painel.visualizacao, cv.Canvas)) == 1
+
+
+@pytest.mark.parametrize(
+    ("mu0", "decisao", "cor"),
+    [("10", "Rejeita H₀", "DECISAO_REJEITA"), ("7,5", "Não rejeita H₀", "DECISAO_NAO_REJEITA")],
+)
+def test_cor_da_decisao_nos_outros_testes(tela_controller, mu0, decisao, cor):
+    # t de uma amostra na nota de turmas_br.csv (média 7,55): μ₀ = 10 rejeita; 7,5 não.
+    tela, controller = tela_controller
+    controller.carregar_arquivo(str(BASES / "turmas_br.csv"))
+    tela.sidebar.selecionar("teste_t_1am")
+    form = tela.formulario
+    form.controle("coluna").value = "nota"
+    form.controle("mu0").value = mu0
+    tela.sidebar.botao_executar.on_click(None)
+    (texto,) = [t for t in do_tipo(tela.painel.analise, ft.Text) if t.value == decisao]
+    assert texto.color == getattr(tema, cor)

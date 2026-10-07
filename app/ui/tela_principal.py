@@ -237,7 +237,7 @@ class TelaPrincipal:
     def _resumo(resultado: ResultadoTeste) -> ft.Column:
         decisao = resultado.decisao.replace("H0", "H₀")
         linhas: list[ft.Control] = [
-            ft.Text(decisao, size=16, weight=ft.FontWeight.BOLD, color=tema.TEXTO),
+            ft.Text(decisao, size=16, weight=ft.FontWeight.BOLD, color=cor_da_decisao(decisao)),
             ft.Text(resultado.interpretacao, size=14, color=tema.TEXTO),
         ]
         linhas += [

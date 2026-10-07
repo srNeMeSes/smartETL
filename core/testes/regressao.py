@@ -195,7 +195,11 @@ def _confianca(texto: str) -> float:
 # ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class CampoSimulacao:
-    """Entrada da aba Simulação: numérica (campo + slider) ou categórica (lista)."""
+    """Entrada da aba Simulação: numérica (campo + slider) ou categórica (lista).
+
+    `inteiro`: todos os valores observados são inteiros (ex.: quartos); o valor inicial é a
+    média arredondada e o slider anda de 1 em 1.
+    """
 
     nome: str
     categorica: bool
@@ -204,6 +208,7 @@ class CampoSimulacao:
     maximo: float | None = None
     niveis: tuple[str, ...] = ()
     referencia: str | None = None
+    inteiro: bool = False
 
 
 @dataclass(frozen=True)
@@ -261,8 +266,16 @@ class SimuladorRegressao:
                 referencia=variavel.referencia,
             )
         valores = self._dados.linhas[variavel.nome].astype(float)
+        inteiro = bool((valores % 1 == 0).all())
+        media = float(valores.mean())
+        inicial = float(math.floor(media + 0.5)) if inteiro else media
         return CampoSimulacao(
-            variavel.nome, False, float(valores.mean()), float(valores.min()), float(valores.max())
+            variavel.nome,
+            False,
+            inicial,
+            float(valores.min()),
+            float(valores.max()),
+            inteiro=inteiro,
         )
 
     def valores_iniciais(self) -> dict[str, float | str]:
