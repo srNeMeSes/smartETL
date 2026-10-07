@@ -88,7 +88,7 @@ smartetl/
 │   └── state.py                  # df, teste selecionado, parâmetros, último resultado
 ├── core/
 │   ├── base.py                   # contratos (ver abaixo) e exceções de domínio
-│   ├── registry.py               # TesteInfo(id, nome, grupo, classe) dos 21 testes
+│   ├── registry.py               # TesteInfo(id, nome, grupo, classe) dos 17 testes
 │   ├── io.py                     # carregar_dados → DadosCarregados; ErroLeitura
 │   ├── tipos.py                  # PerfilColuna / detectar_tipos (numérica, categórica, binária)
 │   ├── interpretacao.py          # decidir (p ≤ α), interpretar, formatar_numero/p_valor em pt-BR
@@ -221,7 +221,7 @@ Dependências (todas em `requirements.txt`, com versões fixadas): `flet==0.86.2
 Duas colunas, fundo claro, cartões brancos, texto cinza escuro, **laranja como destaque**, cantos arredondados, visual minimalista e profissional. Nenhum componente deve ter cor hardcoded fora de `tema.py`.
 
 Melhorias já feitas na Fase 1 (sem alterar a identidade):
-- Sidebar agrupada por categoria com cabeçalhos (os grupos da seção 7: Médias, Proporções, Categóricos, Não paramétricos, ANOVA, Regressão, Diagnóstico).
+- Sidebar agrupada por categoria com cabeçalhos (os grupos da seção 7: Médias, Proporções, Categóricos, Não paramétricos, ANOVA, Regressão).
 - Dropdowns de variável filtrados pelo tipo exigido pelo teste (`core/validacao.colunas_por_tipo` sobre os perfis de `core/tipos.py`, calculados uma vez na leitura).
 - Mensagens de erro amigáveis em português via `page.show_dialog(ft.SnackBar(...))`, nunca traceback na tela.
 - Tabela de prévia: estado vazio separado do estado com dados.
@@ -247,12 +247,10 @@ Implementar **nesta ordem**, um de cada vez.
 | 13 | `friedman` | Friedman | Não paramétricos | `scipy.stats.friedmanchisquare` | ≥ 3 colunas pareadas |
 | 14 | `anova_1fator` | ANOVA (1 fator) | ANOVA | `scipy.stats.f_oneway` / `statsmodels` | numérica + fator; pós-teste opcional |
 | 15 | `anova_2fator` | ANOVA (2 fatores) | ANOVA | `statsmodels.formula.api.ols` + `anova_lm` | numérica + 2 fatores (± interação) |
-| 16 | `regres_linear` | Regressão Linear | Regressão | `statsmodels.api.OLS` | y + 1..n preditores |
+| 16 | `regres_linear` | Regressão Linear | Regressão | `statsmodels.api.OLS` | y + 1..n preditores (numéricos e categóricos); pressupostos (BP, Goldfeld-Quandt, Harrison-McCabe, DW, Breusch-Godfrey, VIF/GVIF, normalidade) dentro do teste — especificação completa em `docs/regressao_linear.md` |
 | 17 | `regres_logit` | Regressão Logística | Regressão | `statsmodels.api.Logit` | y binário + preditores; odds ratio |
-| 18 | `durbin_watson` | Durbin-Watson | Diagnóstico | `statsmodels.stats.stattools.durbin_watson` | resíduos da regressão linear |
-| 19 | `breusch_pagan` | Breusch-Pagan | Diagnóstico | `statsmodels.stats.diagnostic.het_breuschpagan` | resíduos + preditores |
-| 20 | `white` | White | Diagnóstico | `statsmodels.stats.diagnostic.het_white` | resíduos + preditores |
-| 21 | `vif` | VIF | Diagnóstico | `statsmodels.stats.outliers_influence.variance_inflation_factor` | preditores |
+
+Os antigos itens 18–21 (`durbin_watson`, `breusch_pagan`, `white`, `vif`, grupo Diagnóstico) foram **removidos da lista** por decisão do autor (2026-10-06): DW, BP e VIF passaram para dentro da regressão linear.
 
 ### Lista oficial de ids (gerada por `core/registry.py` como `testes_hipotese`)
 
@@ -283,13 +281,9 @@ testes_hipotese = [
     ("anova_1fator", "ANOVA (1 fator)"),
     ("anova_2fator", "ANOVA (2 fatores)"),
 
-    # Regressão / diagnóstico
+    # Regressão
     ("regres_linear", "Regressão Linear"),
     ("regres_logit", "Regressão Logística"),
-    ("durbin_watson", "Durbin-Watson"),
-    ("breusch_pagan", "Breusch-Pagan"),
-    ("white", "White"),
-    ("vif", "VIF"),
 ]
 ```
 
@@ -302,10 +296,10 @@ Os ids e rótulos **não mudam** (são a fonte da verdade). Só deixam de ser du
 - **Categóricos:** qui-quadrado avisa quando há frequências esperadas < 5 e sugere Fisher; reportar V de Cramér. McNemar: exato vs. com correção.
 - **Não paramétricos:** tratar empates e zeros (Wilcoxon, sinal) de forma explícita e documentada.
 - **ANOVA:** tabela completa; pós-teste (Tukey) opcional quando significativa; documentar o tipo de soma de quadrados (II/III) em dados desbalanceados.
-- **Regressão e diagnóstico:** Durbin-Watson, Breusch-Pagan, White e VIF **operam sobre um modelo linear ajustado**. O controller permite reutilizar o último modelo de `regres_linear` ou ajustar um novo a partir de y e preditores.
+- **Regressão:** a regressão linear segue `docs/regressao_linear.md` (especificação do autor + decisões): pressupostos antes de tudo na Análise, tabela do modelo, coeficientes agrupados por categórica com a referência explícita, resíduos e Q-Q na Visualização e uma aba **Simulação** própria (só para testes que a oferecem).
 
 ### Pressupostos
-Cada teste declara seus pressupostos e a UI os mostra na aba Análise como avisos não bloqueantes (normalidade, homogeneidade de variâncias, independência, tamanho mínimo, frequências esperadas). Os testes de pressuposto já presentes no app são Durbin-Watson (independência dos resíduos), Breusch-Pagan e White (homocedasticidade) e VIF (multicolinearidade).
+Cada teste declara seus pressupostos e a UI os mostra na aba Análise como avisos não bloqueantes (normalidade, homogeneidade de variâncias, independência, tamanho mínimo, frequências esperadas). Na regressão linear, os pressupostos são uma seção própria da Análise (heterocedasticidade, autocorrelação, colinearidade e normalidade), com faixas de classificação internas que nunca são exibidas.
 
 ## 8. Plano de execução por fases
 
@@ -347,8 +341,8 @@ Andamento: **15/15** (Médias, Proporções, Categóricos, Não paramétricos e 
 - ✅ `friedman` (`core/testes/nao_parametricos.py`, testes em `tests/core/test_friedman.py`): 3+ colunas numéricas na mesma linha (caixas de seleção, `multi_coluna`); cada linha é um bloco; estatística com correção de empates, p qui-quadrado (k − 1 gl); aviso com menos de 10 blocos; W de Kendall; tabela por coluna (mediana, posto médio); **comparações múltiplas opcionais** (Wilcoxon pareado entre pares + Holm; só com H₀ rejeitada); **sem card**; boxplot por coluna. Base: `bases/provas_br.csv`.
 - ✅ `anova_1fator` (`core/testes/anova.py`, testes em `tests/core/test_anova.py`): numérica + fator com 2 a 20 níveis (≥ 2 obs. por grupo); campo "Variante" — Clássica (padrão, `f_oneway`) ou Welch (`f_oneway(equal_var=False)`, exige variância > 0 em cada grupo); tabela ANOVA (SQ, gl, QM, F, p) e η²/ω² sempre da decomposição clássica; tabela por grupo (n, média, desvio, IC da média por t); Levene centrado na mediana (Brown-Forsythe) só como aviso quando p < 0,05; **Tukey HSD opcional** (`scipy.stats.tukey_hsd`, Tukey-Kramer; desligado; só com H₀ rejeitada; aviso se usado com Welch); **card ANOVA × Kruskal-Wallis com uma única linha** ("algum μᵢ ≠ μⱼ"); boxplot. Base: `bases/fertilizantes_br.csv`. As tabelas da Análise passaram a rolar na horizontal (`tela_principal._tabela`), para não cortar texto ao lado do card.
 - ✅ `anova_2fator` (`core/testes/anova.py`, testes em `tests/core/test_anova2.py`): numérica + Fator A + Fator B (categóricas, 2 a 20 níveis); toda combinação com ≥ 1 observação (≥ 2 com a interação); "Incluir interação A × B" (ligado) e "Soma de quadrados" Tipo II (padrão) ou III, via `ols` + `anova_lm` com codificação por soma (import tardio do statsmodels); aviso de desenho desbalanceado; tabela por fonte com η² parcial; médias por combinação; decisão principal = interação (sem ela, o menor p dos efeitos principais); interpretação comenta cada efeito e pede cautela com interação significativa; Levene (mediana) entre combinações só como aviso; sem pós-teste; **sem card**; barras agrupadas das médias (A nos grupos, B nas séries). Base: `bases/canteiros_br.csv`.
-- Próximo: Fase 4 (`regres_linear`; confirmar as decisões com o autor antes de implementar).
-- Nos testes de app, o exemplo de "teste indisponível" é o `durbin_watson` (só implementado na Fase 4), para não precisar trocar a cada teste novo.
+- Próximo: Fase 4 (`regres_linear`, conforme `docs/regressao_linear.md`).
+- Nos testes de app, o exemplo de "teste indisponível" é o `regres_logit` (o último da Fase 4), para não precisar trocar a cada teste novo.
 - Sugestão automática de "sucesso"/"evento" (`core/tipos.nivel_sucesso_padrao`): valor típico ("1", "Sim", "Aprovado", "Doente", "Positivo"...); senão, entre "X" e "Não X"/"Sem X", sugere "X"; senão, o último nível. O usuário pode sempre trocar.
 
 Padrão estabelecido pelos testes já implementados (seguir nos próximos):
@@ -364,8 +358,8 @@ Padrão estabelecido pelos testes já implementados (seguir nos próximos):
 - Referências nos testes: fórmula manual (numpy) + outra biblioteca (statsmodels) ou enumeração exata; fonte documentada no topo do arquivo de teste. Cálculos de referência reutilizáveis ficam em `tests/referencias.py`.
 - **Bases para teste manual no app ficam em `bases/`** (pedido do autor), nunca só em pasta temporária. Cada base nova é salva lá (preferir o formato brasileiro: cp1252, `;`, vírgula decimal, sufixo `_br`) e ganha uma linha em `bases/README.md` com o teste, como preencher o formulário e o resultado esperado.
 
-**Fase 4 — Regressão e diagnósticos**
-Itens 16–21, com o fluxo "ajustar modelo → diagnosticar".
+**Fase 4 — Regressão**
+Itens 16 e 17. A regressão linear segue `docs/regressao_linear.md`; etapas (um commit cada): cálculo + referências do R → contrato/UI da Análise → formulário com níveis de referência → Visualização → Simulação → integração.
 
 **Fase 5 — Otimização e acabamento**
 Perfilar (`cProfile`/`time`) e otimizar só o que estiver medido como lento. Revisar mensagens, textos de interpretação, README.
@@ -395,7 +389,7 @@ Só então passe ao próximo teste.
 | `core/io` | leitura de CSV (`,` e `;`, decimal `,`, encodings) e XLSX, detecção de tipos, NaN, arquivos inválidos |
 | `core/validacao` | cada regra isoladamente |
 | Cada teste em `core/testes` | checklist acima |
-| `registry` | os 21 ids registrados, sem duplicatas, rótulos idênticos à lista oficial, ordem preservada |
+| `registry` | os 17 ids registrados, sem duplicatas, rótulos idênticos à lista oficial, ordem preservada |
 | `controller` | fluxo carregar → selecionar → executar → resultado; arquivo carregado depois da seleção atualiza o painel; erros tratados |
 | `app/ui` | montagem sem exceção; sidebar com todos os testes; as 3 abas existem; estados vazios corretos; `CardComparacaoTestes.atualizar_p_values` altera os textos esperados |
 
@@ -447,4 +441,5 @@ No Windows (PowerShell 5.1), passe mensagens de commit com `git commit -F arquiv
 - ~~O card continua nas abas Parâmetros e Análise ou fica só em Análise?~~ Decidido na Fase 1: **duas instâncias** (Parâmetros e Análise), para preservar o visual. Pode ser revisto depois.
 - ~~Gráficos nativos do Flet ou imagens do matplotlib?~~ Decidido na Fase 3: **nativos do Flet, simples e minimalistas**, desenhados com `flet.canvas` (no Flet 0.86.2 `BarChart`/`LineChart` saíram do pacote principal para a extensão `flet-charts`; o canvas é do núcleo e não exige dependência nova). matplotlib não é usado.
 - Pós-testes (Tukey, Dunn) e pressupostos extras (Shapiro-Wilk, Levene) como funcionalidade adicional. **Decidido em parte:** Dunn com Holm no Kruskal-Wallis, opcional e desligado por padrão. Tukey HSD na ANOVA de 1 fator, opcional e desligado; Levene (centrado na mediana) só como aviso não bloqueante quando p < 0,05. Shapiro-Wilk segue em aberto.
+- **Regressão linear (decidido, 2026-10-06):** especificação e decisões em `docs/regressao_linear.md` (referências geradas com o R instalado na máquina; entradas do grupo Diagnóstico removidas; teste F na seção do modelo; aba Simulação só para a regressão).
 - Formatos de arquivo além de CSV/XLSX e exportação de resultados (PDF/HTML/CSV).

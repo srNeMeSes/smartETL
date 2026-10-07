@@ -2,8 +2,8 @@
 
 Aplicativo desktop (Flet) para carregar uma base de dados (CSV ou XLSX), escolher um
 teste de hipótese, configurar os parâmetros e ver o resultado, a interpretação e os gráficos.
-O catálogo prevê 21 testes paramétricos e não paramétricos, além de ANOVA, regressão e
-diagnósticos de pressupostos.
+O catálogo prevê 17 testes paramétricos e não paramétricos, além de ANOVA e regressão (com os
+diagnósticos de pressupostos dentro da regressão linear).
 
 ## Estado atual
 
@@ -85,7 +85,7 @@ app/
     componentes/           # campos com estilo único e card de comparação
 core/                      # lógica de domínio, sem Flet
   base.py                  # contratos: ParametroSpec, ResultadoTeste, TesteBase...
-  registry.py              # catálogo dos 21 testes
+  registry.py              # catálogo dos 17 testes
   io.py                    # leitura de CSV/XLSX (encoding, separador e decimal automáticos)
   tipos.py                 # detecção de colunas numéricas, categóricas e binárias
   validacao.py             # regras de validação reutilizáveis

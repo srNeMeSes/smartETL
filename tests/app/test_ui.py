@@ -350,9 +350,9 @@ def test_teste_nao_implementado_nao_reusa_formulario_do_t_1am(tela_controller, c
     # Problema 3: qualquer teste mostrava o formulário do t de uma amostra.
     tela, controller = tela_controller
     controller.carregar_arquivo(str(csv_valido))
-    tela.sidebar.selecionar("durbin_watson")
+    tela.sidebar.selecionar("regres_logit")
     assert tela.formulario is None
-    assert "Durbin-Watson ainda não está disponível" in _textos_aba(tela.painel.parametros)
+    assert "Regressão Logística ainda não está disponível" in _textos_aba(tela.painel.parametros)
     assert not do_tipo(tela.painel.parametros, ft.TextField)
 
 

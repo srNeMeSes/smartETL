@@ -98,10 +98,10 @@ def test_carregar_arquivo_atualiza_tabela_e_painel(controller, visao, csv_valido
 
 def test_arquivo_carregado_depois_da_selecao_atualiza_painel(controller, visao, csv_valido):
     controller.iniciar()
-    controller.selecionar_teste("durbin_watson")
+    controller.selecionar_teste("regres_logit")
     assert visao.ultima() == ("sem_arquivo",)
     controller.carregar_arquivo(str(csv_valido))
-    assert visao.ultima() == ("indisponivel", "durbin_watson")
+    assert visao.ultima() == ("indisponivel", "regres_logit")
     controller.selecionar_teste("teste_t_1am")
     assert visao.ultima()[:2] == ("formulario", "teste_t_1am")
 
@@ -203,10 +203,10 @@ def test_executar_sem_arquivo(controller, visao):
 
 def test_executar_teste_indisponivel(controller, visao, csv_valido):
     controller.carregar_arquivo(str(csv_valido))
-    controller.selecionar_teste("durbin_watson")
+    controller.selecionar_teste("regres_logit")
     assert controller.executar() is None
     assert visao.notificacoes[-1] == (
-        "O Durbin-Watson ainda não está disponível nesta versão.",
+        "O Regressão Logística ainda não está disponível nesta versão.",
         False,
     )
 

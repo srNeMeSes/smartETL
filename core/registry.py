@@ -49,10 +49,6 @@ _CATALOGO: tuple[TesteInfo, ...] = (
     TesteInfo("anova_2fator", "ANOVA (2 fatores)", "ANOVA", TesteAnova2Fatores),
     TesteInfo("regres_linear", "Regressão Linear", "Regressão"),
     TesteInfo("regres_logit", "Regressão Logística", "Regressão"),
-    TesteInfo("durbin_watson", "Durbin-Watson", "Diagnóstico"),
-    TesteInfo("breusch_pagan", "Breusch-Pagan", "Diagnóstico"),
-    TesteInfo("white", "White", "Diagnóstico"),
-    TesteInfo("vif", "VIF", "Diagnóstico"),
 )
 
 _POR_ID = {info.id: info for info in _CATALOGO}
