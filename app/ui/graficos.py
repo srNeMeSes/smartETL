@@ -22,6 +22,10 @@ def desenhar_figura(figura: Figura, largura: float = LARGURA, altura: float = AL
         grafico, legenda = barras(figura.dados, largura, altura)
     elif figura.tipo == "barras_agrupadas":
         grafico, legenda = barras_agrupadas(figura.dados, largura, altura)
+    elif figura.tipo == "dispersao":
+        grafico, legenda = dispersao(figura.dados, largura, altura)
+    elif figura.tipo == "cascata":
+        grafico, legenda = cascata(figura.dados, largura, altura)
     else:
         raise ValueError(f"Tipo de figura desconhecido: {figura.tipo}")
     titulo = ft.Text(figura.titulo, size=14, weight=ft.FontWeight.W_600, color=tema.TEXTO)
@@ -142,9 +146,11 @@ def boxplot(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.C
     area_a = altura - _MARGEM_TOPO - _MARGEM_BASE
     base = _MARGEM_TOPO + area_a
 
+    referencias: list[dict] = dados.get("referencias", [])
     valores = [
         v for g in grupos for v in (g["bigode_inf"], g["bigode_sup"], g["media"], *g["outliers"])
     ]
+    valores += [r["valor"] for r in referencias]
     minimo, maximo = min(valores), max(valores)
     if minimo == maximo:
         minimo, maximo = minimo - 0.5, maximo + 0.5
@@ -197,8 +203,13 @@ def boxplot(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.C
         rotulo = f"{g['rotulo']} (n = {g['n']})"
         formas.append(_texto(cx, base + 6, rotulo, ft.Alignment.TOP_CENTER))
 
+    for ref in referencias:
+        y = sy(ref["valor"])
+        formas.append(cv.Line(esq, y, esq + area_l, y, paint=_paint_referencia(ref["estilo"])))
+
     canvas = cv.Canvas(width=largura, height=altura, shapes=formas)
-    return canvas, _legenda([("Mediana", "destaque"), ("Média", "ponto")])
+    itens = [("Mediana", "destaque"), ("Média", "ponto")]
+    return canvas, _legenda(itens + [(r["rotulo"], r["estilo"]) for r in referencias])
 
 
 def _formatar_valor(valor: float, percentual: bool) -> str:
@@ -327,5 +338,125 @@ def barras_agrupadas(dados: dict, largura: float, altura: float) -> tuple[cv.Can
         ],
         spacing=16,
         wrap=True,
+    )
+    return cv.Canvas(width=largura, height=altura, shapes=formas), legenda
+
+
+def _escala(minimo: float, maximo: float) -> tuple[float, float]:
+    """Limites com 5% de folga (e um intervalo mínimo quando todos os valores são iguais)."""
+    if minimo == maximo:
+        return minimo - 0.5, maximo + 0.5
+    folga = (maximo - minimo) * 0.05
+    return minimo - folga, maximo + folga
+
+
+def dispersao(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.Control | None]:
+    """Pontos (x, y) e segmentos de referência; rótulos dos eixos nas pontas."""
+    esq, base_extra = 70, 14
+    area_l = largura - esq - _MARGEM_DIR
+    area_a = altura - _MARGEM_TOPO - _MARGEM_BASE - base_extra
+    base = _MARGEM_TOPO + area_a
+    x0, x1 = _escala(dados["x_min"], dados["x_max"])
+    y0, y1 = _escala(dados["y_min"], dados["y_max"])
+
+    def sx(valor: float) -> float:
+        return esq + (valor - x0) / (x1 - x0) * area_l
+
+    def sy(valor: float) -> float:
+        return base - (valor - y0) / (y1 - y0) * area_a
+
+    eixo = ft.Paint(color=tema.BORDA, stroke_width=1, style=ft.PaintingStyle.STROKE)
+    ponto = ft.Paint(color=tema.GRAFICO_BARRA_BORDA, style=ft.PaintingStyle.FILL)
+    formas: list[cv.Shape] = [
+        cv.Line(esq, base, esq + area_l, base, paint=eixo),
+        cv.Line(esq, _MARGEM_TOPO, esq, base, paint=eixo),
+    ]
+    for valor in (y0, (y0 + y1) / 2, y1):
+        formas.append(
+            _texto(esq - 6, sy(valor), formatar_numero(valor, 2), ft.Alignment.CENTER_RIGHT)
+        )
+    for valor, alinhamento in (
+        (x0, ft.Alignment.TOP_LEFT),
+        ((x0 + x1) / 2, ft.Alignment.TOP_CENTER),
+        (x1, ft.Alignment.TOP_RIGHT),
+    ):
+        formas.append(_texto(sx(valor), base + 6, formatar_numero(valor, 2), alinhamento))
+    formas.append(_texto(esq + area_l / 2, base + 20, dados["rotulo_x"], ft.Alignment.TOP_CENTER))
+    formas += [
+        cv.Circle(sx(x), sy(y), 2.5, paint=ponto)
+        for x, y in zip(dados["x"], dados["y"], strict=True)
+    ]
+    for linha in dados.get("linhas", []):
+        formas.append(
+            cv.Line(
+                sx(linha["x1"]),
+                sy(linha["y1"]),
+                sx(linha["x2"]),
+                sy(linha["y2"]),
+                paint=_paint_referencia(linha["estilo"]),
+            )
+        )
+    itens = [(linha["rotulo"], linha["estilo"]) for linha in dados.get("linhas", [])]
+    if dados["n_total"] > len(dados["x"]):
+        itens.append((f"{len(dados['x'])} de {dados['n_total']} pontos", "ponto"))
+    canvas = cv.Canvas(width=largura, height=altura, shapes=formas)
+    return canvas, _legenda(itens) if itens else None
+
+
+def cascata(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.Control]:
+    """Barra inicial (intercepto), uma barra flutuante por contribuição e a barra do total."""
+    inicio, etapas, final = dados["inicio"], dados["etapas"], dados["final"]
+    niveis = [0.0, inicio["valor"], final["valor"], *(e["de"] for e in etapas)]
+    niveis += [e["ate"] for e in etapas]
+    y0, y1 = _escala(min(niveis), max(niveis))
+    esq = 70
+    area_l = largura - esq - _MARGEM_DIR
+    area_a = altura - _MARGEM_TOPO - _MARGEM_BASE
+    base = _MARGEM_TOPO + area_a
+
+    def sy(valor: float) -> float:
+        return base - (valor - y0) / (y1 - y0) * area_a
+
+    eixo = ft.Paint(color=tema.BORDA, stroke_width=1, style=ft.PaintingStyle.STROKE)
+    formas: list[cv.Shape] = [
+        cv.Line(esq, _MARGEM_TOPO, esq, base, paint=eixo),
+        cv.Line(esq, sy(0.0), esq + area_l, sy(0.0), paint=eixo),
+    ]
+    for valor in (y0, (y0 + y1) / 2, y1):
+        formas.append(
+            _texto(esq - 6, sy(valor), formatar_numero(valor, 2), ft.Alignment.CENTER_RIGHT)
+        )
+    barras_ = [(inicio["rotulo"], 0.0, inicio["valor"], tema.GRAFICO_BARRA_BORDA)]
+    for etapa in etapas:
+        cor = tema.GRAFICO_SERIES[1] if etapa["valor"] < 0 else tema.GRAFICO_SERIES[2]
+        barras_.append((etapa["rotulo"], etapa["de"], etapa["ate"], cor))
+    barras_.append((final["rotulo"], 0.0, final["valor"], tema.GRAFICO_DESTAQUE))
+    vaga = area_l / len(barras_)
+    meia = min(vaga * 0.32, 40)
+    for i, (rotulo, de, ate, cor) in enumerate(barras_):
+        cx = esq + vaga * (i + 0.5)
+        topo, fundo = sy(max(de, ate)), sy(min(de, ate))
+        paint = ft.Paint(color=cor, style=ft.PaintingStyle.FILL)
+        formas.append(cv.Rect(cx - meia, topo, 2 * meia, max(fundo - topo, 1), paint=paint))
+        valor = ate - de if 0 < i < len(barras_) - 1 else ate
+        texto = ("+" if valor > 0 and 0 < i < len(barras_) - 1 else "") + formatar_numero(valor, 2)
+        formas.append(_texto(cx, topo - 3, texto, ft.Alignment.BOTTOM_CENTER))
+        formas.append(_texto(cx, base + 6, rotulo, ft.Alignment.TOP_CENTER))
+    legenda = ft.Row(
+        [
+            ft.Row(
+                [
+                    ft.Container(width=10, height=10, border_radius=2, bgcolor=cor),
+                    ft.Text(texto, size=12, color=tema.TEXTO),
+                ],
+                spacing=6,
+                tight=True,
+            )
+            for cor, texto in (
+                (tema.GRAFICO_SERIES[2], "Aumenta"),
+                (tema.GRAFICO_SERIES[1], "Diminui"),
+            )
+        ],
+        spacing=16,
     )
     return cv.Canvas(width=largura, height=altura, shapes=formas), legenda

@@ -6,15 +6,17 @@ import flet as ft
 import pandas as pd
 
 from app.ui import tema
+from app.ui.componentes import campos
 from app.ui.componentes.card_comparacao import CardComparacaoTestes
 from app.ui.graficos import desenhar_figura
-from app.ui.helpers import border_all, pad
+from app.ui.helpers import border_all, esta_na_pagina, pad
 from app.ui.painel_abas import ABA_ANALISE, PainelAbas, mensagem, processando
 from app.ui.painel_parametros import PainelParametros
+from app.ui.painel_simulacao import PainelSimulacao
 from app.ui.sidebar import Sidebar
 from app.ui.tabela_dados import TabelaDados, formatar_celula
 from core import registry
-from core.base import ResultadoTeste, TesteBase
+from core.base import Figura, GrupoFiguras, ResultadoTeste, Secao, TesteBase
 from core.io import DadosCarregados
 
 if TYPE_CHECKING:
@@ -34,6 +36,7 @@ class TelaPrincipal:
         self._teste: TesteBase | None = None
         self.formulario: PainelParametros | None = None
         self.card_analise: CardComparacaoTestes | None = None
+        self.simulacao: PainelSimulacao | None = None
 
         self.file_picker = ft.FilePicker()
         page.services.append(self.file_picker)
@@ -139,6 +142,34 @@ class TelaPrincipal:
         self._atualizar()
 
     def exibir_resultado(self, resultado: ResultadoTeste) -> None:
+        if resultado.secoes:
+            self.card_analise = None
+            self.painel.definir_analise(self._analise_por_secoes(resultado.secoes))
+        else:
+            self.painel.definir_analise(self._analise_padrao(resultado))
+        self.painel.definir_visualizacao(self._visualizacao(resultado))
+        self.simulacao = None
+        if resultado.simulacao is not None:
+            self.simulacao = PainelSimulacao(resultado.simulacao, self._ao_alterar_simulacao)
+        quantas = len(self.painel.rotulos)
+        self.painel.definir_simulacao(self.simulacao)
+        if len(self.painel.rotulos) != quantas:
+            # Mudar o número de abas reinicia a aba selecionada no Flet: primeiro a nova
+            # estrutura, depois a seleção.
+            self._atualizar()
+        self.painel.ir_para(ABA_ANALISE)
+        self._atualizar()
+        if self.simulacao is not None:
+            self.simulacao.iniciar()  # previsão inicial (médias e níveis de referência)
+
+    def exibir_previsao(self, previsao: object, variavel: str | None) -> None:
+        if self.simulacao is not None:
+            self.simulacao.mostrar(previsao, variavel)
+
+    def _ao_alterar_simulacao(self, valores: dict, variavel: str | None) -> None:
+        self._controller.simular(valores, variavel)
+
+    def _analise_padrao(self, resultado: ResultadoTeste) -> ft.Control:
         detalhes: list[ft.Control] = [self._resumo(resultado)]
         detalhes += [self._tabela(nome, df) for nome, df in resultado.tabelas.items()]
         if resultado.comparacao is None:
@@ -158,10 +189,7 @@ class TelaPrincipal:
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             )
-        self.painel.definir_analise(analise)
-        self.painel.definir_visualizacao(self._visualizacao(resultado))
-        self.painel.ir_para(ABA_ANALISE)
-        self._atualizar()
+        return analise
 
     def notificar(self, mensagem: str, erro: bool = False) -> None:
         self.page.show_dialog(
@@ -177,6 +205,8 @@ class TelaPrincipal:
         self._teste = None
         self.formulario = None
         self.card_analise = None
+        self.simulacao = None
+        self.painel.definir_simulacao(None)
 
     def _definir_abas_sem_resultado(self) -> None:
         """Análise com o card zerado (2ª instância) e Visualização com estado vazio."""
@@ -188,6 +218,8 @@ class TelaPrincipal:
             analise.append(self.card_analise)
         self.painel.definir_analise(ft.Column(controls=analise, expand=True, spacing=12))
         self.painel.definir_visualizacao(mensagem(SEM_EXECUCAO, titulo="Visualização"))
+        self.simulacao = None
+        self.painel.definir_simulacao(None)
 
     @staticmethod
     def _resumo(resultado: ResultadoTeste) -> ft.Column:
@@ -210,22 +242,76 @@ class TelaPrincipal:
         return ft.Column(controls=linhas, spacing=6)
 
     @staticmethod
-    def _tabela(nome: str, df: pd.DataFrame) -> ft.Column:
-        def celula(valor: object) -> ft.DataCell:
-            return ft.DataCell(ft.Text(formatar_celula(valor), size=13, color=tema.TEXTO))
+    def _linha_icone(texto: str, icone: str, cor: str) -> ft.Row:
+        return ft.Row(
+            [
+                ft.Icon(icone, size=16, color=cor),
+                ft.Text(texto, size=13, color=tema.TEXTO_SECUNDARIO, expand=True),
+            ],
+            spacing=6,
+            vertical_alignment=ft.CrossAxisAlignment.START,
+        )
+
+    def _analise_por_secoes(self, secoes: list[Secao]) -> ft.Column:
+        """Análise na ordem definida pelo teste (ex.: regressão: pressupostos primeiro)."""
+        controles: list[ft.Control] = []
+        for secao in secoes:
+            principal = secao.nivel == 1
+            controles.append(
+                ft.Text(
+                    secao.titulo,
+                    size=17 if principal else 15,
+                    weight=ft.FontWeight.BOLD if principal else ft.FontWeight.W_600,
+                    color=tema.TEXTO if principal else tema.LARANJA,
+                )
+            )
+            if secao.destaque:
+                controles.append(
+                    ft.Text(secao.destaque, size=16, weight=ft.FontWeight.BOLD, color=tema.TEXTO)
+                )
+            controles += [ft.Text(texto, size=14, color=tema.TEXTO) for texto in secao.textos]
+            controles += [
+                self._linha_icone(a, ft.Icons.WARNING_AMBER_ROUNDED, tema.LARANJA)
+                for a in secao.avisos
+            ]
+            for nome, df in secao.tabelas.items():
+                # Título da tabela só quando acrescenta algo ao título da seção.
+                controles.append(self._tabela(None if nome == secao.titulo else nome, df))
+            controles += [
+                self._linha_icone(n, ft.Icons.INFO_OUTLINE, tema.TEXTO_SECUNDARIO)
+                for n in secao.notas
+            ]
+        return ft.Column(controles, spacing=12, scroll=ft.ScrollMode.AUTO, expand=True)
+
+    @staticmethod
+    def _tabela(nome: str | None, df: pd.DataFrame) -> ft.Column:
+        """DataTable; `df.attrs` pode trazer "dicas" (tooltip por coluna, marcada com ⓘ) e
+        "destaques" (posições das linhas em negrito)."""
+        dicas: dict[str, str] = df.attrs.get("dicas", {})
+        destaques = set(df.attrs.get("destaques", []))
+
+        def celula(valor: object, negrito: bool) -> ft.DataCell:
+            peso = ft.FontWeight.BOLD if negrito else None
+            return ft.DataCell(
+                ft.Text(formatar_celula(valor), size=13, color=tema.TEXTO, weight=peso)
+            )
 
         tabela = ft.DataTable(
             columns=[
                 ft.DataColumn(
                     ft.Text(
-                        str(c), size=13, weight=ft.FontWeight.W_600, color=tema.TEXTO_SECUNDARIO
-                    )
+                        str(c) + (" ⓘ" if str(c) in dicas else ""),
+                        size=13,
+                        weight=ft.FontWeight.W_600,
+                        color=tema.TEXTO_SECUNDARIO,
+                    ),
+                    tooltip=dicas.get(str(c)),
                 )
                 for c in df.columns
             ],
             rows=[
-                ft.DataRow(cells=[celula(v) for v in linha])
-                for linha in df.itertuples(index=False, name=None)
+                ft.DataRow(cells=[celula(v, i in destaques) for v in linha])
+                for i, linha in enumerate(df.itertuples(index=False, name=None))
             ],
             heading_row_color=tema.FUNDO,
             heading_row_height=36,
@@ -236,17 +322,40 @@ class TelaPrincipal:
             border_radius=tema.RAIO_PEQUENO,
             horizontal_lines=ft.BorderSide(1, tema.BORDA),
         )
-        titulo = ft.Text(nome, size=14, weight=ft.FontWeight.W_600, color=tema.TEXTO)
         # Rolagem horizontal: a tabela mantém a largura natural em vez de quebrar o texto das
         # células (cortado pela altura fixa da linha) quando a coluna é estreita (ao lado do card).
-        return ft.Column([titulo, ft.Row([tabela], scroll=ft.ScrollMode.AUTO)], spacing=8)
+        controles: list[ft.Control] = [ft.Row([tabela], scroll=ft.ScrollMode.AUTO)]
+        if nome:
+            controles.insert(
+                0, ft.Text(nome, size=14, weight=ft.FontWeight.W_600, color=tema.TEXTO)
+            )
+        return ft.Column(controles, spacing=8)
 
     @staticmethod
-    def _visualizacao(resultado: ResultadoTeste) -> ft.Control:
+    def _grupo_figuras(grupo: GrupoFiguras) -> ft.Column:
+        """Lista suspensa acima do gráfico; trocar a opção só troca a figura exibida."""
+        area = ft.Container(content=desenhar_figura(grupo.opcoes[grupo.padrao]))
+        lista = campos.dropdown_campo(grupo.rotulo, list(grupo.opcoes), valor=grupo.padrao)
+
+        def trocar(_evento=None) -> None:
+            area.content = desenhar_figura(grupo.opcoes[lista.value])
+            if esta_na_pagina(area):
+                area.update()
+
+        lista.on_select = trocar
+        return ft.Column([lista, area], spacing=10)
+
+    def _visualizacao(self, resultado: ResultadoTeste) -> ft.Control:
         if not resultado.figuras:
             return mensagem("Nenhum gráfico gerado para este teste.", titulo="Visualização")
+
+        def desenhar(item: Figura | GrupoFiguras) -> ft.Control:
+            if isinstance(item, GrupoFiguras):
+                return self._grupo_figuras(item)
+            return desenhar_figura(item)
+
         return ft.Column(
-            controls=[desenhar_figura(fig) for fig in resultado.figuras],
+            controls=[desenhar(item) for item in resultado.figuras],
             spacing=24,
             scroll=ft.ScrollMode.AUTO,
             expand=True,

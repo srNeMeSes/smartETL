@@ -4,7 +4,7 @@ import logging
 import threading
 from collections.abc import Callable
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 import pandas as pd
 
@@ -28,6 +28,7 @@ class Visao(Protocol):
     def exibir_processando(self) -> None: ...
     def exibir_sem_resultado(self) -> None: ...
     def exibir_resultado(self, resultado: ResultadoTeste) -> None: ...
+    def exibir_previsao(self, previsao: Any, variavel: str | None) -> None: ...
     def notificar(self, mensagem: str, erro: bool = False) -> None: ...
 
 
@@ -164,6 +165,21 @@ class Controller:
         self.estado.ultimo_resultado = resultado
         self.visao.exibir_resultado(resultado)
         return resultado
+
+    # ---------------- Simulação ----------------
+    def simular(self, valores: dict, variavel: str | None = None) -> Any:
+        """Previsão do último resultado para `valores` (aba Simulação); `variavel` é o campo
+        alterado, que a interface destaca na equação. Sem simulação disponível, devolve None."""
+        simulador = getattr(self.estado.ultimo_resultado, "simulacao", None)
+        if simulador is None:
+            return None
+        try:
+            previsao = simulador.prever(valores)
+        except (KeyError, TypeError, ValueError):
+            log.exception("Valores inválidos na simulação: %r", valores)
+            return None
+        self.visao.exibir_previsao(previsao, variavel)
+        return previsao
 
     def _falhou(self, processando: bool) -> None:
         if processando:

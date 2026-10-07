@@ -33,6 +33,8 @@ def colunas_por_tipo(
     `perfis` evita recalcular a detecção quando ela já foi feita na leitura do arquivo.
     """
     perfis = perfis if perfis is not None else detectar_tipos(df)
+    if tipo == "preditores":  # numéricas e categóricas (identificadores de texto ficam de fora)
+        return [nome for nome, perfil in perfis.items() if perfil.numerica or perfil.categorica]
     if tipo in ("coluna_numerica", "multi_coluna"):
         papel = "numerica"
     elif tipo == "coluna_binaria":

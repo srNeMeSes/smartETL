@@ -102,4 +102,5 @@ def test_testes_implementados():
         "friedman",
         "anova_1fator",
         "anova_2fator",
+        "regres_linear",
     ]

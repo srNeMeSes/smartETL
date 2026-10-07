@@ -1,0 +1,216 @@
+"""Aba Simulação: equação do modelo, campos de entrada e previsão em tempo real.
+
+A previsão é calculada no core (`SimuladorRegressao.prever`), pedida pelo controller: os
+callbacks daqui só leem os campos e repassam os valores.
+"""
+
+from collections.abc import Callable
+
+import flet as ft
+
+from app.ui import tema
+from app.ui.componentes import campos
+from app.ui.graficos import desenhar_figura
+from app.ui.helpers import border_all, esta_na_pagina
+from core.testes.regressao import CampoSimulacao, Previsao, SimuladorRegressao, formatar_coeficiente
+from core.validacao import converter_numero
+
+LARGURA_SLIDER = 230
+LARGURA_VALOR = 130
+
+
+class PainelSimulacao(ft.Column):
+    def __init__(
+        self,
+        simulador: SimuladorRegressao,
+        on_alterar: Callable[[dict, str | None], None],
+    ):
+        self._simulador = simulador
+        self._on_alterar = on_alterar
+        self.valores: dict[str, float | str] = simulador.valores_iniciais()
+        self.textos: dict[str, ft.TextField] = {}
+        self.sliders: dict[str, ft.Slider] = {}
+        self.listas: dict[str, ft.Dropdown] = {}
+
+        self.equacao = ft.Text(size=15, selectable=True)
+        self.valor = ft.Text(size=28, weight=ft.FontWeight.BOLD, color=tema.LARANJA)
+        self.intervalos = ft.Column(spacing=4)
+        self.avisos = ft.Column(spacing=4)
+        self.grafico = ft.Container()
+
+        entradas = ft.Column(
+            [self._criar_campo(c) for c in simulador.campos], spacing=14, width=420
+        )
+        nivel = f"{simulador.confianca * 100:.0f}%"
+        resultado = ft.Column(
+            [
+                ft.Text(
+                    f"Valor previsto de '{simulador.nome_y}'",
+                    size=14,
+                    weight=ft.FontWeight.W_600,
+                    color=tema.TEXTO,
+                ),
+                self.valor,
+                self.intervalos,
+                ft.Text(
+                    f"Intervalos de {nivel}: o nível de confiança escolhido na aba Parâmetros.",
+                    size=12,
+                    color=tema.TEXTO_SECUNDARIO,
+                ),
+                self.avisos,
+                self.grafico,
+            ],
+            spacing=8,
+            expand=True,
+        )
+        cartao_equacao = ft.Container(
+            content=ft.Column(
+                [
+                    ft.Text(
+                        "Equação do modelo",
+                        size=14,
+                        weight=ft.FontWeight.W_600,
+                        color=tema.TEXTO,
+                    ),
+                    self.equacao,
+                ],
+                spacing=6,
+            ),
+            padding=14,
+            border=border_all(1, tema.BORDA),
+            border_radius=tema.RAIO_PEQUENO,
+            bgcolor=tema.FUNDO,
+        )
+        super().__init__(
+            [
+                cartao_equacao,
+                ft.Row(
+                    [entradas, resultado],
+                    spacing=32,
+                    vertical_alignment=ft.CrossAxisAlignment.START,
+                ),
+            ],
+            spacing=18,
+            scroll=ft.ScrollMode.AUTO,
+            expand=True,
+        )
+        self._desenhar_equacao(None)
+
+    # ---------------- Montagem ----------------
+    def _criar_campo(self, campo: CampoSimulacao) -> ft.Control:
+        if campo.categorica:
+            lista = campos.dropdown_campo(
+                campo.nome,
+                list(campo.niveis),
+                valor=campo.inicial,
+                largura=LARGURA_VALOR + LARGURA_SLIDER,
+            )
+            lista.on_select = lambda _e, nome=campo.nome: self._ao_escolher(nome)
+            self.listas[campo.nome] = lista
+            return lista
+        texto = campos.campo_texto(
+            campo.nome, valor=formatar_coeficiente(float(campo.inicial)), largura=LARGURA_VALOR
+        )
+        texto.on_change = lambda _e, nome=campo.nome: self._ao_digitar(nome)
+        slider = ft.Slider(
+            min=campo.minimo,
+            max=campo.maximo,
+            value=float(campo.inicial),
+            active_color=tema.LARANJA,
+            width=LARGURA_SLIDER,
+        )
+        slider.on_change = lambda _e, nome=campo.nome: self._ao_deslizar(nome)
+        self.textos[campo.nome] = texto
+        self.sliders[campo.nome] = slider
+        faixa = ft.Text(
+            f"Faixa observada: {formatar_coeficiente(campo.minimo)} a "
+            f"{formatar_coeficiente(campo.maximo)}",
+            size=12,
+            color=tema.TEXTO_SECUNDARIO,
+        )
+        return ft.Column(
+            [
+                ft.Row([texto, slider], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                faixa,
+            ],
+            spacing=2,
+        )
+
+    # ---------------- Callbacks (só repassam os valores) ----------------
+    def iniciar(self) -> None:
+        """Pede a previsão dos valores iniciais (médias e níveis de referência)."""
+        self._on_alterar(dict(self.valores), None)
+
+    def _ao_deslizar(self, nome: str) -> None:
+        valor = float(self.sliders[nome].value)
+        self.valores[nome] = valor
+        self.textos[nome].value = formatar_coeficiente(valor)
+        if esta_na_pagina(self.textos[nome]):
+            self.textos[nome].update()
+        self._on_alterar(dict(self.valores), nome)
+
+    def _ao_digitar(self, nome: str) -> None:
+        try:
+            valor = converter_numero(self.textos[nome].value)
+        except ValueError:
+            return  # texto incompleto ("1,", "-"): espera o próximo caractere
+        self.valores[nome] = valor
+        slider = self.sliders[nome]
+        slider.value = min(max(valor, slider.min), slider.max)  # o slider fica na borda da faixa
+        if esta_na_pagina(slider):
+            slider.update()
+        self._on_alterar(dict(self.valores), nome)
+
+    def _ao_escolher(self, nome: str) -> None:
+        self.valores[nome] = self.listas[nome].value
+        self._on_alterar(dict(self.valores), nome)
+
+    # ---------------- Exibição ----------------
+    def _desenhar_equacao(self, destaque: str | None) -> None:
+        estilo_normal = ft.TextStyle(color=tema.TEXTO)
+        estilo_destaque = ft.TextStyle(
+            color=tema.LARANJA, weight=ft.FontWeight.BOLD, bgcolor=tema.LARANJA_SUAVE
+        )
+        self.equacao.spans = [
+            ft.TextSpan(
+                termo.texto,
+                style=estilo_destaque
+                if destaque is not None and termo.variavel == destaque
+                else estilo_normal,
+            )
+            for termo in self._simulador.equacao()
+        ]
+
+    def mostrar(self, previsao: Previsao, variavel: str | None) -> None:
+        nivel = f"{previsao.confianca * 100:.0f}%"
+        self._desenhar_equacao(variavel)
+        self.valor.value = formatar_coeficiente(previsao.valor)
+        self.intervalos.controls = [
+            ft.Text(
+                f"IC {nivel} da média prevista: [{formatar_coeficiente(previsao.ic_inferior)}; "
+                f"{formatar_coeficiente(previsao.ic_superior)}]",
+                size=14,
+                color=tema.TEXTO,
+                tooltip="Onde deve estar a média de y para casos com esses valores.",
+            ),
+            ft.Text(
+                f"Intervalo de predição {nivel}: [{formatar_coeficiente(previsao.ip_inferior)}; "
+                f"{formatar_coeficiente(previsao.ip_superior)}]",
+                size=14,
+                color=tema.TEXTO,
+                tooltip="Onde deve cair o valor de y de um novo caso com esses valores.",
+            ),
+        ]
+        self.avisos.controls = [
+            ft.Row(
+                [
+                    ft.Icon(ft.Icons.WARNING_AMBER_ROUNDED, size=16, color=tema.LARANJA),
+                    ft.Text(aviso, size=13, color=tema.TEXTO_SECUNDARIO, expand=True),
+                ],
+                spacing=6,
+            )
+            for aviso in previsao.extrapolacoes
+        ]
+        self.grafico.content = desenhar_figura(previsao.figura, largura=560, altura=230)
+        if esta_na_pagina(self):
+            self.update()

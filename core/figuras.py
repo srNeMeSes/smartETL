@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 
 import numpy as np
+from scipy import stats
 
 from core.base import Figura
 
@@ -74,14 +75,19 @@ def boxplot(
     grupos: Sequence[tuple[str, Sequence[float] | np.ndarray]],
     titulo: str,
     rotulo_y: str,
+    referencias: Sequence[tuple[str, float, str]] = (),
 ) -> Figura:
-    """Boxplots lado a lado, um por grupo: (rótulo, valores)."""
+    """Boxplots lado a lado, um por grupo: (rótulo, valores); linhas horizontais opcionais."""
     return Figura(
         tipo="boxplot",
         titulo=titulo,
         dados={
             "rotulo_y": rotulo_y,
             "grupos": [{"rotulo": rotulo, **resumo_boxplot(valores)} for rotulo, valores in grupos],
+            "referencias": [
+                {"rotulo": rotulo, "valor": float(valor), "estilo": estilo}
+                for rotulo, valor, estilo in referencias
+            ],
         },
     )
 
@@ -144,5 +150,118 @@ def barras_agrupadas(
                 {"rotulo": rotulo, "valores": vals}
                 for (rotulo, _), vals in zip(grupos, valores, strict=True)
             ],
+        },
+    )
+
+
+MAX_PONTOS = 2000
+
+
+def dispersao(
+    x: Sequence[float] | np.ndarray,
+    y: Sequence[float] | np.ndarray,
+    titulo: str,
+    rotulo_x: str,
+    rotulo_y: str,
+    linhas: Sequence[tuple[str, float, float, float, float, str]] = (),
+    max_pontos: int = MAX_PONTOS,
+) -> Figura:
+    """Pontos (x, y) e segmentos de referência (rótulo, x₁, y₁, x₂, y₂, estilo).
+
+    Com mais de `max_pontos` pontos, desenha uma amostra regular (sempre a mesma) e informa o
+    total em `n_total`; os limites dos eixos usam todos os pontos.
+    """
+    xs, ys = np.asarray(x, dtype=float), np.asarray(y, dtype=float)
+    validos = np.isfinite(xs) & np.isfinite(ys)
+    xs, ys = xs[validos], ys[validos]
+    if xs.size == 0:
+        raise ValueError("dispersão sem pontos")
+    limites_x = [xs.min(), xs.max(), *(v for seg in linhas for v in (seg[1], seg[3]))]
+    limites_y = [ys.min(), ys.max(), *(v for seg in linhas for v in (seg[2], seg[4]))]
+    indices = np.arange(xs.size)
+    if xs.size > max_pontos:
+        indices = np.unique(np.linspace(0, xs.size - 1, max_pontos).round().astype(int))
+    return Figura(
+        tipo="dispersao",
+        titulo=titulo,
+        dados={
+            "rotulo_x": rotulo_x,
+            "rotulo_y": rotulo_y,
+            "x": [float(v) for v in xs[indices]],
+            "y": [float(v) for v in ys[indices]],
+            "n_total": int(xs.size),
+            "x_min": float(min(limites_x)),
+            "x_max": float(max(limites_x)),
+            "y_min": float(min(limites_y)),
+            "y_max": float(max(limites_y)),
+            "linhas": [
+                {
+                    "rotulo": r,
+                    "x1": float(a),
+                    "y1": float(b),
+                    "x2": float(c),
+                    "y2": float(d),
+                    "estilo": e,
+                }
+                for r, a, b, c, d, e in linhas
+            ],
+        },
+    )
+
+
+def quantis_normais(n: int) -> np.ndarray:
+    """Quantis teóricos N(0, 1) nas posições de `ppoints` do R: (i − a)/(n + 1 − 2a), a = 3/8
+    se n ≤ 10, senão 1/2 (os mesmos do `qqnorm`)."""
+    a = 3 / 8 if n <= 10 else 0.5
+    return stats.norm.ppf((np.arange(1, n + 1) - a) / (n + 1 - 2 * a))
+
+
+def qq_normal(valores: Sequence[float] | np.ndarray, titulo: str, rotulo_y: str) -> Figura:
+    """Gráfico Q-Q normal com a reta de referência pelos quartis (como o `qqline` do R)."""
+    y = np.sort(np.asarray(valores, dtype=float))
+    x = quantis_normais(y.size)
+    q1, q3 = np.percentile(y, [25, 75])
+    z1, z3 = stats.norm.ppf([0.25, 0.75])
+    inclinacao = (q3 - q1) / (z3 - z1)
+    intercepto = q1 - inclinacao * z1
+    linha = (
+        "Referência normal",
+        float(x[0]),
+        float(intercepto + inclinacao * x[0]),
+        float(x[-1]),
+        float(intercepto + inclinacao * x[-1]),
+        "tracejado",
+    )
+    return dispersao(x, y, titulo, "Quantis teóricos (normal)", rotulo_y, [linha])
+
+
+def cascata(
+    inicio: tuple[str, float],
+    etapas: Sequence[tuple[str, float]],
+    rotulo_final: str,
+    rotulo_y: str,
+    titulo: str,
+) -> Figura:
+    """Cascata: barra inicial, uma barra por contribuição (+/−) e a barra do total."""
+    acumulado = float(inicio[1])
+    passos = []
+    for rotulo, valor in etapas:
+        passos.append(
+            {
+                "rotulo": rotulo,
+                "valor": float(valor),
+                "de": acumulado,
+                "ate": acumulado + float(valor),
+            }
+        )
+        acumulado += float(valor)
+    return Figura(
+        tipo="cascata",
+        titulo=titulo,
+        dados={
+            "rotulo_y": rotulo_y,
+            "inicio": {"rotulo": inicio[0], "valor": float(inicio[1])},
+            "etapas": passos,
+            "final": {"rotulo": rotulo_final, "valor": acumulado},
         },
     )

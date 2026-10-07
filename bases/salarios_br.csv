@@ -1,0 +1,121 @@
+funcionario;experiencia;modalidade;cargo;salario
+F001;19,6;Presencial;Coordenador;5922,58
+F002;15,9;Presencial;Analista;5508,04
+F003;7,7;Home Office;Coordenador;4343,31
+F004;10,6;Home Office;Analista;4950,14
+F005;12,1;Home Office;Assistente;3718,05
+F006;22,4;Home Office;Gerente;5453,53
+F007;15,1;Home Office;Coordenador;5029,74
+F008;;Home Office;Coordenador;5476,8
+F009;7,5;Home Office;Assistente;3849,26
+F010;8,5;Presencial;Analista;5095,71
+F011;13,0;Home Office;Assistente;3693,65
+F012;22,3;Presencial;Gerente;5949,96
+F013;9,1;Presencial;Analista;4656,53
+F014;8,0;Home Office;Coordenador;4956,24
+F015;4,7;Presencial;Analista;4799,32
+F016;14,9;Home Office;Assistente;3823,49
+F017;16,3;Presencial;Analista;5693,95
+F018;2,1;Home Office;Assistente;2764,75
+F019;4,3;Presencial;Coordenador;5576,72
+F020;11,9;Home Office;Analista;4998,47
+F021;5,9;Home Office;Coordenador;4631,55
+F022;16,5;Home Office;Assistente;3373,75
+F023;11,2;Presencial;Gerente;5528,45
+F024;7,9;Presencial;Gerente;5681,3
+F025;21,4;Home Office;Coordenador;5497,36
+F026;3,3;Home Office;Assistente;3809,98
+F027;5,7;Home Office;Analista;4516,63
+F028;3,1;Home Office;Assistente;3598,3
+F029;2,3;Home Office;Assistente;3449,15
+F030;0,4;Home Office;Analista;4946,77
+F031;4,1;Presencial;Coordenador;5535,97
+F032;8,5;Presencial;Gerente;4506,42
+F033;1,1;Home Office;Assistente;3847,73
+F034;11,8;Presencial;Assistente;4102,49
+F035;13,6;Home Office;Analista;4481,75
+F036;7,9;Presencial;Assistente;4706,67
+F037;6,4;Home Office;Assistente;2688,61
+F038;10,1;Presencial;Analista;4528,85
+F039;17,5;Presencial;Assistente;3823,96
+F040;17,0;Presencial;Analista;4965,26
+F041;0,9;Home Office;Analista;4171,51
+F042;6,6;Presencial;Coordenador;5930,8
+F043;7,7;Home Office;Coordenador;5123,62
+F044;5,0;Home Office;Assistente;2718,64
+F045;14,4;Presencial;Coordenador;5016,52
+F046;11,3;Home Office;Coordenador;5157,85
+F047;1,0;Presencial;Assistente;3714,25
+F048;7,5;Presencial;Assistente;4335,44
+F049;10,5;Home Office;Analista;4621,52
+F050;2,0;Presencial;Assistente;4005,86
+F051;16,7;Home Office;Assistente;4045,44
+F052;1,0;Home Office;Assistente;3266,67
+F053;21,5;Home Office;Coordenador;5718,73
+F054;2,0;Presencial;Analista;4471,84
+F055;19,9;Home Office;Coordenador;5364,02
+F056;21,1;Home Office;Coordenador;5564,59
+F057;19,6;Home Office;Analista;4993,46
+F058;16,0;Presencial;Analista;5098,03
+F059;15,6;Presencial;Assistente;4648,13
+F060;12,8;Presencial;Assistente;4218,47
+F061;15,6;Presencial;Analista;5199,87
+F062;2,7;Presencial;Analista;5140,98
+F063;10,7;Home Office;Analista;3496,69
+F064;13,3;Home Office;Coordenador;4661,3
+F065;;Presencial;Analista;4683,36
+F066;9,3;Presencial;Analista;4046,1
+F067;7,7;Home Office;Analista;3942,71
+F068;12,8;Home Office;Assistente;3902,88
+F069;5,3;Presencial;Assistente;3944,97
+F070;2,8;Home Office;Analista;4137,19
+F071;9,6;Presencial;Assistente;4674,31
+F072;8,3;Home Office;Analista;4806,45
+F073;7,7;Home Office;Coordenador;4978,54
+F074;7,4;Presencial;Assistente;4707,47
+F075;7,3;Home Office;Assistente;3432,11
+F076;6,5;Home Office;Assistente;3013,39
+F077;7,6;Presencial;Assistente;3896,39
+F078;13,7;Presencial;Analista;4560,15
+F079;5,9;Home Office;Analista;3790,84
+F080;22,0;Home Office;Coordenador;5363,43
+F081;18,3;Presencial;Analista;5682,33
+F082;9,6;Presencial;Analista;5759,56
+F083;9,6;Home Office;Coordenador;4494,32
+F084;10,7;Home Office;Assistente;3678,77
+F085;17,0;Home Office;Assistente;3299,77
+F086;13,1;Home Office;Assistente;3798,11
+F087;19,1;Home Office;Coordenador;5356,08
+F088;10,7;Presencial;Analista;4306,8
+F089;12,7;Home Office;Assistente;3974,46
+F090;5,8;Home Office;Analista;3906,22
+F091;14,7;Presencial;Assistente;4173,14
+F092;4,0;Presencial;Analista;4389,3
+F093;13,9;Home Office;Analista;4172,26
+F094;17,2;Presencial;Assistente;4665,59
+F095;2,6;Presencial;Assistente;3889,56
+F096;12,3;Presencial;Analista;5270,46
+F097;1,9;Home Office;Assistente;3354,27
+F098;14,5;Home Office;Assistente;4202,98
+F099;1,7;Presencial;Assistente;3793,21
+F100;23,7;Home Office;Gerente;4523,7
+F101;7,7;Home Office;Gerente;5025,81
+F102;19,2;Home Office;Analista;4495,45
+F103;16,0;Presencial;Assistente;4911,53
+F104;16,9;Presencial;Gerente;5806,28
+F105;18,7;Home Office;Coordenador;5341,9
+F106;18,9;Presencial;Coordenador;6292,55
+F107;18,9;Home Office;Analista;5443,49
+F108;5,1;Presencial;Assistente;4929,87
+F109;11,8;Presencial;Assistente;4323,86
+F110;6,9;Home Office;Gerente;4616,54
+F111;12,3;Home Office;Analista;4842,44
+F112;3,4;Home Office;Assistente;2900,18
+F113;11,3;Presencial;Assistente;4416,91
+F114;11,4;Presencial;Analista;5089,7
+F115;9,3;Presencial;Assistente;4338,06
+F116;13,5;Presencial;Coordenador;5604,89
+F117;18,3;Home Office;Coordenador;4715,2
+F118;19,0;Presencial;Coordenador;5278,95
+F119;9,8;Home Office;Analista;3832,62
+F120;12,0;Home Office;Analista;4187,16

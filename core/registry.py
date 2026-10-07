@@ -14,6 +14,7 @@ from core.testes.nao_parametricos import (
     TesteWilcoxon,
 )
 from core.testes.proporcoes import TesteZ1Prop, TesteZ2Prop
+from core.testes.regressao import TesteRegressaoLinear
 
 
 @dataclass(frozen=True)
@@ -47,7 +48,7 @@ _CATALOGO: tuple[TesteInfo, ...] = (
     TesteInfo("friedman", "Friedman", "Não paramétricos", TesteFriedman),
     TesteInfo("anova_1fator", "ANOVA (1 fator)", "ANOVA", TesteAnova1Fator),
     TesteInfo("anova_2fator", "ANOVA (2 fatores)", "ANOVA", TesteAnova2Fatores),
-    TesteInfo("regres_linear", "Regressão Linear", "Regressão"),
+    TesteInfo("regres_linear", "Regressão Linear", "Regressão", TesteRegressaoLinear),
     TesteInfo("regres_logit", "Regressão Logística", "Regressão"),
 )
 

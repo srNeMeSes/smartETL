@@ -61,6 +61,9 @@ class VisaoFalsa:
     def exibir_resultado(self, resultado):
         self.chamadas.append(("resultado", resultado.teste_id))
 
+    def exibir_previsao(self, previsao, variavel):
+        self.chamadas.append(("previsao", round(previsao.valor, 6), variavel))
+
     def notificar(self, mensagem, erro=False):
         self.notificacoes.append((mensagem, erro))
 
@@ -605,3 +608,29 @@ def test_integracao_anova_2fator_carregar_selecionar_executar(controller, visao)
     assert resultado.p_valor == resultado.estatisticas["p_ab"]
     assert "Médias por combinação" in resultado.tabelas and resultado.comparacao is None
     assert visao.chamadas[-1] == ("resultado", "anova_2fator")
+
+
+def test_integracao_regressao_linear_carregar_selecionar_executar_simular(controller, visao):
+    # Checklist §9, item 7, para a Regressão Linear, com a base do projeto (bases/).
+    assert controller.carregar_arquivo(str(BASES / "salarios_br.csv"))
+    controller.selecionar_teste("regres_linear")
+    assert visao.ultima()[:2] == ("formulario", "regres_linear")
+    assert controller.simular({"experiencia": 5.0}) is None  # sem resultado ainda
+    visao.params = {
+        "y": "salario",
+        "preditores": ["experiencia", "modalidade", "cargo"],
+        "referencias": {"cargo": "Assistente"},
+        "ordenar_por": "Valores ajustados",
+        "confianca": "95%",
+        "alfa": 0.05,
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "regres_linear"
+    assert resultado.estatisticas["n"] == 118 and resultado.estatisticas["n_descartadas"] == 2
+    assert resultado.secoes[0].titulo == "Pressupostos"
+    assert visao.chamadas[-1] == ("resultado", "regres_linear")
+    valores = resultado.simulacao.valores_iniciais() | {"experiencia": 10.0}
+    previsao = controller.simular(valores, "experiencia")
+    assert previsao.valor == pytest.approx(resultado.simulacao.prever(valores).valor)
+    assert visao.chamadas[-1] == ("previsao", round(previsao.valor, 6), "experiencia")
+    assert controller.simular({"experiencia": 1.0}) is None  # faltam campos: ignorado

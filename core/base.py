@@ -16,10 +16,13 @@ TipoParametro = Literal[
     "opcao",
     "booleano",
     "nivel",  # um valor de outra coluna (ver ParametroSpec.depende_de)
+    "preditores",  # várias colunas de qualquer tipo (caixas de seleção)
+    "niveis_referencia",  # um nível de referência por categórica marcada em `depende_de`
+    "ordenacao",  # "Valores ajustados" (opcoes[0]) ou uma coluna numérica
 ]
 
 TIPOS_COLUNA: frozenset[str] = frozenset(
-    {"coluna_numerica", "coluna_categorica", "coluna_binaria", "multi_coluna"}
+    {"coluna_numerica", "coluna_categorica", "coluna_binaria", "multi_coluna", "preditores"}
 )
 
 ALFAS = ("0.01", "0.05", "0.10")
@@ -35,7 +38,8 @@ class ParametroSpec:
     padrao: Any = None
     opcoes: list[str] | None = None
     obrigatorio: bool = True
-    depende_de: str | None = None  # tipo "nivel": nome do parâmetro de coluna de origem
+    depende_de: str | None = None  # "nivel"/"niveis_referencia": parâmetro de coluna de origem
+    ajuda: str | None = None  # texto explicativo exibido abaixo do campo
 
 
 @dataclass
@@ -48,7 +52,7 @@ class ComparacaoPValores:
     linhas: list[tuple[float | None, float | None]]  # (p_param, p_nao_param); None = não calculado
 
 
-TipoFigura = Literal["histograma", "boxplot", "barras", "barras_agrupadas"]
+TipoFigura = Literal["histograma", "boxplot", "barras", "barras_agrupadas", "dispersao", "cascata"]
 
 
 @dataclass
@@ -64,6 +68,32 @@ class Figura:
 
 
 @dataclass
+class GrupoFiguras:
+    """Várias figuras alternativas; a UI mostra uma por vez, escolhida numa lista suspensa."""
+
+    rotulo: str  # rótulo da lista (ex.: "Eixo X")
+    opcoes: dict[str, Figura]  # texto da opção → figura (a ordem é a da lista)
+    padrao: str
+
+
+@dataclass
+class Secao:
+    """Bloco da aba Análise (testes que exigem ordem própria, como a regressão linear).
+
+    Tabelas podem trazer em `DataFrame.attrs`: "dicas" ({coluna: texto do tooltip}) e
+    "destaques" (posições das linhas exibidas em negrito, ex.: cabeçalho de uma categórica).
+    """
+
+    titulo: str
+    nivel: int = 1  # 1 = seção; 2 = subseção
+    destaque: str | None = None  # frase em negrito (ex.: a decisão)
+    textos: list[str] = field(default_factory=list)
+    tabelas: dict[str, pd.DataFrame] = field(default_factory=dict)
+    notas: list[str] = field(default_factory=list)  # observações (ícone de informação)
+    avisos: list[str] = field(default_factory=list)  # alertas (ícone de atenção)
+
+
+@dataclass
 class ResultadoTeste:
     teste_id: str
     estatisticas: dict[str, float]  # ex.: {"t": 2.31, "gl": 29}
@@ -72,9 +102,11 @@ class ResultadoTeste:
     decisao: str  # "Rejeita H0" / "Não rejeita H0"
     interpretacao: str  # texto em pt-BR
     tabelas: dict[str, pd.DataFrame] = field(default_factory=dict)
-    figuras: list[Figura] = field(default_factory=list)
+    figuras: list[Figura | GrupoFiguras] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
     comparacao: ComparacaoPValores | None = None
+    secoes: list[Secao] = field(default_factory=list)  # se houver, a Análise segue esta ordem
+    simulacao: Any = None  # objeto com a interface de Simulador (aba Simulação), se houver
 
 
 class ErroValidacao(Exception):
