@@ -25,7 +25,7 @@ TIPOS_COLUNA: frozenset[str] = frozenset(
     {"coluna_numerica", "coluna_categorica", "coluna_binaria", "multi_coluna", "preditores"}
 )
 
-ALFAS = ("0.01", "0.05", "0.10")
+ALFAS = ("0,01", "0,05", "0,10")  # exibidos com vírgula decimal (pt-BR)
 
 
 @dataclass(frozen=True)

@@ -217,3 +217,11 @@ def test_parametros_validos_e_formulario(teste):
         ("alternativa", "opcao"),
         ("alfa", "alfa"),
     ]
+
+
+def test_h1_textual_como_o_h0(teste):
+    r = teste.executar(_df(A, B), _params())
+    assert "em favor de H₁ (a distribuição de 'y' difere entre 'A' e 'B')" in r.interpretacao
+    r = teste.executar(_df(A, B), _params(alternativa="G₁ < G₂"))
+    assert "em favor de H₁ ('y' tende a ser maior em 'B' do que em 'A')" in r.interpretacao
+    assert "G₁" not in r.interpretacao

@@ -522,7 +522,7 @@ class TesteZ2Prop(TesteBase):
             ("p-valor (Z)", formatar_p_valor(e["p_valor"])),
             (f"IC {confianca} para p₁ − p₂{tipo_ic}", ic),
             ("h de Cohen", formatar_numero(e["h_cohen"])),
-            ("Razão de chances (odds ratio)", odds),
+            ("Odds ratio (razão de chances)", odds),
             (f"IC {confianca} para a odds ratio (Woolf)", odds_ic),
             ("p-valor (Fisher exato)", formatar_p_valor(e["p_fisher"])),
         ]

@@ -14,7 +14,7 @@ from core.validacao import colunas_por_tipo, converter_numero
 
 
 def _alfa_texto(padrao: float | None) -> str:
-    return f"{padrao:.2f}" if padrao is not None else "0.05"
+    return f"{padrao:.2f}".replace(".", ",") if padrao is not None else "0,05"
 
 
 class PainelParametros(ft.Row):
@@ -224,7 +224,7 @@ class PainelParametros(ft.Row):
                 except ValueError:
                     erros.append(f"Informe um número válido em '{spec.rotulo}'.")
             elif spec.tipo == "alfa":
-                valores[spec.nome] = float(bruto)
+                valores[spec.nome] = converter_numero(bruto)
             else:
                 valores[spec.nome] = bruto
         if erros:

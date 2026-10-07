@@ -187,13 +187,13 @@ def test_resultado_completo(teste, df):
     for chave in (
         "IC 90% para p₁ − p₂",
         "h de Cohen",
-        "Razão de chances (odds ratio)",
+        "Odds ratio (razão de chances)",
         "IC 90% para a odds ratio (Woolf)",
         "p-valor (Fisher exato)",
         "Erro padrão (combinado)",
     ):
         assert chave in medidas
-    assert medidas["Razão de chances (odds ratio)"] == "2,2500"
+    assert medidas["Odds ratio (razão de chances)"] == "2,2500"
     (figura,) = r.figuras
     assert figura.tipo == "barras"
     assert [c["rotulo"] for c in figura.dados["categorias"]] == ["A (n = 50)", "B (n = 45)"]
@@ -225,7 +225,7 @@ def test_celula_zero_odds_ratio_indefinida(teste):
     assert math.isnan(r.estatisticas["odds_ratio"])
     assert any("razão de chances (odds ratio) não é definida" in a for a in r.avisos)
     medidas = dict(r.tabelas["Resumo"].itertuples(index=False, name=None))
-    assert medidas["Razão de chances (odds ratio)"] == "— (célula zero)"
+    assert medidas["Odds ratio (razão de chances)"] == "— (célula zero)"
 
 
 def test_aviso_frequencia_esperada_baixa(teste):

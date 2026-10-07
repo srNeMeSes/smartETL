@@ -27,16 +27,17 @@ from core.interpretacao import (
 )
 from core.testes.regressao import (
     CONFIANCAS,
-    MIN_POR_NIVEL,
     VALORES_AJUSTADOS,
     DadosModelo,
     Previsao,
     SimuladorRegressao,
     TesteRegressaoLinear,
     _confianca,
+    avisos_dos_dados,
     formatar_coeficiente,
     linhas_coeficientes,
     preparar_dados,
+    residuos_por_eixo,
 )
 from core.tipos import niveis_coluna, rotulo_nivel
 from core.validacao import converter_numero, erro_alfa, erro_opcao, erros_coluna
@@ -528,19 +529,7 @@ class TesteRegressaoLogistica(TesteRegressaoLinear):
             "R² Nagelkerke": "R² de Cox-Snell reescalado para ir de 0 a 1.",
             "AIC": "Critério de Akaike: −2·LL + 2·(número de coeficientes); menor é melhor.",
         }
-        avisos = []
-        if dados.descartadas:
-            avisos.append(
-                f"{dados.descartadas} linha(s) com valor ausente em y ou em algum preditor foram "
-                "removidas."
-            )
-        for variavel in dados.variaveis:
-            for nivel, contagem in variavel.contagens.items():
-                if contagem < MIN_POR_NIVEL:
-                    avisos.append(
-                        f"O nível '{nivel}' de '{variavel.nome}' tem só {contagem} "
-                        f"observação(ões) (< {MIN_POR_NIVEL}): o coeficiente dele é pouco preciso."
-                    )
+        avisos = avisos_dos_dados(dados)
         secao = Secao(
             "Modelo",
             destaque=decidir(e["p_valor"], alfa).replace("H0", "H₀"),
@@ -662,37 +651,12 @@ class TesteRegressaoLogistica(TesteRegressaoLinear):
         with np.errstate(all="ignore"):  # separação: log(0) nos casos com P = 0 ou 1
             residuos = np.nan_to_num(np.asarray(ajuste.resid_dev))
 
-        def linha_zero(xs: np.ndarray) -> tuple:
-            return ("Resíduo = 0", float(xs.min()), 0.0, float(xs.max()), 0.0, "tracejado")
-
-        opcoes = {
-            VALORES_AJUSTADOS: dispersao(
-                prob,
-                residuos,
-                "Resíduos de deviance × probabilidade prevista",
-                "Probabilidade prevista",
-                "Resíduo de deviance",
-                [linha_zero(prob)],
-            )
-        }
-        for variavel in dados.variaveis:
-            serie = dados.linhas[variavel.nome]
-            if variavel.categorica:
-                textos = serie.map(rotulo_nivel).to_numpy()
-                opcoes[variavel.nome] = boxplot(
-                    [(nivel, residuos[textos == nivel]) for nivel in variavel.niveis],
-                    f"Resíduos de deviance por '{variavel.nome}'",
-                    "Resíduo de deviance",
-                    referencias=[("Resíduo = 0", 0.0, "tracejado")],
-                )
-            else:
-                xs = serie.to_numpy(dtype=float)
-                opcoes[variavel.nome] = dispersao(
-                    xs,
-                    residuos,
-                    f"Resíduos de deviance × '{variavel.nome}'",
-                    variavel.nome,
-                    "Resíduo de deviance",
-                    [linha_zero(xs)],
-                )
-        return [roc, classes, GrupoFiguras("Eixo X", opcoes, VALORES_AJUSTADOS)]
+        grupo = residuos_por_eixo(
+            dados,
+            residuos,
+            prob,
+            "Resíduos de deviance",
+            "Resíduo de deviance",
+            "probabilidade prevista",
+        )
+        return [roc, classes, grupo]

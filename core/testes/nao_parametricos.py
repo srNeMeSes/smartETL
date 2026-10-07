@@ -710,12 +710,13 @@ class TesteMannWhitney(TesteBase):
             "ic_superior": ic_sup,
         }
 
-        simbolo = _SIMBOLO[alternativa]
         if alternativa == "two-sided":
+            h1 = f"a distribuição de '{coluna}' difere entre '{g1}' e '{g2}'"
             rejeita = f"Há evidência estatística de que '{coluna}' difere entre '{g1}' e '{g2}'."
             nao = f"Não há evidência suficiente de que '{coluna}' difira entre '{g1}' e '{g2}'."
         else:
             maior, menor = (g1, g2) if alternativa == "greater" else (g2, g1)
+            h1 = f"'{coluna}' tende a ser maior em '{maior}' do que em '{menor}'"
             rejeita = (
                 f"Há evidência estatística de que '{coluna}' tende a ser maior no grupo "
                 f"'{maior}' do que no grupo '{menor}'."
@@ -728,7 +729,7 @@ class TesteMannWhitney(TesteBase):
             p_valor,
             alfa,
             h0=f"a distribuição de '{coluna}' é a mesma em '{g1}' e '{g2}'",
-            h1=f"G₁ {simbolo} G₂",
+            h1=h1,
             conclusao_rejeita=rejeita,
             conclusao_nao_rejeita=nao,
         )

@@ -179,8 +179,8 @@ def test_form_t1_igual_ao_formulario_atual(form_t1):
     assert [o.key for o in variavel.options] == ["id", "qtd", "valor", "total"]
     assert isinstance(mu0, ft.TextField) and mu0.label == "Média Hipotética"
     assert alfa.label == "Nível de significância (α)"
-    assert [o.key for o in alfa.options] == ["0.01", "0.05", "0.10"]
-    assert alfa.value == "0.05"
+    assert [o.key for o in alfa.options] == ["0,01", "0,05", "0,10"]
+    assert alfa.value == "0,05"
     assert "Parâmetros do teste" in textos(form_t1)
     assert isinstance(form_t1.card, CardComparacaoTestes)
     assert "Hₐ:  μ ≠ μ₀" in textos(form_t1.card)
@@ -189,7 +189,7 @@ def test_form_t1_igual_ao_formulario_atual(form_t1):
 def test_form_coletar_valores(form_t1):
     form_t1.controle("coluna").value = "qtd"
     form_t1.controle("mu0").value = "7,5"
-    form_t1.controle("alfa").value = "0.10"
+    form_t1.controle("alfa").value = "0,10"
     assert form_t1.coletar_valores() == {
         "coluna": "qtd",
         "mu0": 7.5,
@@ -256,7 +256,7 @@ def test_form_renderiza_todos_os_tipos():
     assert [o.key for o in form.controle("y").options] == ["v", "w"]
     assert [o.key for o in form.controle("g").options] == ["s"]
     assert [c.label for c in form.controle("xs").controls] == ["v", "w"]
-    assert form.controle("alfa").value == "0.01"
+    assert form.controle("alfa").value == "0,01"
     assert form.controle("alt").value == "bilateral"
     assert form.controle("cc").value is True
 
@@ -787,3 +787,17 @@ def test_cor_da_decisao_nos_outros_testes(tela_controller, mu0, decisao, cor):
     tela.sidebar.botao_executar.on_click(None)
     (texto,) = [t for t in do_tipo(tela.painel.analise, ft.Text) if t.value == decisao]
     assert texto.color == getattr(tema, cor)
+
+
+def test_card_em_portugues_e_rodape_apos_executar():
+    from app.ui.componentes.card_comparacao import NOTA_CALCULADO, NOTA_RODAPE
+
+    card = CardComparacaoTestes.de_comparacao(TesteT1Amostra().comparacao_inicial())
+    texto = textos(card)
+    assert "p-valor" in texto and "p-value" not in texto
+    assert NOTA_RODAPE in texto
+    card.aplicar(
+        ComparacaoPValores("t Student", "Wilcoxon", ["a", "b", "c"], [(0.01, 0.02)] * 3),
+        atualizar_pagina=False,
+    )
+    assert NOTA_CALCULADO in textos(card) and NOTA_RODAPE not in textos(card)

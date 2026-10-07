@@ -8,7 +8,7 @@ Aplicativo desktop de **processamento e análise de dados** com foco em **testes
 - **Interface:** Flet **`0.86.2`** (versão fixada em `requirements.txt`)
 - **Estatística:** `scipy.stats`, `statsmodels`, `pandas`, `numpy`
 - **Idioma da interface e das interpretações:** português do Brasil
-- **Estado atual:** Fases 0, 1, 2, 3 e 4 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 concluída (15/15): **grupos Médias, Proporções, Categóricos, Não paramétricos e ANOVA completos** (`teste_t_1am`, `teste_t_2am`, `teste_t_pareado`, `teste_z_1prop`, `teste_z_2prop`, `qui_quadrado`, `fisher`, `mcnemar`, `teste_sinal`, `wilcoxon`, `mann_whitney`, `kruskal_wallis`, `friedman`) `anova_1fator` e `anova_2fator`, cumprindo o checklist da seção 9. Fase 4 concluída (2/2): **`regres_linear` e `regres_logit`** (valores conferidos contra o R, aba Simulação). **Os 17 testes do catálogo estão implementados.** Próximo: Fase 5 (otimização e acabamento).
+- **Estado atual:** Fases 0 a 5 concluídas. Arquitetura modular da seção 4 em funcionamento (`python main.py`), com leitura robusta de CSV/XLSX e detecção de tipos. Fase 3 concluída (15/15): **grupos Médias, Proporções, Categóricos, Não paramétricos e ANOVA completos** (`teste_t_1am`, `teste_t_2am`, `teste_t_pareado`, `teste_z_1prop`, `teste_z_2prop`, `qui_quadrado`, `fisher`, `mcnemar`, `teste_sinal`, `wilcoxon`, `mann_whitney`, `kruskal_wallis`, `friedman`) `anova_1fator` e `anova_2fator`, cumprindo o checklist da seção 9. Fase 4 concluída (2/2): **`regres_linear` e `regres_logit`** (valores conferidos contra o R, aba Simulação). **Os 17 testes do catálogo estão implementados.** Fase 5 (otimização e acabamento) concluída.
 
 ## 2. Missão do Claude neste projeto
 
@@ -42,7 +42,7 @@ A estrutura plana original (`smartetl_app.py`, `utils.py`, `conteiner_parametros
 - Tabela vazia: 20 colunas `column1..20` (cinza claro) e 12 linhas em branco. Com arquivo: **só as colunas reais**, no máximo **100 linhas**, NaN exibido vazio.
 - Seleção de arquivo: `FilePicker` em `page.services`, extensões `xlsx` e `csv`, um arquivo. Erros de leitura viram `SnackBar` vermelho em português.
 - Estados vazios: sem arquivo → "Carregue um arquivo para começar."; teste sem implementação → "O <teste> ainda não está disponível nesta versão."; sem execução → "Configure os parâmetros e clique em Executar teste." "Processando..." só durante a execução.
-- Formulário do `teste_t_1am` (gerado pelos `ParametroSpec`): dropdown "Variável" (só colunas numéricas), campo "Média Hipotética" (aceita vírgula decimal), dropdown "Nível de significância (α)" (0.01 / 0.05 / 0.10, padrão 0.05), e o card de comparação ao lado, com p-valores "—" e hipóteses "μ ≠ μ₀", "μ > μ₀", "μ < μ₀". A aba Análise tem uma **segunda instância** do card.
+- Formulário do `teste_t_1am` (gerado pelos `ParametroSpec`): dropdown "Variável" (só colunas numéricas), campo "Média Hipotética" (aceita vírgula decimal), dropdown "Nível de significância (α)" (0,01 / 0,05 / 0,10, padrão 0,05), e o card de comparação ao lado, com p-valores "—" e hipóteses "μ ≠ μ₀", "μ > μ₀", "μ < μ₀". A aba Análise tem uma **segunda instância** do card.
 
 ### Problemas da linha de base (Fase 0) e situação
 
@@ -384,7 +384,7 @@ Itens 16 e 17. Andamento: **2/2**.
 - O painel da Simulação é genérico: textos e rodapé da equação vêm do simulador (`titulo_resultado`, `rodape_equacao`, `textos_previsao`).
 - Flet 0.86.2: com as abas já na tela, `Tabs.selected_index` não move a aba visível; `PainelAbas.ir_para` usa `Tabs.move_to` (via `page.run_task`). Mudar o número de abas exige um `page.update()` antes de selecionar.
 
-**Fase 5 — Otimização e acabamento**
+**Fase 5 — Otimização e acabamento** ✅ concluída
 Perfilar (`cProfile`/`time`) e otimizar só o que estiver medido como lento. Revisar mensagens, textos de interpretação, README.
 
 Medição: `python scripts/medir_desempenho.py [n]` (bases sintéticas com semente fixa; leitura, tipos, prévia, cada teste e figuras). Resultado com n = 100 000 (antes → depois da otimização):
@@ -401,6 +401,15 @@ Medição: `python scripts/medir_desempenho.py [n]` (bases sintéticas com semen
 | Leitura de XLSX (50 mil linhas) | 5,1 s | 0,6 s | `python-calamine` (decisão do autor); openpyxl de reserva |
 
 Medidos e mantidos: regressão linear 3 s (custo do Harrison-McCabe com 1000 simulações, como o `hmctest`); abertura do app ~1,5 s (pandas/scipy; coberta pela splash; statsmodels no topo de `proporcoes.py` custa 23 ms); demais testes < 1 s. Os caminhos rápidos são conferidos contra os de referência em `tests/core/test_desempenho.py`.
+
+Acabamento (revisão de todos os textos exibidos — validações, avisos, notas, interpretações, rótulos de tabelas e gráficos dos 17 testes):
+- Mann-Whitney: H₁ textual como o H₀ (antes "G₁ ≠ G₂" no meio da frase).
+- Card de comparação: "p-valor" (antes "p-value"); depois da execução o rodapé diz "p-valores da última execução do teste de hipótese.".
+- α exibido com vírgula ("0,01 / 0,05 / 0,10"), como todos os números da interface.
+- Z de duas proporções: "Odds ratio (razão de chances)", alinhado aos demais testes.
+- Mensagens de validação e avisos conferidos por varredura (AST): frases completas, maiúscula inicial e ponto final.
+- README reescrito para o usuário (como usar, como ler o resultado, catálogo, desenvolvimento).
+- Regressões: avisos dos dados e gráficos de resíduos em funções comuns (`avisos_dos_dados`, `residuos_por_eixo`).
 
 ## 9. Checklist de "pronto" para cada teste
 

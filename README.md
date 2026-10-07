@@ -1,64 +1,74 @@
 # smartETL — Testes de Hipótese
 
-Aplicativo desktop (Flet) para carregar uma base de dados (CSV ou XLSX), escolher um
-teste de hipótese, configurar os parâmetros e ver o resultado, a interpretação e os gráficos.
-O catálogo prevê 17 testes paramétricos e não paramétricos, além de ANOVA e regressão (com os
-diagnósticos de pressupostos dentro da regressão linear).
+Aplicativo desktop para análise estatística de bases de dados. Você carrega um arquivo CSV ou
+XLSX, escolhe um teste na barra lateral, preenche os parâmetros e recebe o resultado: decisão,
+interpretação em português, tabelas e gráficos. Os 17 testes do catálogo — de testes t e
+qui-quadrado a ANOVA e regressões — têm os valores conferidos contra o R e o scipy/statsmodels.
 
-## Estado atual
+## Como usar
 
-- Leitura de CSV (inclusive o formato brasileiro: separador `;`, vírgula decimal, latin-1/cp1252) e XLSX,
-  com mensagens de erro e avisos em português.
-- Interface completa: carregamento de arquivo, prévia de até 100 linhas, lista de testes
-  agrupada por categoria e abas **Parâmetros**, **Análise** e **Visualização**.
-- **Teste t (uma amostra)** completo: hipótese alternativa configurável, estatísticas, IC,
-  d de Cohen, interpretação em português, comparação com o Wilcoxon e histograma.
-- **Teste t (duas amostras)** completo: Welch ou variâncias iguais, IC da diferença, d de Cohen,
-  comparação com o Mann-Whitney e boxplot por grupo.
-- **Teste t (pareado)** completo: duas medidas na mesma linha (ex.: antes/depois), IC da diferença,
-  d de Cohen (d_z), comparação com o Wilcoxon e histograma das diferenças.
-- **Teste Z (uma proporção)** completo: escolha do valor de sucesso, IC de Wilson, h de Cohen,
-  comparação com o binomial exato e gráfico de barras das proporções.
-- **Teste Z (duas proporções)** completo: IC da diferença, h de Cohen, razão de chances (odds ratio),
-  tabela 2×2, comparação com o Fisher exato e barras por grupo.
-- **Qui-quadrado** completo: independência (tabela de contingência, V de Cramér, frequências
-  observadas e esperadas, barras agrupadas) ou aderência com proporções iguais (w de Cohen).
-- **Teste exato de Fisher** completo: tabela 2×2 com escolha do evento de cada variável, p exato,
-  odds ratio amostral e condicional com IC exato (como o `fisher.test` do R) e barras agrupadas.
-- **McNemar** completo: duas medidas binárias pareadas (ex.: antes/depois), card com o exato
-  (binomial) e o qui-quadrado com correção de Edwards lado a lado, odds ratio pareada e barras.
-- **Teste do sinal** completo: uma amostra (mediana contra M₀) ou pareado (mediana das diferenças),
-  p exato, IC exato da mediana e histograma.
-- **Wilcoxon** completo: uma amostra ou pareado, p exato ou aproximado (informado), pseudomediana
-  de Hodges-Lehmann com IC (como o `wilcox.test` do R), tamanho de efeito r e histograma.
-- **Mann-Whitney U** completo: dois grupos, p exato ou aproximado (informado), deslocamento de
-  Hodges-Lehmann com IC, probabilidade de superioridade, r e boxplot.
-- **Kruskal-Wallis** completo: 2 ou mais grupos, H corrigido para empates, ε², tabela por grupo,
-  pós-teste de Dunn opcional (p ajustado por Holm) e boxplot.
-- **Friedman** completo: 3 ou mais medidas repetidas, W de Kendall, tabela por medida, comparações
-  opcionais (Wilcoxon pareado + Holm) e boxplot.
-- **ANOVA (1 fator)** completa: clássica ou de Welch, tabela ANOVA, η² e ω², média e IC por grupo,
-  aviso do teste de Levene, Tukey HSD opcional, card com o Kruskal-Wallis e boxplot.
-- **ANOVA (2 fatores)** completa: com ou sem interação, somas de quadrados Tipo II ou III, η² parcial,
-  médias por combinação, aviso de desenho desbalanceado e de Levene, e barras agrupadas das médias.
-- **Regressão Linear** completa: preditores numéricos e categóricos (nível de referência
-  escolhido), pressupostos antes de tudo (Breusch-Pagan, Goldfeld-Quandt, Harrison-McCabe,
-  Durbin-Watson, Breusch-Godfrey, VIF/GVIF, Shapiro-Wilk ou Lilliefors), tabela do modelo,
-  coeficientes com IC, resíduos e Q-Q, e a aba **Simulação** (equação, sliders, previsão com
-  IC e intervalo de predição, contribuição de cada termo). Valores conferidos contra o R.
-- **Regressão Logística** completa: y com 2 valores e o evento escolhido, diagnósticos
-  (VIF/GVIF, Box-Tidwell, Hosmer-Lemeshow, eventos por variável, separação), teste da razão
-  de verossimilhança, pseudo-R², classificação por limiar (matriz de confusão, sensibilidade,
-  especificidade, AUC), odds ratios, curva ROC e a aba **Simulação** com a probabilidade
-  prevista. Valores conferidos contra o R.
+1. **Abra o app** (`python main.py`). Uma tela de abertura aparece enquanto os módulos
+   estatísticos carregam.
+2. **Clique em Arquivo** e escolha um `.csv` ou `.xlsx`. O formato é detectado sozinho:
+   separador (`;`, `,`, tab ou `|`), vírgula ou ponto decimal, milhar e codificação (UTF-8,
+   Windows-1252, Latin-1). A prévia mostra as primeiras 100 linhas.
+3. **Escolha o teste** na barra lateral. A aba **Parâmetros** mostra só os campos daquele teste,
+   e as listas de colunas já vêm filtradas pelo tipo certo (numérica, categórica, com 2 valores…).
+4. **Clique em Executar teste.** O resultado abre na aba **Análise**; os gráficos ficam em
+   **Visualização**. Nas regressões há ainda a aba **Simulação**.
 
-## Requisitos
+Para experimentar sem dados próprios, use as bases da pasta [`bases/`](bases/): o
+[`bases/README.md`](bases/README.md) diz, para cada uma, que teste usar, como preencher o
+formulário e qual resultado esperar.
 
-- Python **3.10 ou superior** (testado com 3.13)
-- Dependências fixadas em `requirements.txt` (Flet 0.86.2, pandas, openpyxl, python-calamine,
-  numpy, scipy, statsmodels; pytest e ruff para desenvolvimento)
+## Como ler o resultado
 
-## Instalação e execução
+- **Decisão:** "Rejeita H₀" (vermelho suave) ou "Não rejeita H₀" (verde suave), sempre pela regra
+  p ≤ α, com o α escolhido no formulário (0,01, 0,05 ou 0,10).
+- **Interpretação:** uma frase que cita α, o p-valor, H₀, H₁ e a conclusão no contexto dos seus
+  dados ("Há evidência estatística de que a média de 'nota' é diferente de 7").
+- **Avisos** (⚠): pressupostos duvidosos ou dados que pedem cautela — amostra pequena, empates,
+  frequências esperadas baixas, linhas removidas por valor ausente, separação na regressão
+  logística… Eles não bloqueiam o resultado.
+- **Card de comparação:** quando existe um equivalente natural, o p-valor do teste paramétrico
+  aparece ao lado do não paramétrico (ex.: t de Student × Wilcoxon), para cada hipótese
+  alternativa.
+- **Dicas** (ⓘ ao lado do nome da coluna de uma tabela): passe o mouse para ver a fórmula ou o
+  significado da medida.
+- **Números** em formato brasileiro (vírgula decimal); p-valores abaixo de 0,001 aparecem como
+  "< 0,001".
+
+## Testes disponíveis
+
+| Grupo | Testes |
+|-------|--------|
+| Médias | Teste t (uma amostra), Teste t (duas amostras — Welch ou variâncias iguais), Teste t (pareado) |
+| Proporções | Teste Z (uma proporção), Teste Z (duas proporções) |
+| Categóricos | Qui-quadrado (independência ou aderência), Teste exato de Fisher, McNemar |
+| Não paramétricos | Teste do sinal, Wilcoxon, Mann-Whitney U, Kruskal-Wallis (com Dunn), Friedman |
+| ANOVA | ANOVA (1 fator — clássica ou Welch, com Tukey HSD), ANOVA (2 fatores — Tipo II ou III) |
+| Regressão | Regressão Linear, Regressão Logística |
+
+Destaques:
+
+- **Tamanhos de efeito e intervalos de confiança** em todos os testes (d de Cohen, h de Cohen,
+  V de Cramér, odds ratio, ε², W de Kendall, η², ω²…).
+- **Regressão Linear:** preditores numéricos e categóricos (com o nível de referência escolhido).
+  A Análise começa pelos pressupostos — heterocedasticidade (Breusch-Pagan, Goldfeld-Quandt,
+  Harrison-McCabe), autocorrelação (Durbin-Watson, Breusch-Godfrey), colinearidade (VIF/GVIF) e
+  normalidade dos resíduos —, depois o modelo e os coeficientes. Visualização com resíduos e Q-Q.
+- **Regressão Logística:** y com 2 valores e o evento escolhido; Box-Tidwell, Hosmer-Lemeshow,
+  eventos por variável e detecção de separação; teste da razão de verossimilhança, pseudo-R²,
+  matriz de confusão, AUC, odds ratios e curva ROC.
+- **Simulação** (regressões): a equação do modelo no topo, um campo com slider para cada preditor
+  numérico e uma lista para cada categórico. A previsão — com intervalo de confiança e, na
+  linear, intervalo de predição; na logística, a probabilidade e a classe prevista — atualiza em
+  tempo real, e um gráfico mostra a contribuição de cada termo. Valores fora da faixa observada
+  são sinalizados como extrapolação.
+
+## Instalação
+
+Requer Python **3.10 ou superior** (testado com 3.13).
 
 ```bash
 python -m venv venv
@@ -68,41 +78,60 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## Testes e qualidade
+As dependências estão fixadas em `requirements.txt`: Flet 0.86.2 (interface), pandas, numpy,
+scipy, statsmodels, openpyxl e python-calamine (leitura de XLSX); pytest e ruff para
+desenvolvimento.
+
+## Desenvolvimento
 
 ```bash
-pytest -q
-ruff check . && ruff format --check .
+pytest -q                               # ~1000 testes, sem abrir janela
+ruff check . && ruff format --check .   # lint e formatação
+python scripts/medir_desempenho.py      # tempos de leitura e de cada teste com n = 100 000
 ```
 
-## Estrutura
+- **Valores de referência:** cada teste é conferido contra cálculo independente (fórmula manual,
+  enumeração exata ou outra biblioteca), com a fonte documentada no topo do arquivo de teste. As
+  regressões são conferidas contra o R (`lm`, `glm`, `lmtest`, `car`, `nortest`,
+  `ResourceSelection`, `pROC`): os scripts e os resultados ficam em
+  [`tests/referencias_r/`](tests/referencias_r/) — o R só é necessário para regerá-los.
+- **Decisões de projeto e de cada teste:** [`CLAUDE.md`](CLAUDE.md);
+  especificações das regressões em [`docs/`](docs/).
+- **Desempenho:** com 100 000 linhas, a leitura leva menos de 1 s e todos os testes rodam em até
+  ~3 s; leitura e execução acontecem fora da thread da interface.
+
+### Estrutura
 
 ```
-main.py                    # ponto de entrada (ft.run)
-app/
-  state.py                 # estado: dataset, teste selecionado, último resultado
+main.py                    # ponto de entrada: splash e carregamento em segundo plano
+app/                       # interface (Flet) e controller
   controller.py            # liga a interface ao core (sem lógica estatística)
+  state.py                 # dataset carregado, teste selecionado, último resultado
   ui/
-    tema.py                # paleta única, raios e tipografia
-    helpers.py             # pad(), border_all(), border_only()...
+    splash.py              # tela de abertura
     sidebar.py             # logo, Arquivo, lista de testes, Executar
     tabela_dados.py        # prévia do dataset
-    painel_abas.py         # abas Parâmetros / Análise / Visualização
+    painel_abas.py         # abas Parâmetros / Análise / Visualização (+ Simulação)
     painel_parametros.py   # formulário gerado a partir dos parâmetros do teste
+    painel_simulacao.py    # aba Simulação das regressões
     tela_principal.py      # montagem da tela
     graficos.py            # gráficos nativos (flet.canvas)
+    tema.py, helpers.py    # paleta única e utilitários de layout
     componentes/           # campos com estilo único e card de comparação
-core/                      # lógica de domínio, sem Flet
+core/                      # lógica estatística, sem Flet
   base.py                  # contratos: ParametroSpec, ResultadoTeste, TesteBase...
   registry.py              # catálogo dos 17 testes
-  io.py                    # leitura de CSV/XLSX (encoding, separador e decimal automáticos)
-  tipos.py                 # detecção de colunas numéricas, categóricas e binárias
+  io.py, tipos.py          # leitura de CSV/XLSX e detecção de tipos de coluna
   validacao.py             # regras de validação reutilizáveis
   interpretacao.py         # decisão e textos de interpretação em pt-BR
-  figuras.py               # dados dos gráficos (sem Flet)
-  testes/                  # implementações por grupo
-tests/                     # pytest (core/ e app/)
-bases/                     # bases de exemplo para testar cada teste no app (ver bases/README.md)
+  figuras.py               # dados dos gráficos
+  diagnosticos.py          # pressupostos das regressões (GQ, HMC, GVIF, Hosmer-Lemeshow...)
+  exatos.py                # odds ratio condicional (Fisher)
+  testes/                  # um módulo por grupo de testes
+tests/                     # pytest (core/ e app/) e referências do R
+bases/                     # bases de exemplo, com instruções de uso
+docs/                      # especificações das regressões
+scripts/                   # medição de desempenho
 ```
 
 ## Licença

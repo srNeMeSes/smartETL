@@ -176,6 +176,71 @@ def linhas_coeficientes(dados: DadosModelo, numeros, colunas: int) -> tuple[list
     return linhas, destaques
 
 
+def avisos_dos_dados(dados: DadosModelo) -> list[str]:
+    """Avisos comuns às regressões: linhas removidas e níveis com poucas observações."""
+    avisos = []
+    if dados.descartadas:
+        avisos.append(
+            f"{dados.descartadas} linha(s) com valor ausente em y ou em algum preditor foram "
+            "removidas."
+        )
+    for variavel in dados.variaveis:
+        for nivel, contagem in variavel.contagens.items():
+            if contagem < MIN_POR_NIVEL:
+                avisos.append(
+                    f"O nível '{nivel}' de '{variavel.nome}' tem só {contagem} "
+                    f"observação(ões) (< {MIN_POR_NIVEL}): o coeficiente dele é pouco preciso."
+                )
+    return avisos
+
+
+def residuos_por_eixo(
+    dados: DadosModelo,
+    residuos: np.ndarray,
+    ajustados: np.ndarray,
+    titulo: str,
+    rotulo_residuo: str,
+    rotulo_ajustados: str,
+) -> GrupoFiguras:
+    """Resíduos × valores ajustados e × cada preditor (boxplot por nível nas categóricas), com
+    a linha y = 0; uma lista "Eixo X" escolhe o gráfico exibido."""
+
+    def linha_zero(xs: np.ndarray) -> tuple:
+        return ("Resíduo = 0", float(xs.min()), 0.0, float(xs.max()), 0.0, "tracejado")
+
+    opcoes = {
+        VALORES_AJUSTADOS: dispersao(
+            ajustados,
+            residuos,
+            f"{titulo} × {rotulo_ajustados}",
+            rotulo_ajustados[0].upper() + rotulo_ajustados[1:],
+            rotulo_residuo,
+            [linha_zero(ajustados)],
+        )
+    }
+    for variavel in dados.variaveis:
+        serie = dados.linhas[variavel.nome]
+        if variavel.categorica:
+            textos = serie.map(rotulo_nivel).to_numpy()
+            opcoes[variavel.nome] = boxplot(
+                [(nivel, residuos[textos == nivel]) for nivel in variavel.niveis],
+                f"{titulo} por '{variavel.nome}'",
+                rotulo_residuo,
+                referencias=[("Resíduo = 0", 0.0, "tracejado")],
+            )
+        else:
+            xs = serie.to_numpy(dtype=float)
+            opcoes[variavel.nome] = dispersao(
+                xs,
+                residuos,
+                f"{titulo} × '{variavel.nome}'",
+                variavel.nome,
+                rotulo_residuo,
+                [linha_zero(xs)],
+            )
+    return GrupoFiguras("Eixo X", opcoes, VALORES_AJUSTADOS)
+
+
 # ---------------------------------------------------------------------------
 # Formatação
 # ---------------------------------------------------------------------------
@@ -846,19 +911,7 @@ class TesteRegressaoLinear(TesteBase):
             columns=["R", "R²", "R² ajustado", "RMSE", "F", "gl1", "gl2", "p-valor", "n"],
         )
         tabela.attrs["dicas"] = {"RMSE": DICA_RMSE}
-        avisos = []
-        if dados.descartadas:
-            avisos.append(
-                f"{dados.descartadas} linha(s) com valor ausente em y ou em algum preditor foram "
-                "removidas."
-            )
-        for variavel in dados.variaveis:
-            for nivel, contagem in variavel.contagens.items():
-                if contagem < MIN_POR_NIVEL:
-                    avisos.append(
-                        f"O nível '{nivel}' de '{variavel.nome}' tem só {contagem} "
-                        f"observação(ões) (< {MIN_POR_NIVEL}): o coeficiente dele é pouco preciso."
-                    )
+        avisos = avisos_dos_dados(dados)
         secao = Secao(
             "Modelo",
             destaque=decidir(e["p_valor"], alfa).replace("H0", "H₀"),
@@ -912,41 +965,9 @@ class TesteRegressaoLinear(TesteBase):
     def _figuras(
         self, dados: DadosModelo, residuos: np.ndarray, ajustados: np.ndarray
     ) -> list[Figura | GrupoFiguras]:
-        def linha_zero(xs: np.ndarray) -> tuple:
-            return ("Resíduo = 0", float(xs.min()), 0.0, float(xs.max()), 0.0, "tracejado")
-
-        titulo = "Resíduos"
-        opcoes = {
-            VALORES_AJUSTADOS: dispersao(
-                ajustados,
-                residuos,
-                f"{titulo} × valores ajustados",
-                "Valores ajustados",
-                "Resíduo",
-                [linha_zero(ajustados)],
-            )
-        }
-        for variavel in dados.variaveis:
-            serie = dados.linhas[variavel.nome]
-            if variavel.categorica:
-                textos = serie.map(rotulo_nivel).to_numpy()
-                opcoes[variavel.nome] = boxplot(
-                    [(nivel, residuos[textos == nivel]) for nivel in variavel.niveis],
-                    f"{titulo} por '{variavel.nome}'",
-                    "Resíduo",
-                    referencias=[("Resíduo = 0", 0.0, "tracejado")],
-                )
-            else:
-                xs = serie.to_numpy(dtype=float)
-                opcoes[variavel.nome] = dispersao(
-                    xs,
-                    residuos,
-                    f"{titulo} × '{variavel.nome}'",
-                    variavel.nome,
-                    "Resíduo",
-                    [linha_zero(xs)],
-                )
         return [
-            GrupoFiguras("Eixo X", opcoes, VALORES_AJUSTADOS),
+            residuos_por_eixo(
+                dados, residuos, ajustados, "Resíduos", "Resíduo", "valores ajustados"
+            ),
             qq_normal(residuos, "Gráfico Q-Q dos resíduos", "Resíduo"),
         ]

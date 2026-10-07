@@ -7,7 +7,8 @@ from app.ui.helpers import esta_na_pagina
 from core.base import ComparacaoPValores
 from core.interpretacao import SEM_VALOR, formatar_p_valor
 
-NOTA_RODAPE = "Os valores de p (p-value) serão calculados após a execução do teste de hipótese."
+NOTA_RODAPE = "Os p-valores serão calculados após a execução do teste de hipótese."
+NOTA_CALCULADO = "p-valores da última execução do teste de hipótese."
 
 # Ícones (esquerda, direita) de cada linha: ≠, >, <
 _ICONES_LINHAS = [
@@ -110,11 +111,12 @@ class CardComparacaoTestes(ft.Container):
             if i < len(self._linhas_config) - 1:
                 corpo.controls.append(ft.Divider(height=1, color=tema.BORDA))
 
+        self._texto_rodape = ft.Text(nota_rodape, size=12, color=tema.TEXTO_SECUNDARIO, expand=1)
         rodape = ft.Container(
             content=ft.Row(
                 controls=[
                     ft.Icon(ft.Icons.INFO_OUTLINE, color=tema.LARANJA, size=18),
-                    ft.Text(nota_rodape, size=12, color=tema.TEXTO_SECUNDARIO, expand=1),
+                    self._texto_rodape,
                 ],
                 spacing=10,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -204,7 +206,7 @@ class CardComparacaoTestes(ft.Container):
 
         def rotulo_p() -> ft.Text:
             return ft.Text(
-                "p-value", size=14, color=tema.TEXTO_SECUNDARIO, weight=ft.FontWeight.BOLD
+                "p-valor", size=14, color=tema.TEXTO_SECUNDARIO, weight=ft.FontWeight.BOLD
             )
 
         lado_esquerdo = ft.Row(
@@ -273,6 +275,7 @@ class CardComparacaoTestes(ft.Container):
         for i, (p_esq, p_dir) in enumerate(comparacao.linhas[: len(self._textos_p_esquerda)]):
             self._textos_p_esquerda[i].value = formatar_p_valor(p_esq)
             self._textos_p_direita[i].value = formatar_p_valor(p_dir)
+        self._texto_rodape.value = NOTA_CALCULADO
         self._atualizar_se_montado(atualizar_pagina)
 
     def atualizar_p_values(self, valores: list[dict], atualizar_pagina: bool = True) -> None:
