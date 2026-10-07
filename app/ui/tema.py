@@ -29,6 +29,10 @@ CAMPO_BORDA = ft.Colors.BLACK_54
 NOTIFICACAO = TEXTO
 NOTIFICACAO_ERRO = "#B42318"
 
+# Decisão do teste (texto "Rejeita H₀" / "Não rejeita H₀"): tons suaves, legíveis no fundo branco
+DECISAO_REJEITA = "#D0605A"  # vermelho suave
+DECISAO_NAO_REJEITA = "#3F9B6B"  # verde suave
+
 # Gráficos
 GRAFICO_BARRA = LARANJA_SUAVE
 GRAFICO_BARRA_BORDA = LARANJA

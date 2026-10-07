@@ -80,6 +80,9 @@ class PainelParametros(ft.Row):
             if spec.tipo in ("multi_coluna", "preditores"):
                 caixas = [campos.caixa_selecao(c) for c in opcoes]
                 self._controles[spec.nome] = ft.Column(controls=caixas, spacing=0)
+                origem = self._controles.get(spec.depende_de or "")
+                if spec.tipo == "preditores" and origem is not None:
+                    self._excluir_alvo(origem, caixas)
                 return ft.Column(
                     controls=[
                         ft.Text(spec.rotulo, weight=ft.FontWeight.BOLD, color=tema.CAMPO_ROTULO),
@@ -130,6 +133,27 @@ class PainelParametros(ft.Row):
                 destino.value = nivel_sucesso_padrao(niveis)
             if esta_na_pagina(destino):
                 destino.update()
+
+        origem.on_select = atualizar
+        atualizar()
+
+    def _excluir_alvo(self, origem: ft.Dropdown, caixas: list[ft.Checkbox]) -> None:
+        """A coluna escolhida em `origem` (a variável dependente) some da lista de preditores;
+        se estava marcada, é desmarcada (e o que depende das caixas é atualizado)."""
+        anterior = origem.on_select
+
+        def atualizar(evento=None) -> None:
+            if anterior is not None:
+                anterior(evento)
+            for caixa in caixas:
+                alvo = caixa.label == origem.value
+                caixa.visible = not alvo
+                if alvo and caixa.value:
+                    caixa.value = False
+                    if caixa.on_change is not None:
+                        caixa.on_change(None)
+                if esta_na_pagina(caixa):
+                    caixa.update()
 
         origem.on_select = atualizar
         atualizar()

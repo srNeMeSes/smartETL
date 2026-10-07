@@ -370,7 +370,7 @@ class TesteRegressaoLinear(TesteBase):
                     "numérico (para uma resposta sim/não, use a Regressão Logística)."
                 ),
             ),
-            ParametroSpec("preditores", "Preditores (X)", "preditores"),
+            ParametroSpec("preditores", "Preditores (X)", "preditores", depende_de="y"),
             ParametroSpec(
                 "referencias",
                 "Nível de referência",

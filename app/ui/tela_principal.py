@@ -17,10 +17,22 @@ from app.ui.sidebar import Sidebar
 from app.ui.tabela_dados import TabelaDados, formatar_celula
 from core import registry
 from core.base import Figura, GrupoFiguras, ResultadoTeste, Secao, TesteBase
+from core.interpretacao import NAO_REJEITA_H0, REJEITA_H0
 from core.io import DadosCarregados
 
 if TYPE_CHECKING:
     from app.controller import Controller
+
+
+def cor_da_decisao(texto: str) -> str:
+    """Vermelho suave para "Rejeita H₀", verde suave para "Não rejeita H₀"; senão, o texto."""
+    normalizado = texto.replace("H₀", "H0")
+    if normalizado == NAO_REJEITA_H0:
+        return tema.DECISAO_NAO_REJEITA
+    if normalizado == REJEITA_H0:
+        return tema.DECISAO_REJEITA
+    return tema.TEXTO
+
 
 SEM_ARQUIVO = "Carregue um arquivo para começar."
 SEM_EXECUCAO = "Configure os parâmetros e clique em Executar teste."
@@ -267,7 +279,12 @@ class TelaPrincipal:
             )
             if secao.destaque:
                 controles.append(
-                    ft.Text(secao.destaque, size=16, weight=ft.FontWeight.BOLD, color=tema.TEXTO)
+                    ft.Text(
+                        secao.destaque,
+                        size=16,
+                        weight=ft.FontWeight.BOLD,
+                        color=cor_da_decisao(secao.destaque),
+                    )
                 )
             controles += [ft.Text(texto, size=14, color=tema.TEXTO) for texto in secao.textos]
             controles += [

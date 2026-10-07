@@ -283,3 +283,47 @@ def test_equacao_no_topo_da_simulacao(tela_controller):
     equacao = "".join(s.text for s in sim.equacao.spans)
     assert equacao.startswith("salario = 3.264,37 + 35,25·(experiencia) + 638,37·(Presencial)")
     assert any(c is sim.equacao for c in iterar_controles(sim.controls[0]))
+
+
+def _caixas(form):
+    return {c.label: c for c in form.controle("preditores").controls}
+
+
+def test_variavel_dependente_some_dos_preditores(tela_controller):
+    tela, _ = tela_controller
+    form = tela.formulario
+    y = form.controle("y")
+    assert all(c.visible for c in _caixas(form).values())  # nada escolhido ainda
+    _marcar(form, "salario", "cargo")
+    assert form.controle("referencias").controls[0].label == "Nível de referência de 'cargo'"
+    y.value = "salario"
+    y.on_select(None)
+    caixas = _caixas(form)
+    assert not caixas["salario"].visible and caixas["salario"].value is False
+    assert caixas["cargo"].value is True  # as outras escolhas ficam
+    y.value = "experiencia"
+    y.on_select(None)
+    caixas = _caixas(form)
+    assert caixas["salario"].visible and not caixas["experiencia"].visible
+    _marcar(form, "salario")
+    assert form.coletar_valores()["preditores"] == ["cargo", "salario"]
+
+
+@pytest.mark.parametrize(
+    ("alvo", "decisao", "cor"),
+    [
+        ("salario", "Rejeita H₀", "DECISAO_REJEITA"),
+        ("experiencia", "Não rejeita H₀", "DECISAO_NAO_REJEITA"),
+    ],
+)
+def test_cor_da_decisao_no_modelo(tela_controller, alvo, decisao, cor):
+    from app.ui import tema
+
+    tela, _ = tela_controller
+    form = tela.formulario
+    form.controle("y").value = alvo
+    form.controle("y").on_select(None)
+    _marcar(form, "modalidade")  # salário depende da modalidade; a experiência, não
+    tela.sidebar.botao_executar.on_click(None)
+    (texto,) = [t for t in do_tipo(tela.painel.analise, ft.Text) if t.value == decisao]
+    assert texto.color == getattr(tema, cor)

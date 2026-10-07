@@ -16,7 +16,7 @@ TipoParametro = Literal[
     "opcao",
     "booleano",
     "nivel",  # um valor de outra coluna (ver ParametroSpec.depende_de)
-    "preditores",  # várias colunas de qualquer tipo (caixas de seleção)
+    "preditores",  # várias colunas de qualquer tipo; sem a coluna escolhida em `depende_de`
     "niveis_referencia",  # um nível de referência por categórica marcada em `depende_de`
     "ordenacao",  # "Valores ajustados" (opcoes[0]) ou uma coluna numérica
 ]
@@ -38,7 +38,9 @@ class ParametroSpec:
     padrao: Any = None
     opcoes: list[str] | None = None
     obrigatorio: bool = True
-    depende_de: str | None = None  # "nivel"/"niveis_referencia": parâmetro de coluna de origem
+    depende_de: str | None = (
+        None  # parâmetro de origem ("nivel", "niveis_referencia", "preditores")
+    )
     ajuda: str | None = None  # texto explicativo exibido abaixo do campo
 
 
