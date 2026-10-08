@@ -51,8 +51,11 @@ class PainelAbas(ft.Container):
             content=ft.Column(expand=True, controls=[self._barra, self._vista]),
         )
         self._montar_abas(com_simulacao=False)
+        # Ação na mesma linha das abas, à direita (ex.: "Exportar PDF"); sobreposta à barra
+        # para a linha divisória continuar ocupando a largura toda.
+        self._acao = ft.Container(right=20, top=5)  # alinhado ao padding das abas
         super().__init__(
-            content=self.tabs,
+            content=ft.Stack([self.tabs, self._acao], fit=ft.StackFit.EXPAND, expand=True),
             expand=True,
             clip_behavior=ft.ClipBehavior.HARD_EDGE,
             border=border_all(1, tema.BORDA),
@@ -80,6 +83,14 @@ class PainelAbas(ft.Container):
 
     def definir_visualizacao(self, controle: ft.Control) -> None:
         self._paineis[ABA_VISUALIZACAO].content = controle
+
+    @property
+    def acao(self) -> ft.Control | None:
+        return self._acao.content
+
+    def definir_acao(self, controle: ft.Control | None) -> None:
+        """Controle exibido à direita das abas, ou nenhum (None)."""
+        self._acao.content = controle
 
     @property
     def rotulos(self) -> list[str]:

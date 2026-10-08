@@ -837,16 +837,17 @@ def test_correlacoes_na_interface(tela_controller):
 def test_botao_exportar_pdf_so_depois_da_execucao(tela_controller, csv_valido):
     tela, controller = tela_controller
     controller.carregar_arquivo(str(csv_valido))
-    assert tela.botao_pdf is None
-    assert ROTULO_EXPORTAR not in _textos_aba(tela.painel.analise)
+    assert tela.botao_pdf is None and tela.painel.acao is None
     resultado = ResultadoTeste("teste_t_1am", {}, 0.5, 0.05, "Não rejeita H0", "ok")
     tela.exibir_resultado(resultado)
-    assert tela.botao_pdf in list(iterar_controles(tela.painel.analise))
-    assert ROTULO_EXPORTAR in _textos_aba(tela.painel.analise)
+    # Na linha das abas (fora do conteúdo da Análise), visível em qualquer aba.
+    assert tela.painel.acao is tela.botao_pdf
+    assert tela.botao_pdf in list(iterar_controles(tela.painel))
+    assert tela.botao_pdf not in list(iterar_controles(tela.painel.analise))
+    assert ROTULO_EXPORTAR in textos(tela.botao_pdf)
     assert tela.botao_pdf.on_click == tela._ao_clicar_exportar
     controller.selecionar_teste("teste_t_2am")
-    assert tela.botao_pdf is None
-    assert ROTULO_EXPORTAR not in _textos_aba(tela.painel.analise)
+    assert tela.botao_pdf is None and tela.painel.acao is None
 
 
 def test_escolher_destino_pdf_usa_o_dialogo_de_salvar(tela_controller, monkeypatch):

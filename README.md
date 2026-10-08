@@ -16,7 +16,7 @@ qui-quadrado a ANOVA, correlações e regressões — têm os valores conferidos
    e as listas de colunas já vêm filtradas pelo tipo certo (numérica, categórica, com 2 valores…).
 4. **Clique em Executar teste.** O resultado abre na aba **Análise**; os gráficos ficam em
    **Visualização**. Nas regressões há ainda a aba **Simulação**.
-5. **Exporte a análise** (opcional) com o botão **Exportar PDF**, no topo da aba Análise: o
+5. **Exporte a análise** (opcional) com o botão **Exportar PDF**, à direita das abas: o
    relatório traz os parâmetros, a decisão, a interpretação, os avisos, todas as tabelas e todos
    os gráficos.
 

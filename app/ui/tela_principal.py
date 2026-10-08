@@ -172,10 +172,8 @@ class TelaPrincipal:
             conteudo: ft.Control = self._analise_por_secoes(resultado.secoes)
         else:
             conteudo = self._analise_padrao(resultado)
-        conteudo.expand = True
-        self.painel.definir_analise(
-            ft.Column([self._barra_exportar(), conteudo], spacing=8, expand=True)
-        )
+        self.painel.definir_analise(conteudo)
+        self.painel.definir_acao(self._botao_exportar())
         self.painel.definir_visualizacao(self._visualizacao(resultado))
         self.simulacao = None
         if resultado.simulacao is not None:
@@ -230,8 +228,8 @@ class TelaPrincipal:
         )
 
     # ---------------- Internos ----------------
-    def _barra_exportar(self) -> ft.Row:
-        """Botão "Exportar PDF" no topo da Análise (só existe depois de uma execução)."""
+    def _botao_exportar(self) -> ft.Button:
+        """Botão "Exportar PDF" na linha das abas (só existe depois de uma execução)."""
         self.botao_pdf = ft.Button(
             content=ft.Row(
                 [
@@ -247,15 +245,16 @@ class TelaPrincipal:
             bgcolor=tema.LARANJA_SUAVE,
             style=ft.ButtonStyle(
                 shape=ft.RoundedRectangleBorder(radius=tema.RAIO_PEQUENO),
-                padding=pad(horizontal=14, vertical=12),
+                padding=pad(horizontal=14, vertical=8),
                 elevation=0,
             ),
         )
-        return ft.Row([self.botao_pdf], alignment=ft.MainAxisAlignment.END)
+        return self.botao_pdf
 
     def _limpar_teste(self) -> None:
         self._teste = None
         self.botao_pdf = None
+        self.painel.definir_acao(None)
         self.formulario = None
         self.card_analise = None
         self.simulacao = None
@@ -264,6 +263,7 @@ class TelaPrincipal:
     def _definir_abas_sem_resultado(self) -> None:
         """Análise com o card zerado (2ª instância) e Visualização com estado vazio."""
         self.botao_pdf = None
+        self.painel.definir_acao(None)
         comparacao = self._teste.comparacao_inicial() if self._teste else None
         analise: list[ft.Control] = [mensagem(SEM_EXECUCAO)]
         self.card_analise = None
