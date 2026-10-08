@@ -543,14 +543,20 @@ LIMITE_EXATO_MW = 8  # como o method="auto" do scipy: exato se min(n₁, n₂) �
 
 
 def distribuicao_u(n1: int, n2: int) -> np.ndarray:
-    """Contagens de U = 0..n₁n₂ sob H₀: coeficientes de ∏ₖ (1 − q^(n₂+k)) / (1 − qᵏ), k = 1..n₁."""
-    poli = np.zeros(n1 * n2 + 1)
+    """Contagens de U = 0..n₁n₂ sob H₀: coeficientes de ∏ₖ (1 − q^(n₂+k)) / (1 − qᵏ), k = 1..n₁.
+
+    A distribuição é simétrica em n₁ e n₂ (coeficiente binomial gaussiano): o produto percorre
+    o grupo menor, e a divisão por (1 − qᵏ) é uma soma acumulada em cada resíduo módulo k.
+    Assim um grupo de 4000 contra um de 8 leva milissegundos (antes, ~40 s).
+    """
+    menor, maior = min(n1, n2), max(n1, n2)
+    poli = np.zeros(menor * maior + 1)
     poli[0] = 1.0
-    for k in range(1, n1 + 1):
+    for k in range(1, menor + 1):
         multiplicado = poli.copy()
-        multiplicado[n2 + k :] -= poli[: len(poli) - (n2 + k)]
-        for i in range(k, len(multiplicado)):  # divide por (1 − qᵏ): soma acumulada de passo k
-            multiplicado[i] += multiplicado[i - k]
+        multiplicado[maior + k :] -= poli[: len(poli) - (maior + k)]
+        for resto in range(k):  # divide por (1 − qᵏ): soma acumulada de passo k
+            multiplicado[resto::k] = np.cumsum(multiplicado[resto::k])
         poli = multiplicado
     return poli
 

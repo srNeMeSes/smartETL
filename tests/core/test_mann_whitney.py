@@ -109,7 +109,7 @@ def test_u_somas_de_postos_e_efeitos(teste):
     assert e["r"] == pytest.approx(e["z"] / math.sqrt(11), rel=REL)
 
 
-@pytest.mark.parametrize(("n1", "n2"), [(1, 1), (2, 3), (4, 4), (5, 6)])
+@pytest.mark.parametrize(("n1", "n2"), [(1, 1), (2, 3), (4, 4), (5, 6), (6, 2), (7, 1)])
 def test_distribuicao_u_contra_enumeracao(n1, n2):
     enumerada = distribuicao_u_enumerada(range(1, n1 + n2 + 1), n1)
     esperado = [enumerada.count(u) for u in range(n1 * n2 + 1)]

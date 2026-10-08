@@ -20,6 +20,7 @@ from core.testes.nao_parametricos import (
     TesteMannWhitney,
     TesteWilcoxon,
     deslocamento_hodges_lehmann,
+    distribuicao_u,
     hodges_lehmann,
     ic_mediana_exato,
     kesimo_diferenca,
@@ -195,3 +196,22 @@ def test_xlsx_usa_openpyxl_se_o_calamine_falhar(tmp_path, monkeypatch):
     dados = modulo.carregar_dados(_xlsx_misto(tmp_path))
     assert usados == ["calamine", "openpyxl"]
     assert list(dados.df.columns) == ["inteiro", "decimal", "texto", "misto"]
+
+
+def test_mann_whitney_exato_com_um_grupo_grande_e_outro_pequeno():
+    # min(n₁, n₂) ≤ 8 sem empates usa o IC exato: a distribuição de U percorria o grupo maior
+    # num laço em Python (~40 s com 4000 × 8). Agora percorre o menor, vetorizado.
+    contagens = distribuicao_u(4000, 8)
+    assert contagens.tolist() == pytest.approx(distribuicao_u(8, 4000).tolist())
+    total = math.comb(4008, 8)
+    assert contagens.sum() == pytest.approx(total, rel=1e-12)
+    assert contagens[0] == 1 and contagens[1] == 1 and contagens[2] == 2  # partições de 0, 1, 2
+    rng = np.random.default_rng(3)
+    valores = rng.permutation(np.arange(4008.0))
+    df = pd.DataFrame({"v": valores, "g": ["A"] * 4000 + ["B"] * 8})
+    inicio = time.perf_counter()
+    r = np_testes.TesteMannWhitney().executar(df, {"coluna": "v", "grupo": "g", "alfa": 0.05})
+    assert time.perf_counter() - inicio < 5
+    assert r.estatisticas["usou_exato"] == 1.0
+    a, b = valores[:4000], valores[4000:]
+    assert r.p_valor == pytest.approx(stats.mannwhitneyu(a, b, method="exact").pvalue, rel=1e-9)
