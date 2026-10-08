@@ -54,6 +54,9 @@ class Controller:
         self._obter_teste = obter_teste
         self._executando = threading.Lock()  # executar() roda fora da thread da UI
         self._exportando = False
+        # Muda a cada troca de teste ou de arquivo: uma execução em andamento que termina depois
+        # de uma troca é descartada (senão o resultado antigo apareceria sob o teste novo).
+        self._versao = 0
 
     def iniciar(self) -> None:
         """Renderiza o estado inicial (inclusive o teste já marcado na sidebar)."""
@@ -110,6 +113,7 @@ class Controller:
         )
         for aviso in dados.avisos:
             log.warning("%s: %s", dados.nome_arquivo, aviso)
+        self._versao += 1
         self.estado.dados = dados
         self.estado.ultimo_resultado = None
         self.visao.exibir_dados(dados.df)
@@ -125,6 +129,7 @@ class Controller:
     # ---------------- Teste ----------------
     def selecionar_teste(self, teste_id: str) -> None:
         self._obter_teste(teste_id)  # valida o id
+        self._versao += 1
         self.estado.teste_id = teste_id
         self.estado.params = {}
         self.estado.ultimo_resultado = None
@@ -159,6 +164,7 @@ class Controller:
             return None
 
         teste = info.criar()
+        versao = self._versao
         processando = False
         try:
             params = self.visao.coletar_parametros()
@@ -183,6 +189,15 @@ class Controller:
             )
             return None
 
+        if versao != self._versao:
+            # O usuário trocou de teste ou de arquivo enquanto este rodava: o painel já mostra o
+            # teste novo; exibir este resultado misturaria os dois (e o PDF também).
+            log.info("Resultado de %s descartado: teste ou arquivo mudou na execução", info.id)
+            self.visao.notificar(
+                f"O resultado do {info.nome} foi descartado: o teste ou o arquivo mudou "
+                "durante a execução."
+            )
+            return None
         self.estado.params = params
         self.estado.ultimo_resultado = resultado
         self.visao.exibir_resultado(resultado)

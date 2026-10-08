@@ -273,6 +273,7 @@ class _TesteFalso(TesteBase):
     grupo = "Médias"
     erros: ClassVar[list[str]] = []
     falha: Exception | None = None
+    durante = None  # chamado no meio da execução (simula um clique do usuário)
 
     def parametros(self):
         return [ParametroSpec("coluna", "Variável", "coluna_numerica")]
@@ -283,6 +284,8 @@ class _TesteFalso(TesteBase):
     def executar(self, df, params):
         if self.falha is not None:
             raise self.falha
+        if self.durante is not None:
+            self.durante()
         media = float(df[params["coluna"]].mean())
         return ResultadoTeste("falso", {"media": media}, 0.5, 0.05, "Não rejeita H0", "ok")
 
@@ -304,6 +307,31 @@ def test_fluxo_completo_com_resultado(csv_valido, monkeypatch):
     assert visao.chamadas[-2:] == [("processando",), ("resultado", "falso")]
     assert controller.estado.ultimo_resultado is resultado
     assert controller.estado.params == {"coluna": "qtd"}
+
+
+@pytest.mark.parametrize("troca", ["teste", "arquivo"])
+def test_troca_durante_a_execucao_descarta_o_resultado(csv_valido, monkeypatch, troca):
+    # Executar roda fora da thread da UI: o usuário pode trocar de teste ou de arquivo antes de
+    # ele terminar. O resultado antigo não pode aparecer sob o teste novo (nem ir para o PDF).
+    visao = VisaoFalsa(params={"coluna": "qtd"})
+    controller = _controller_falso(visao, monkeypatch)
+    controller.carregar_arquivo(str(csv_valido))
+
+    def trocar():
+        if troca == "teste":
+            controller.selecionar_teste("falso")
+        else:
+            controller.carregar_arquivo(str(csv_valido))
+
+    monkeypatch.setattr(_TesteFalso, "durante", staticmethod(trocar))
+    assert controller.executar() is None
+    assert controller.estado.ultimo_resultado is None
+    assert not any(c[0] == "resultado" for c in visao.chamadas)
+    mensagem, erro = visao.notificacoes[-1]
+    assert not erro and "foi descartado" in mensagem
+    monkeypatch.setattr(_TesteFalso, "durante", None)
+    assert controller.executar() is not None  # sem troca, a próxima execução vale
+    assert visao.ultima() == ("resultado", "falso")
 
 
 def test_validar_com_erros_nao_executa(csv_valido, monkeypatch):
