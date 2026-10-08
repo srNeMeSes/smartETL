@@ -252,9 +252,32 @@ def _ler_xlsx(conteudo: bytes, nome: str) -> DadosCarregados:
 # ---------------------------------------------------------------------------
 # Comum
 # ---------------------------------------------------------------------------
+def _nomes_unicos(nomes: list[str]) -> tuple[list[str], list[str]]:
+    """Nomes sem repetição ("a", "a" → "a", "a.1", a convenção do pandas) e um aviso por
+    nome renomeado.
+
+    Acontece quando dois cabeçalhos só diferem por espaços nas pontas ("a" e "a "): o pandas
+    renomeia só repetições exatas, e com nomes repetidos df[nome] devolveria duas colunas.
+    """
+    vistos: set[str] = set()
+    saida, avisos = [], []
+    for nome in nomes:
+        novo, k = nome, 1
+        while novo in vistos:
+            novo, k = f"{nome}.{k}", k + 1
+        if novo != nome:
+            avisos.append(
+                f"A coluna '{nome}' aparece repetida no cabeçalho; renomeada para '{novo}'."
+            )
+        vistos.add(novo)
+        saida.append(novo)
+    return saida, avisos
+
+
 def _finalizar(dados: DadosCarregados, nome: str) -> None:
     df = dados.df
-    df.columns = [str(c).strip() for c in df.columns]
+    df.columns, renomeadas = _nomes_unicos([str(c).strip() for c in df.columns])
+    dados.avisos += renomeadas
     sobrando = [c for c in df.columns if c.startswith("Unnamed:") and df[c].isna().all()]
     if sobrando:
         df = df.drop(columns=sobrando)

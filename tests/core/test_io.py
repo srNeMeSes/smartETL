@@ -250,3 +250,14 @@ def test_xlsx_varias_planilhas(tmp_path):
     assert list(dados.df.columns) == ["x", "y"]
     assert dados.df["y"].isna().sum() == 1
     assert dados.avisos == ["O arquivo tem 2 planilhas; foi lida apenas a primeira ('Dados')."]
+
+
+def test_colunas_que_so_diferem_por_espacos_sao_renomeadas(tmp_path):
+    caminho = tmp_path / "dup.csv"
+    caminho.write_text("a;b; a;a \n1;2;3;4\n5;6;7;8\n", encoding="utf-8")
+    dados = carregar_dados(caminho)
+    # " a" o pandas já lê como "a" e renomeia ("a.1"); "a " só repete depois de tirar o espaço.
+    assert list(dados.df.columns) == ["a", "b", "a.1", "a.2"]
+    assert dados.df["a.2"].tolist() == [4, 8]
+    assert "A coluna 'a' aparece repetida no cabeçalho; renomeada para 'a.2'." in dados.avisos
+    assert set(dados.perfis) == {"a", "b", "a.1", "a.2"}
