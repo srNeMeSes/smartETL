@@ -9,6 +9,7 @@ import pandas as pd
 from scipy import stats
 
 from core.base import ComparacaoPValores, ErroValidacao, ParametroSpec, ResultadoTeste, TesteBase
+from core.diagnosticos import aviso_normalidade, normalidade_amostra, rotulo_normalidade
 from core.figuras import barras_agrupadas, boxplot
 from core.interpretacao import (
     REJEITA_H0,
@@ -210,9 +211,20 @@ class TesteAnova1Fator(TesteBase):
                 f"O teste de Levene (centrado na mediana) indica variâncias diferentes entre os "
                 f"grupos (p = {formatar_p_valor(p_levene)}): {sugestao}"
             )
+        # Normalidade dos resíduos: cada valor menos a média do seu grupo.
+        normal = normalidade_amostra(np.concatenate([x - x.mean() for x in amostras]))
+        estatisticas["p_normalidade"] = normal.p_valor if normal else math.nan
+        aviso = aviso_normalidade(
+            normal, "os resíduos da ANOVA", "o Kruskal-Wallis", "a ANOVA", plural=True
+        )
+        if aviso:
+            avisos.append(aviso)
 
         tabelas = {
-            "Resumo": pd.DataFrame(self._resumo(estatisticas, welch), columns=["Medida", "Valor"]),
+            "Resumo": pd.DataFrame(
+                self._resumo(estatisticas, welch, rotulo_normalidade(normal, "resíduos")),
+                columns=["Medida", "Valor"],
+            ),
             "Tabela ANOVA": self._tabela_anova(estatisticas),
             "Grupos": self._tabela_grupos(rotulos, amostras, alfa),
         }
@@ -275,7 +287,7 @@ class TesteAnova1Fator(TesteBase):
         return p
 
     @staticmethod
-    def _resumo(e: dict[str, float], welch: bool) -> list[tuple[str, str]]:
+    def _resumo(e: dict[str, float], welch: bool, rotulo_normal: str) -> list[tuple[str, str]]:
         if welch:
             teste = [
                 ("Variante", WELCH),
@@ -300,6 +312,7 @@ class TesteAnova1Fator(TesteBase):
             ("η² (eta quadrado)", formatar_numero(e["eta2"])),
             ("ω² (ômega quadrado)", formatar_numero(e["omega2"])),
             ("p-valor do Levene (mediana)", formatar_p_valor(e["p_levene"])),
+            (rotulo_normal, formatar_p_valor(e["p_normalidade"])),
         ]
 
     @staticmethod
@@ -616,6 +629,17 @@ class TesteAnova2Fatores(TesteBase):
         estatisticas["p_valor"] = p_valor
 
         avisos = self._avisos(dados, contagens, descartadas, balanceado, tipo_sq, estatisticas)
+        normal = normalidade_amostra(np.asarray(modelo.resid))
+        estatisticas["p_normalidade"] = normal.p_valor if normal else math.nan
+        aviso = aviso_normalidade(
+            normal,
+            "os resíduos da ANOVA",
+            f"uma transformação de '{coluna}' (ex.: logaritmo)",
+            "a ANOVA",
+            plural=True,
+        )
+        if aviso:
+            avisos.append(aviso)
         resumo = [
             ("Variável", f"'{coluna}'"),
             ("Fator A", f"'{fator_a}' ({len(niveis_a)} níveis)"),
@@ -626,6 +650,10 @@ class TesteAnova2Fatores(TesteBase):
             ("Desenho", "Balanceado" if balanceado else "Desbalanceado"),
             ("R² do modelo", formatar_numero(estatisticas["r2"])),
             ("p-valor do Levene (mediana)", formatar_p_valor(estatisticas["p_levene"])),
+            (
+                rotulo_normalidade(normal, "resíduos"),
+                formatar_p_valor(estatisticas["p_normalidade"]),
+            ),
         ]
         medias = self._medias(dados, contagens)
         tabela_medias = pd.DataFrame(

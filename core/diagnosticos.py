@@ -14,6 +14,8 @@ from dataclasses import dataclass
 import numpy as np
 from scipy import stats
 
+from core.interpretacao import formatar_p_valor
+
 # ---------------------------------------------------------------------------
 # Faixas de referência (uso interno — não exibir na interface)
 # ---------------------------------------------------------------------------
@@ -215,6 +217,66 @@ def normalidade(residuos: np.ndarray) -> tuple[str, float, float]:
         return "Shapiro-Wilk", float(resultado.statistic), float(resultado.pvalue)
     d, p = lilliefors(residuos)
     return "Kolmogorov-Smirnov (Lilliefors)", d, p
+
+
+# ---------------------------------------------------------------------------
+# Normalidade como pressuposto (testes de médias e ANOVA)
+# ---------------------------------------------------------------------------
+ALFA_NORMALIDADE = 0.05  # fixo, como o Levene: independe do α do teste principal
+N_ROBUSTEZ = 30
+
+
+@dataclass(frozen=True)
+class ResultadoNormalidade:
+    teste: str  # "Shapiro-Wilk" ou "Kolmogorov-Smirnov (Lilliefors)" (n > 5000)
+    estatistica: float
+    p_valor: float
+    n: int
+
+    @property
+    def rejeita(self) -> bool:
+        return self.p_valor < ALFA_NORMALIDADE
+
+
+def normalidade_amostra(valores: np.ndarray) -> ResultadoNormalidade | None:
+    """Shapiro-Wilk (Lilliefors acima de 5000); None se n < 3 ou valores todos iguais."""
+    x = np.asarray(valores, dtype=float)
+    x = x[np.isfinite(x)]
+    if len(x) < 3 or np.ptp(x) == 0:
+        return None
+    nome, estatistica, p = normalidade(x)
+    return ResultadoNormalidade(nome, estatistica, p, len(x))
+
+
+def rotulo_normalidade(resultado: ResultadoNormalidade | None, sobre: str = "") -> str:
+    """Rótulo da linha do Resumo, ex.: "p-valor do Shapiro-Wilk (grupo 'A')"."""
+    teste = resultado.teste if resultado is not None else "Shapiro-Wilk"
+    return f"p-valor do {teste}" + (f" ({sobre})" if sobre else "")
+
+
+def aviso_normalidade(
+    resultado: ResultadoNormalidade | None,
+    sobre: str,
+    equivalente: str,
+    parametrico: str,
+    plural: bool = False,
+) -> str | None:
+    """Aviso não bloqueante quando p < 0,05; sugere a alternativa e, com n ≥ 30, lembra que o
+    teste paramétrico é pouco afetado. `equivalente` e `parametrico` levam o artigo ("o
+    Wilcoxon", "a ANOVA"); `plural` concorda o verbo com `sobre` ("os resíduos")."""
+    if resultado is None or not resultado.rejeita:
+        return None
+    p = formatar_p_valor(resultado.p_valor)
+    p = p if p.startswith("<") else f"= {p}"
+    texto = (
+        f"O teste de {resultado.teste} indica que {sobre} não "
+        f"{'seguem' if plural else 'segue'} distribuição normal (p {p}). Considere {equivalente}."
+    )
+    if resultado.n >= N_ROBUSTEZ:
+        texto += (
+            f" Com n ≥ {N_ROBUSTEZ}, a falta de normalidade costuma afetar pouco {parametrico}."
+        )
+    return texto
 
 
 # ---------------------------------------------------------------------------

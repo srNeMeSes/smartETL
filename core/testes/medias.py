@@ -14,6 +14,7 @@ from core.base import (
     ResultadoTeste,
     TesteBase,
 )
+from core.diagnosticos import aviso_normalidade, normalidade_amostra, rotulo_normalidade
 from core.figuras import boxplot, histograma
 from core.interpretacao import decidir, formatar_numero, formatar_p_valor, interpretar
 from core.tipos import ordenar_niveis, rotulo_nivel
@@ -177,6 +178,11 @@ class TesteT1Amostra(TesteBase):
                 "da variável. Compare com o Wilcoxon no card."
             )
         avisos += avisos_w
+        normal = normalidade_amostra(x)
+        estatisticas["p_normalidade"] = normal.p_valor if normal else math.nan
+        aviso = aviso_normalidade(normal, f"'{coluna}'", "o Wilcoxon (uma amostra)", "o teste t")
+        if aviso:
+            avisos.append(aviso)
 
         return ResultadoTeste(
             teste_id=self.id,
@@ -185,7 +191,11 @@ class TesteT1Amostra(TesteBase):
             alfa=alfa,
             decisao=decidir(p_valor, alfa),
             interpretacao=interpretacao,
-            tabelas={"Resumo": self._tabela_resumo(estatisticas, alfa, alternativa, p_wilcoxon)},
+            tabelas={
+                "Resumo": self._tabela_resumo(
+                    estatisticas, alfa, alternativa, p_wilcoxon, rotulo_normalidade(normal)
+                )
+            },
             figuras=[
                 histograma(
                     x,
@@ -222,7 +232,11 @@ class TesteT1Amostra(TesteBase):
 
     @staticmethod
     def _tabela_resumo(
-        e: dict[str, float], alfa: float, alternativa: str, p_wilcoxon: dict[str, float | None]
+        e: dict[str, float],
+        alfa: float,
+        alternativa: str,
+        p_wilcoxon: dict[str, float | None],
+        rotulo_normal: str,
     ) -> pd.DataFrame:
         confianca = f"{(1 - alfa) * 100:.0f}%"
         tipo_ic = "" if alternativa == "two-sided" else " (unilateral)"
@@ -240,6 +254,7 @@ class TesteT1Amostra(TesteBase):
             (f"IC {confianca} para μ{tipo_ic}", ic),
             ("d de Cohen", formatar_numero(e["d_cohen"])),
             ("p-valor (Wilcoxon)", formatar_p_valor(p_wilcoxon[alternativa])),
+            (rotulo_normal, formatar_p_valor(e["p_normalidade"])),
         ]
         return pd.DataFrame(linhas, columns=["Medida", "Valor"])
 
@@ -437,6 +452,14 @@ class TesteT2Amostras(TesteBase):
                     f"Todos os valores do grupo '{g}' são iguais (variância zero): interprete o "
                     "resultado com cautela."
                 )
+        normais = [normalidade_amostra(x1), normalidade_amostra(x2)]
+        for i, (g, normal) in enumerate(zip((g1, g2), normais, strict=True), start=1):
+            estatisticas[f"p_normalidade{i}"] = normal.p_valor if normal else math.nan
+            aviso = aviso_normalidade(
+                normal, f"'{coluna}' no grupo '{g}'", "o Mann-Whitney", "o teste t"
+            )
+            if aviso:
+                avisos.append(aviso)
         razao = max(dp1, dp2) ** 2 / min(dp1, dp2) ** 2 if min(dp1, dp2) > 0 else math.inf
         if iguais and razao > RAZAO_VARIANCIAS_AVISO:
             avisos.append(
@@ -453,7 +476,16 @@ class TesteT2Amostras(TesteBase):
             interpretacao=interpretacao,
             tabelas={
                 "Resumo": self._tabela_resumo(
-                    estatisticas, (g1, g2), rotulo_var, alfa, alternativa, iguais
+                    estatisticas,
+                    (g1, g2),
+                    rotulo_var,
+                    alfa,
+                    alternativa,
+                    iguais,
+                    [
+                        rotulo_normalidade(n, f"grupo '{g}'")
+                        for n, g in zip(normais, (g1, g2), strict=True)
+                    ],
                 )
             },
             figuras=[boxplot([(g1, x1), (g2, x2)], f"'{coluna}' por '{grupo}'", coluna)],
@@ -474,6 +506,7 @@ class TesteT2Amostras(TesteBase):
         alfa: float,
         alternativa: str,
         iguais: bool,
+        rotulos_normal: list[str],
     ) -> pd.DataFrame:
         confianca = f"{(1 - alfa) * 100:.0f}%"
         tipo_ic = "" if alternativa == "two-sided" else " (unilateral)"
@@ -496,6 +529,8 @@ class TesteT2Amostras(TesteBase):
             ("d de Cohen", formatar_numero(e["d_cohen"])),
             ("U de Mann-Whitney", formatar_numero(e["u"], 1)),
             ("p-valor (Mann-Whitney)", formatar_p_valor(e["p_mann_whitney"])),
+            (rotulos_normal[0], formatar_p_valor(e["p_normalidade1"])),
+            (rotulos_normal[1], formatar_p_valor(e["p_normalidade2"])),
         ]
         return pd.DataFrame(linhas, columns=["Medida", "Valor"])
 
@@ -647,6 +682,13 @@ class TesteTPareado(TesteBase):
             )
         if zeros:
             avisos.append(f"No Wilcoxon, {zeros} par(es) com diferença nula foram descartados.")
+        normal = normalidade_amostra(d)
+        estatisticas["p_normalidade"] = normal.p_valor if normal else math.nan
+        aviso = aviso_normalidade(
+            normal, f"a diferença '{c1}' − '{c2}'", "o Wilcoxon (pareado)", "o teste t pareado"
+        )
+        if aviso:
+            avisos.append(aviso)
 
         return ResultadoTeste(
             teste_id=self.id,
@@ -655,7 +697,15 @@ class TesteTPareado(TesteBase):
             alfa=alfa,
             decisao=decidir(p_valor, alfa),
             interpretacao=interpretacao,
-            tabelas={"Resumo": self._tabela_resumo(estatisticas, (c1, c2), alfa, alternativa)},
+            tabelas={
+                "Resumo": self._tabela_resumo(
+                    estatisticas,
+                    (c1, c2),
+                    alfa,
+                    alternativa,
+                    rotulo_normalidade(normal, "diferenças"),
+                )
+            },
             figuras=[
                 histograma(
                     d,
@@ -680,7 +730,11 @@ class TesteTPareado(TesteBase):
 
     @staticmethod
     def _tabela_resumo(
-        e: dict[str, float], colunas: tuple[str, str], alfa: float, alternativa: str
+        e: dict[str, float],
+        colunas: tuple[str, str],
+        alfa: float,
+        alternativa: str,
+        rotulo_normal: str,
     ) -> pd.DataFrame:
         confianca = f"{(1 - alfa) * 100:.0f}%"
         tipo_ic = "" if alternativa == "two-sided" else " (unilateral)"
@@ -700,5 +754,6 @@ class TesteTPareado(TesteBase):
             (f"IC {confianca} para μ₁ − μ₂{tipo_ic}", ic),
             ("d de Cohen (d_z)", formatar_numero(e["d_cohen"])),
             ("p-valor (Wilcoxon)", formatar_p_valor(e["p_wilcoxon"])),
+            (rotulo_normal, formatar_p_valor(e["p_normalidade"])),
         ]
         return pd.DataFrame(linhas, columns=["Medida", "Valor"])
