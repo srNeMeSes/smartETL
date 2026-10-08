@@ -12,7 +12,6 @@ from app.ui import tema
 from app.ui.componentes import campos
 from app.ui.graficos import desenhar_figura
 from app.ui.helpers import border_all, esta_na_pagina
-from core.interpretacao import formatar_numero
 from core.testes.regressao import CampoSimulacao, Previsao, SimuladorRegressao, formatar_coeficiente
 from core.validacao import converter_numero
 
@@ -22,9 +21,10 @@ MAX_PASSOS = 500
 
 
 def _formatar(campo: CampoSimulacao, valor: float) -> str:
-    """Inteiros sem casas decimais ("3", "1.200"); demais com 4 algarismos significativos."""
+    """Inteiros sem casas decimais e sem ponto de milhar ("3", "1200": "1.200" seria ambíguo
+    ao editar o campo); demais com 4 algarismos significativos."""
     if campo.inteiro and float(valor).is_integer():
-        return formatar_numero(valor, 0)
+        return str(int(valor))
     return formatar_coeficiente(valor)
 
 

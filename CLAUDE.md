@@ -383,7 +383,7 @@ Padrão estabelecido pelos testes já implementados (seguir nos próximos):
 - Docstring da classe documenta as escolhas (ddof, zeros, correção, exato vs. assintótico, erro padrão).
 - Avisos técnicos do scipy/statsmodels (em inglês) não chegam ao usuário: suprimir pontualmente e emitir aviso equivalente em pt-BR.
 - **Card de comparação:** só quando há um equivalente natural (não paramétrico ou exato); testes sem essa estrutura (qui-quadrado, não paramétricos de postos, diagnósticos...) não sobrescrevem `comparacao_inicial()` e devolvem `comparacao=None` — decisão do autor.
-- Valores padrão e números exibidos em pt-BR (vírgula decimal); os campos numéricos aceitam vírgula ou ponto.
+- Valores padrão e números exibidos em pt-BR (vírgula decimal); os campos numéricos aceitam vírgula ou ponto. Sem vírgula, o ponto é decimal ("0.05", "1.5"), mas um texto que só pode ser milhar ou decimal ("1.000", "2.500") é **rejeitado** com mensagem (`core.validacao.NumeroAmbiguo`; decisão do autor, 2026-10-08). Por isso os campos inteiros da Simulação aparecem sem ponto de milhar ("1200").
 - Referências nos testes: fórmula manual (numpy) + outra biblioteca (statsmodels) ou enumeração exata; fonte documentada no topo do arquivo de teste. Cálculos de referência reutilizáveis ficam em `tests/referencias.py`.
 - **Bases para teste manual no app ficam em `bases/`** (pedido do autor), nunca só em pasta temporária. Cada base nova é salva lá (preferir o formato brasileiro: cp1252, `;`, vírgula decimal, sufixo `_br`) e ganha uma linha em `bases/README.md` com o teste, como preencher o formulário e o resultado esperado.
 

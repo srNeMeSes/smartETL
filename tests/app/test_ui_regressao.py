@@ -356,3 +356,14 @@ def test_simulacao_com_preditores_inteiros(page):
     sim.sliders["quartos"].value = 3.6
     sim.sliders["quartos"].on_change(None)
     assert sim.valores["quartos"] == 4.0 and sim.textos["quartos"].value == "4"
+
+
+def test_simulacao_inteiro_sem_ponto_de_milhar():
+    # "1.200" no campo seria ambíguo ao ser editado: inteiros aparecem como "1200".
+    from app.ui.painel_simulacao import _formatar
+    from core.testes.regressao import CampoSimulacao
+
+    campo = CampoSimulacao("area", False, 1200.0, 100.0, 5000.0, inteiro=True)
+    assert _formatar(campo, 1200.0) == "1200" and _formatar(campo, 3.0) == "3"
+    continuo = CampoSimulacao("x", False, 1234.5, 0.0, 9999.0)
+    assert _formatar(continuo, 1234.5) == "1.234,50"  # com vírgula: sem ambiguidade

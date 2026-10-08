@@ -214,6 +214,19 @@ def test_form_numero_invalido(form_t1):
         form_t1.coletar_valores()
 
 
+def test_form_numero_ambiguo(form_t1):
+    form_t1.controle("coluna").value = "qtd"
+    form_t1.controle("mu0").value = "1.000"
+    with pytest.raises(ErroValidacao) as erro:
+        form_t1.coletar_valores()
+    assert erro.value.mensagens == [
+        "Média Hipotética: O valor '1.000' é ambíguo (milhar ou decimal): escreva 1000 para o "
+        "número inteiro ou 1,000 para decimal."
+    ]
+    form_t1.controle("mu0").value = "1000"
+    assert form_t1.coletar_valores()["mu0"] == 1000.0
+
+
 def test_form_sem_colunas_compativeis():
     df = pd.DataFrame({"nome": ["a", "b"]})
     form = PainelParametros(TesteT1Amostra(), df)

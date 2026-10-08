@@ -10,7 +10,7 @@ from app.ui.helpers import esta_na_pagina
 from core.base import ALFAS, TIPOS_COLUNA, ErroValidacao, ParametroSpec, TesteBase
 from core.testes.regressao import e_categorica, niveis_ordenados, nivel_referencia_padrao
 from core.tipos import PerfilColuna, detectar_tipos, niveis_coluna, nivel_sucesso_padrao
-from core.validacao import colunas_por_tipo, converter_numero
+from core.validacao import NumeroAmbiguo, colunas_por_tipo, converter_numero
 
 
 def _alfa_texto(padrao: float | None) -> str:
@@ -221,6 +221,8 @@ class PainelParametros(ft.Row):
             if spec.tipo == "numero":
                 try:
                     valores[spec.nome] = converter_numero(bruto)
+                except NumeroAmbiguo as erro:
+                    erros.append(f"{spec.rotulo}: {erro}")
                 except ValueError:
                     erros.append(f"Informe um número válido em '{spec.rotulo}'.")
             elif spec.tipo == "alfa":

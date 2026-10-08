@@ -1,6 +1,7 @@
 """Regras de validação reutilizáveis (sem Flet)."""
 
 import math
+import re
 from collections.abc import Iterable
 
 import numpy as np
@@ -8,15 +9,37 @@ import pandas as pd
 
 from core.tipos import PerfilColuna, detectar_tipos, e_numerica
 
+# "1.000", "2.500", "12.345.678": no padrão brasileiro, milhar; no americano, decimal.
+_PONTO_AMBIGUO = re.compile(r"[+-]?[1-9]\d{0,2}(\.\d{3})+")
+
+
+class NumeroAmbiguo(ValueError):
+    """Texto como "1.000", que pode ser mil (milhar) ou um (decimal); a mensagem é exibida."""
+
+    def __init__(self, texto: str):
+        inteiro = texto.replace(".", "")
+        decimal = texto.replace(".", ",")
+        super().__init__(
+            f"O valor '{texto}' é ambíguo (milhar ou decimal): escreva {inteiro} para o número "
+            f"inteiro ou {decimal} para decimal."
+        )
+
 
 def converter_numero(texto: str | float | int | None) -> float:
-    """Converte texto digitado em float; aceita vírgula decimal ("1,5" ou "1.234,5")."""
+    """Converte texto digitado em float; aceita vírgula decimal ("1,5" ou "1.234,5").
+
+    Sem vírgula, o ponto é decimal ("1.5", "0.05"), exceto quando o texto só pode ser lido
+    como milhar ou como decimal — "1.000", "2.500" —: aí lança `NumeroAmbiguo` (decisão do
+    autor: nunca calcular com um valor que o usuário pode não ter querido dizer).
+    """
     if isinstance(texto, (int, float)) and not isinstance(texto, bool):
         valor = float(texto)
     else:
         bruto = (texto or "").strip().replace(" ", "")
         if not bruto:
             raise ValueError("valor vazio")
+        if _PONTO_AMBIGUO.fullmatch(bruto):
+            raise NumeroAmbiguo(bruto)
         if "," in bruto:
             bruto = bruto.replace(".", "").replace(",", ".")
         valor = float(bruto)
@@ -79,5 +102,7 @@ def erro_numero(valor: object, mensagem: str) -> list[str]:
     try:
         converter_numero(valor)  # type: ignore[arg-type]
         return []
+    except NumeroAmbiguo as erro:
+        return [str(erro)]
     except (TypeError, ValueError):
         return [mensagem]
