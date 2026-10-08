@@ -26,7 +26,7 @@ formulário e qual resultado esperar.
 
 ## Como ler o resultado
 
-- **Decisão:** "Rejeita H₀" (vermelho suave) ou "Não rejeita H₀" (verde suave), sempre pela regra
+- **Decisão:** "Rejeita H₀" (verde suave) ou "Não rejeita H₀" (vermelho suave), sempre pela regra
   p ≤ α, com o α escolhido no formulário (0,01, 0,05 ou 0,10).
 - **Interpretação:** uma frase que cita α, o p-valor, H₀, H₁ e a conclusão no contexto dos seus
   dados ("Há evidência estatística de que a média de 'nota' é diferente de 7").

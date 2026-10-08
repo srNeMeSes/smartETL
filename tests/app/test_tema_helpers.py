@@ -74,3 +74,9 @@ def test_cores_do_relatorio_pdf_iguais_as_do_tema():
         "nao_rejeita": tema.DECISAO_NAO_REJEITA,
     }
     assert SERIES == tema.GRAFICO_SERIES
+
+
+def test_cores_da_decisao():
+    # Rejeitar H₀ (o teste encontrou o efeito) em verde; não rejeitar em terracota suave.
+    assert tema.DECISAO_REJEITA == "#3F9B6B"
+    assert tema.DECISAO_NAO_REJEITA == "#C8705F"

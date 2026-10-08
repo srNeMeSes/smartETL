@@ -46,8 +46,8 @@ CORES = {
     "borda": "#E7E8EC",
     "texto": "#232529",
     "texto_secundario": "#8A8D93",
-    "rejeita": "#D0605A",
-    "nao_rejeita": "#3F9B6B",
+    "rejeita": "#3F9B6B",
+    "nao_rejeita": "#C8705F",
 }
 SERIES = ("#FF6A1A", "#7C3AED", "#0F9D8A", "#E0A100", "#5B6B7F", "#D9467A", "#3B82C4", "#8C6D46")
 

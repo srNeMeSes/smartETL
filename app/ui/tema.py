@@ -30,8 +30,10 @@ NOTIFICACAO = TEXTO
 NOTIFICACAO_ERRO = "#B42318"
 
 # Decisão do teste (texto "Rejeita H₀" / "Não rejeita H₀"): tons suaves, legíveis no fundo branco
-DECISAO_REJEITA = "#D0605A"  # vermelho suave
-DECISAO_NAO_REJEITA = "#3F9B6B"  # verde suave
+# Rejeitar H₀ é o teste encontrar o efeito (verde); não rejeitar, não encontrar (terracota). As
+# duas têm contraste ≥ 3,4:1 no branco (decisão do autor, 2026-10-08).
+DECISAO_REJEITA = "#3F9B6B"  # verde suave
+DECISAO_NAO_REJEITA = "#C8705F"  # vermelho terracota suave
 
 # Gráficos
 GRAFICO_BARRA = LARANJA_SUAVE
