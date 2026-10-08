@@ -276,7 +276,7 @@ class TesteZ2Prop(TesteBase):
     H₀: p₁ = p₂ (`proportions_ztest` com duas amostras). IC da diferença p₁ − p₂: Wald com erro
     padrão não combinado (`confint_proportions_2indep(method="wald")`).
     Tamanhos de efeito: diferença de proporções, h de Cohen e razão de chances (odds ratio) da
-    tabela 2×2 com IC de Woolf (log); indefinida quando há célula zero (com aviso).
+    tabela 2×2 com IC de Woolf (log; unilateral quando H₁ é); indefinida com célula zero (aviso).
     Equivalente no card: teste exato de Fisher (`scipy.stats.fisher_exact`) na tabela
     [[sucessos₁, fracassos₁], [sucessos₂, fracassos₂]]; "maior" ⇔ OR > 1 ⇔ p₁ > p₂.
     Aviso quando alguma frequência esperada sob H₀ é menor que 5. Decisão: rejeita H₀ se p ≤ α.
@@ -404,7 +404,7 @@ class TesteZ2Prop(TesteBase):
         else:
             tabela_sm = Table2x2(np.array(tabela, dtype=float))
             odds = float(tabela_sm.oddsratio)
-            odds_ic = tuple(float(v) for v in tabela_sm.oddsratio_confint(alpha=alfa))
+            odds_ic = self._ic_odds_ratio(tabela_sm, alfa, alternativa)
 
         estatisticas = {
             "n1": float(n1),
@@ -490,6 +490,16 @@ class TesteZ2Prop(TesteBase):
         )
 
     @staticmethod
+    def _ic_odds_ratio(tabela_sm: Table2x2, alfa: float, alternativa: str) -> tuple[float, float]:
+        """IC de Woolf da odds ratio; unilateral quando H₁ é (como os demais ICs do teste):
+        "p₁ > p₂" ⇔ OR > 1 → [limite inferior com 1 − α; +∞); "p₁ < p₂" → (0; superior]."""
+        if alternativa == "two-sided":
+            baixo, alto = tabela_sm.oddsratio_confint(alpha=alfa)
+            return float(baixo), float(alto)
+        baixo, alto = tabela_sm.oddsratio_confint(alpha=2 * alfa)
+        return (float(baixo), math.inf) if alternativa == "greater" else (0.0, float(alto))
+
+    @staticmethod
     def _tabela_resumo(
         e: dict[str, float], grupos: tuple[str, str], sucesso: str, alfa: float, alternativa: str
     ) -> pd.DataFrame:
@@ -523,7 +533,7 @@ class TesteZ2Prop(TesteBase):
             (f"IC {confianca} para p₁ − p₂{tipo_ic}", ic),
             ("h de Cohen", formatar_numero(e["h_cohen"])),
             ("Odds ratio (razão de chances)", odds),
-            (f"IC {confianca} para a odds ratio (Woolf)", odds_ic),
+            (f"IC {confianca} para a odds ratio (Woolf){tipo_ic}", odds_ic),
             ("p-valor (Fisher exato)", formatar_p_valor(e["p_fisher"])),
         ]
         return pd.DataFrame(linhas, columns=["Medida", "Valor"])

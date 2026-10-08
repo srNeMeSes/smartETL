@@ -120,6 +120,14 @@ def test_h_de_cohen_e_odds_ratio_com_ic_de_woolf(teste, df, alfa):
     se = math.sqrt(1 / a + 1 / b + 1 / c + 1 / d)
     assert e["or_ic_inferior"] == pytest.approx(math.exp(math.log(odds) - z * se), rel=REL)
     assert e["or_ic_superior"] == pytest.approx(math.exp(math.log(odds) + z * se), rel=REL)
+    # Unilaterais: limite com z de 1 − α e o outro extremo aberto, como o IC da diferença.
+    z1 = NormalDist().inv_cdf(1 - alfa)
+    maior = teste.executar(df, _params(alfa=alfa, alternativa="p₁ > p₂")).estatisticas
+    assert maior["or_ic_inferior"] == pytest.approx(math.exp(math.log(odds) - z1 * se), rel=REL)
+    assert maior["or_ic_superior"] == math.inf
+    menor = teste.executar(df, _params(alfa=alfa, alternativa="p₁ < p₂")).estatisticas
+    assert menor["or_ic_inferior"] == 0.0
+    assert menor["or_ic_superior"] == pytest.approx(math.exp(math.log(odds) + z1 * se), rel=REL)
 
 
 @pytest.mark.parametrize(
