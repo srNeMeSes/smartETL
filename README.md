@@ -86,6 +86,23 @@ As dependências estão fixadas em `requirements.txt`: Flet 0.86.2 (interface), 
 scipy, statsmodels, openpyxl e python-calamine (leitura de XLSX), fpdf2 e matplotlib (relatório
 em PDF); pytest, ruff e pypdf para desenvolvimento.
 
+## Executável para Windows
+
+Para usar sem instalar o Python, descompacte `smartETL-windows.zip` e abra
+`smartETL\smartETL.exe`. A pasta inteira precisa ir junto: o `.exe` usa os arquivos de
+`_internal`. Na primeira abertura, o app prepara a interface sozinho, sem internet. O log fica em
+`%LOCALAPPDATA%\smartETL\smartetl.log` (é o "Detalhes no log" das mensagens de erro).
+
+Para gerar de novo (com o venv instalado, na raiz do projeto):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\gerar_executavel.ps1
+```
+
+O script roda `flet pack` (PyInstaller) em modo pasta (abre em ~2 s; o modo arquivo único
+descompactaria pandas, scipy e statsmodels a cada abertura) com o ícone `assets/icon2.ico`, que
+aparece no `.exe` e no canto da janela. Saída: `dist\smartETL\` e `dist\smartETL-windows.zip`.
+
 ## Desenvolvimento
 
 ```bash

@@ -346,6 +346,8 @@ def test_main_monta_pagina(page, monkeypatch):
     assert (page.window.width, page.window.height) == (1440, 900)
     assert (page.window.min_width, page.window.min_height) == (1150, 720)
     page.run_task.assert_called_once_with(page.window.center)  # janela centralizada
+    assert page.window.icon == str(app_main.ICONE) and app_main.ICONE.name == "icon2.ico"
+    assert app_main.ICONE.exists()  # ícone da janela (canto superior esquerdo)
     (servico,), _ = page.services.append.call_args
     assert isinstance(servico, ft.FilePicker)
     assert page.add.call_count == 1
@@ -874,3 +876,28 @@ def test_escolher_destino_pdf_usa_o_dialogo_de_salvar(tela_controller, monkeypat
     kwargs = salvar.call_args.kwargs
     assert kwargs["file_name"] == "anova.pdf" and kwargs["allowed_extensions"] == ["pdf"]
     assert kwargs["file_type"] == ft.FilePickerFileType.CUSTOM
+
+
+def test_log_em_arquivo_no_executavel(tmp_path, monkeypatch):
+    # Sem console no executável, o log ("Detalhes no log") vai para %LOCALAPPDATA%/smartETL.
+    import logging
+
+    raiz = logging.getLogger()
+    antes = list(raiz.handlers)
+    for h in antes:
+        raiz.removeHandler(h)
+    try:
+        monkeypatch.setattr(app_main, "EMPACOTADO", True)
+        monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+        app_main.configurar_log()
+        logging.getLogger("teste").info("mensagem de teste")
+        for h in raiz.handlers:
+            h.flush()
+        arquivo = tmp_path / "smartETL" / "smartetl.log"
+        assert "mensagem de teste" in arquivo.read_text(encoding="utf-8")
+    finally:
+        for h in list(raiz.handlers):
+            raiz.removeHandler(h)
+            h.close()
+        for h in antes:
+            raiz.addHandler(h)

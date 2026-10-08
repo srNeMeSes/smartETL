@@ -9,3 +9,8 @@ __pycache__/
 # Ferramentas
 .pytest_cache/
 .ruff_cache/
+
+# Executável (scripts/gerar_executavel.ps1)
+build/
+dist/
+*.spec

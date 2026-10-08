@@ -490,6 +490,13 @@ pytest tests/core/test_registry.py -q  # apenas um arquivo
 ruff check . && ruff format .
 ```
 
+Executável Windows (só quando o autor pedir; o 1º foi gerado em 2026-10-08):
+`powershell -ExecutionPolicy Bypass -File scripts\gerar_executavel.ps1` → `flet pack` em modo
+pasta (`dist\smartETL\smartETL.exe` + `dist\smartETL-windows.zip`), ícone `assets/icon2.ico`
+no `.exe` e na janela (`page.window.icon`, `main.recurso` resolve o caminho dentro do pacote).
+No executável o log vai para `%LOCALAPPDATA%\smartETL\smartetl.log`. O cliente Flet vai no
+pacote (`flet_desktop/app/flet-windows.zip`) e é extraído no 1º uso, sem internet.
+
 No Windows (PowerShell 5.1), passe mensagens de commit com `git commit -F arquivo.txt`: aspas duplas dentro de `-m` são quebradas pelo PowerShell ao chamar executáveis nativos.
 
 ## 13. Decisões em aberto (confirmar com o autor antes de implementar)
