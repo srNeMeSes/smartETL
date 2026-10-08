@@ -311,13 +311,16 @@ class TesteRegressaoLogistica(TesteRegressaoLinear):
         if hl is not None:
             estatisticas |= {"hl": hl.estatistica, "gl_hl": float(hl.gl), "p_hl": hl.p_valor}
 
+        convergiu = bool(ajuste.mle_retvals.get("converged", True))
+        estatisticas["convergiu"] = float(convergiu)
+        separacao = dg.separacao(eta, y)
         rotulos = {"evento": evento, "nao_evento": nao_evento}
         secoes = [
             Secao("Pressupostos"),
             self._secao_colinearidade(dados, cov),
             self._secao_box_tidwell(sm, dados, alfa, estatisticas),
-            self._secao_hosmer_lemeshow(hl, alfa),
-            self._secao_amostra(estatisticas, dg.separacao(eta, y), k - 1),
+            self._secao_hosmer_lemeshow(hl, alfa, separacao),
+            self._secao_amostra(estatisticas, separacao, k - 1, convergiu),
         ]
         modelo, interpretacao = self._secao_modelo_logit(estatisticas, alfa, nome_y, evento, dados)
         secoes += [
@@ -412,7 +415,9 @@ class TesteRegressaoLogistica(TesteRegressaoLinear):
         )
 
     @staticmethod
-    def _secao_hosmer_lemeshow(hl: dg.ResultadoHL | None, alfa: float) -> Secao:
+    def _secao_hosmer_lemeshow(
+        hl: dg.ResultadoHL | None, alfa: float, separacao: str | None = None
+    ) -> Secao:
         if hl is None:
             return Secao(
                 "Qualidade do ajuste",
@@ -422,13 +427,23 @@ class TesteRegressaoLogistica(TesteRegressaoLinear):
                     "3 grupos distintos."
                 ],
             )
-        texto = (
-            "As probabilidades previstas se afastam das frequências observadas: o modelo se "
-            "ajusta mal aos dados."
-            if decidir(hl.p_valor, alfa) == REJEITA_H0
-            else "Sem evidência de mau ajuste: as probabilidades previstas acompanham as "
-            "frequências observadas."
-        )
+        if separacao is not None:
+            # Com separação as probabilidades previstas vão a 0 ou 1 e o teste "acerta" tudo:
+            # um p alto aqui não significa bom ajuste.
+            texto = (
+                "Não interpretável: há separação entre as classes (veja 'Tamanho da amostra e "
+                "separação'), e as probabilidades previstas ficam perto de 0 ou de 1."
+            )
+        elif decidir(hl.p_valor, alfa) == REJEITA_H0:
+            texto = (
+                "As probabilidades previstas se afastam das frequências observadas: o modelo se "
+                "ajusta mal aos dados."
+            )
+        else:
+            texto = (
+                "Sem evidência de mau ajuste: as probabilidades previstas acompanham as "
+                "frequências observadas."
+            )
         tabela = pd.DataFrame(
             [
                 (
@@ -450,8 +465,15 @@ class TesteRegressaoLogistica(TesteRegressaoLinear):
         )
 
     @staticmethod
-    def _secao_amostra(e: dict[str, float], separacao: str | None, p: int) -> Secao:
+    def _secao_amostra(
+        e: dict[str, float], separacao: str | None, p: int, convergiu: bool = True
+    ) -> Secao:
         avisos = []
+        if not convergiu:
+            avisos.append(
+                "O ajuste por máxima verossimilhança não convergiu em 100 iterações: os "
+                "coeficientes, os erros padrão e os p-valores podem não ser confiáveis."
+            )
         if e["epv"] < EPV_MINIMO:
             avisos.append(
                 f"Poucos eventos por variável (EPV = {formatar_numero(e['epv'], 1)} < "

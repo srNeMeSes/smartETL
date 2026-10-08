@@ -311,7 +311,10 @@ def hosmer_lemeshow(y: np.ndarray, p: np.ndarray, g: int = 10) -> ResultadoHL | 
             (y[dentro].sum(), p[dentro].sum()),
             ((1 - y[dentro]).sum(), (1 - p[dentro]).sum()),
         ):
-            estatistica += (observado - esperado) ** 2 / esperado
+            if esperado > 0:
+                estatistica += (observado - esperado) ** 2 / esperado
+            elif observado > 0:  # esperado 0 (P = 0 ou 1 por separação) com casos observados
+                estatistica = math.inf
     if nao_vazios < 3:
         return None
     gl = nao_vazios - 2

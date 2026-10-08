@@ -290,6 +290,42 @@ def test_aviso_de_separacao_no_resultado(teste):
     df = pd.DataFrame({"y": np.where(x > 5, "sim", "não"), "x": x, "z": rng.normal(size=40)})
     r = teste.executar(df, {"y": "y", "evento": "sim", "preditores": ["x", "z"], "alfa": 0.05})
     assert any("Separação completa" in a for a in r.avisos)
+    # Com separação, o Hosmer-Lemeshow "acerta" tudo: o p alto não vale como bom ajuste.
+    (secao,) = [s for s in r.secoes if s.titulo == "Qualidade do ajuste"]
+    texto = next(iter(secao.tabelas.values()))["Interpretação"].iloc[0]
+    assert texto.startswith("Não interpretável: há separação entre as classes")
+
+
+def test_aviso_quando_o_ajuste_nao_converge(teste, monkeypatch):
+    import statsmodels.discrete.discrete_model as dm
+
+    original = dm.Logit.fit
+
+    def sem_convergir(self, *args, **kwargs):
+        ajuste = original(self, *args, **kwargs)
+        ajuste.mle_retvals["converged"] = False
+        return ajuste
+
+    monkeypatch.setattr(dm.Logit, "fit", sem_convergir)
+    r = teste.executar(_df("mroz"), _params("mroz"))
+    assert r.estatisticas["convergiu"] == 0.0
+    assert any("não convergiu em 100 iterações" in a for a in r.avisos)
+    monkeypatch.setattr(dm.Logit, "fit", original)
+    r = teste.executar(_df("mroz"), _params("mroz"))
+    assert r.estatisticas["convergiu"] == 1.0
+    assert not any("convergiu" in a for a in r.avisos)
+
+
+def test_hosmer_lemeshow_com_probabilidades_extremas():
+    # P = 0 exato num grupo com casos do evento: termo infinito (antes, 0/0 = NaN e p = NaN).
+    y = np.array([1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1], dtype=float)
+    p = np.array([0.0, 0.0, 0.0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+    hl = dg.hosmer_lemeshow(y, p, g=4)
+    assert hl.estatistica == math.inf and hl.p_valor == 0.0
+    sem_casos = dg.hosmer_lemeshow(
+        np.array([0, 0, 0, 1, 1, 1.0]), np.array([0, 0, 0, 1, 1, 1.0]), 3
+    )
+    assert sem_casos is None or not math.isnan(sem_casos.estatistica)
 
 
 @pytest.mark.parametrize(
