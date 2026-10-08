@@ -185,3 +185,15 @@ def test_barras_com_valores_negativos():
     fig = barras([("a", -3.0), ("b", 0.0)], "t", "y")
     assert (fig.dados["minimo"], fig.dados["maximo"]) == (-3.0, 0.0)
     assert barras([("a", 0.4)], "t", "y", maximo=1.0).dados["minimo"] == 0.0
+
+
+@pytest.mark.parametrize("p", [math.nan, None])
+def test_p_indefinido_nunca_rejeita_e_e_explicado(p):
+    from core.interpretacao import NAO_REJEITA_H0, decidir, interpretar
+
+    assert decidir(p, 0.05) == NAO_REJEITA_H0
+    texto = interpretar(p, 0.05, "μ = 0", "μ ≠ 0", "Rejeitou.", "Não rejeitou.")
+    assert texto == (
+        "Com α = 0,05, o p-valor não pôde ser calculado (dados insuficientes ou degenerados): "
+        "não se rejeita H₀ (μ = 0). Não rejeitou."
+    )

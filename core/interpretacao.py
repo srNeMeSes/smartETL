@@ -30,8 +30,19 @@ def formatar_alfa(alfa: float) -> str:
     return f"{alfa:.2f}".replace(".", ",")
 
 
+def p_indefinido(p_valor: float | None) -> bool:
+    """p-valor que não pôde ser calculado (None ou NaN)."""
+    return p_valor is None or math.isnan(p_valor)
+
+
 def decidir(p_valor: float, alfa: float) -> str:
-    """Rejeita H0 quando p ≤ α (convenção de livro-texto)."""
+    """Rejeita H0 quando p ≤ α (convenção de livro-texto).
+
+    p indefinido (NaN, None) nunca rejeita: sem evidência calculada, a decisão conservadora é
+    não rejeitar — e `interpretar` diz que o p-valor não pôde ser calculado.
+    """
+    if p_indefinido(p_valor):
+        return NAO_REJEITA_H0
     return REJEITA_H0 if p_valor <= alfa else NAO_REJEITA_H0
 
 
@@ -45,6 +56,11 @@ def interpretar(
 ) -> str:
     """Texto que cita α, o p-valor, H0 e H1 e termina com a conclusão no contexto do teste."""
     a, p = formatar_alfa(alfa), formatar_p_valor(p_valor)
+    if p_indefinido(p_valor):
+        return (
+            f"Com α = {a}, o p-valor não pôde ser calculado (dados insuficientes ou "
+            f"degenerados): não se rejeita H₀ ({h0}). {conclusao_nao_rejeita}"
+        )
     if decidir(p_valor, alfa) == REJEITA_H0:
         return (
             f"Com α = {a}, o p-valor ({p}) é menor ou igual a α: rejeita-se H₀ ({h0}) "
