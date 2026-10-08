@@ -31,6 +31,7 @@ FAIXAS_FORCA = ((0.1, "desprezível"), (0.3, "fraca"), (0.5, "moderada"))
 DIVERGENCIA_PEARSON_SPEARMAN = 0.2
 MIN_OBSERVACOES = 3
 VALORES, POSTOS = "Valores", "Postos"
+AVISO_IC_N3 = "Com n = 3 o intervalo de confiança não é calculado."
 
 
 def classificar_forca(r: float) -> str:
@@ -192,7 +193,13 @@ class TesteCorrelacaoPearson(_Correlacao):
         resultados = {a: stats.pearsonr(xs, ys, alternative=a) for a in ALTERNATIVAS_COR.values()}
         principal = resultados[alternativa]
         r, p_valor = float(principal.statistic), float(principal.pvalue)
-        ic = principal.confidence_interval(confidence_level=1 - alfa)
+        # Com n = 3 a variância da z de Fisher, 1/(n − 3), é infinita: o scipy devolve [−1; 1],
+        # que não informa nada. Como na Spearman, o IC não é calculado (com aviso).
+        if n > 3:
+            ic = principal.confidence_interval(confidence_level=1 - alfa)
+            ic_inf, ic_sup = float(ic.low), float(ic.high)
+        else:
+            ic_inf, ic_sup = math.nan, math.nan
         gl = n - 2
         t = r * math.sqrt(gl) / math.sqrt(1 - r**2) if abs(r) < 1 else math.copysign(math.inf, r)
         spearman = {a: stats.spearmanr(xs, ys, alternative=a) for a in ALTERNATIVAS_COR.values()}
@@ -206,8 +213,8 @@ class TesteCorrelacaoPearson(_Correlacao):
             "t": t,
             "gl": float(gl),
             "p_valor": p_valor,
-            "ic_inferior": float(ic.low),
-            "ic_superior": float(ic.high),
+            "ic_inferior": ic_inf,
+            "ic_superior": ic_sup,
             "rho_spearman": rho,
         }
         avisos = []
@@ -219,6 +226,8 @@ class TesteCorrelacaoPearson(_Correlacao):
                 f"(ρₛ = {formatar_numero(rho, 3)}) diferem bastante: a relação pode não ser "
                 "linear ou haver valores extremos influentes. Veja o gráfico de dispersão."
             )
+        if n <= 3:
+            avisos.append(AVISO_IC_N3)
         resumo = [
             ("Observações (n)", f"{n}"),
             ("Coeficiente de Pearson (r)", formatar_numero(r, 4)),
@@ -227,7 +236,7 @@ class TesteCorrelacaoPearson(_Correlacao):
             ("Estatística t", formatar_numero(t, 4)),
             ("Graus de liberdade", f"{gl}"),
             ("p-valor", formatar_p_valor(p_valor)),
-            (self._rotulo_ic(alfa, alternativa), self._formatar_ic(ic.low, ic.high)),
+            (self._rotulo_ic(alfa, alternativa), self._formatar_ic(ic_inf, ic_sup)),
             ("ρ de Spearman (comparação)", formatar_numero(rho, 4)),
         ]
         return ResultadoTeste(
@@ -314,7 +323,7 @@ class TesteCorrelacaoSpearman(_Correlacao):
         if empates:
             avisos.append("Há empates nos valores: postos médios; o p-valor usa a aproximação t.")
         if n <= 3:
-            avisos.append("Com n = 3 o intervalo de confiança não é calculado.")
+            avisos.append(AVISO_IC_N3)
         resumo = [
             ("Observações (n)", f"{n}"),
             ("Coeficiente de Spearman (ρₛ)", formatar_numero(rho, 4)),

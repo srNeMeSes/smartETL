@@ -243,3 +243,13 @@ def test_formulario(classe):
         ("alfa", "alfa"),
     ]
     assert specs[2].padrao == "ρ ≠ 0" and classe().validar(_df("cars"), _params()) == []
+
+
+@pytest.mark.parametrize("classe", [TesteCorrelacaoPearson, TesteCorrelacaoSpearman])
+def test_n3_sem_ic_nas_duas(classe):
+    # Com n = 3, var(z de Fisher) = 1/(n − 3) é infinita: nenhum IC, nas duas correlações.
+    df = pd.DataFrame({"x": [1.0, 2.0, 3.0], "y": [2.0, 1.0, 5.0]})
+    r = classe().executar(df, _params())
+    assert math.isnan(r.estatisticas["ic_inferior"]) and math.isnan(r.estatisticas["ic_superior"])
+    assert "Com n = 3 o intervalo de confiança não é calculado." in r.avisos
+    assert any(v == "[—; —]" for v in r.tabelas["Resumo"]["Valor"])
