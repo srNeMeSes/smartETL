@@ -92,6 +92,16 @@ def boxplot(
     )
 
 
+def escala_barras(valores: Sequence[float], maximo: float | None = None) -> tuple[float, float]:
+    """(base, topo) do eixo das barras: a base é 0, ou o menor valor quando há negativos; o
+    topo é `maximo` (se dado) ou o maior valor (≥ 0). Sem amplitude, o eixo vai até base + 1."""
+    minimo = min([0.0, *valores])
+    topo = float(maximo) if maximo is not None else max([0.0, *valores])
+    if topo <= minimo:
+        topo = minimo + 1.0
+    return minimo, topo
+
+
 def barras(
     categorias: Sequence[tuple[str, float]],
     titulo: str,
@@ -103,15 +113,17 @@ def barras(
     """Barras verticais (rótulo, valor) com linhas horizontais de referência opcionais.
 
     `maximo` fixa o topo do eixo (ex.: 1 para proporções); `percentual` exibe os valores como %.
+    Valores negativos descem a partir do zero (`minimo` < 0).
     """
     valores = [float(v) for _, v in categorias]
-    topo = maximo if maximo is not None else max([*valores, *(v for _, v, _ in referencias)])
+    minimo, topo = escala_barras([*valores, *(float(v) for _, v, _ in referencias)], maximo)
     return Figura(
         tipo="barras",
         titulo=titulo,
         dados={
             "rotulo_y": rotulo_y,
-            "maximo": float(topo) if topo > 0 else 1.0,
+            "minimo": minimo,
+            "maximo": topo,
             "percentual": percentual,
             "categorias": [
                 {"rotulo": rotulo, "valor": valor}
@@ -133,17 +145,21 @@ def barras_agrupadas(
     maximo: float | None = None,
     percentual: bool = False,
 ) -> Figura:
-    """Barras agrupadas: para cada grupo (rótulo, [valor por série]), uma barra por série."""
+    """Barras agrupadas: para cada grupo (rótulo, [valor por série]), uma barra por série.
+
+    Valores negativos (ex.: médias de uma variável negativa) descem a partir do zero.
+    """
     valores = [[float(v) for v in vals] for _, vals in grupos]
     if any(len(v) != len(series) for v in valores):
         raise ValueError("cada grupo precisa de um valor por série")
-    topo = maximo if maximo is not None else max((v for vals in valores for v in vals), default=0)
+    minimo, topo = escala_barras([v for vals in valores for v in vals], maximo)
     return Figura(
         tipo="barras_agrupadas",
         titulo=titulo,
         dados={
             "rotulo_y": rotulo_y,
-            "maximo": float(topo) if topo > 0 else 1.0,
+            "minimo": minimo,
+            "maximo": topo,
             "percentual": percentual,
             "series": [str(s) for s in series],
             "grupos": [

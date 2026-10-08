@@ -220,30 +220,44 @@ def _formatar_valor(valor: float, percentual: bool) -> str:
     return formatar_numero(valor, 2)
 
 
+def _barra_vertical(zero: float, extremo: float) -> tuple[float, float]:
+    """(topo, altura) de uma barra entre a linha do zero e o valor (para cima ou para baixo)."""
+    return min(zero, extremo), max(abs(zero - extremo), 1)
+
+
+def _rotulo_barra(cx: float, topo: float, altura: float, valor: float, texto: str) -> cv.Text:
+    """Valor acima da barra positiva e abaixo da negativa."""
+    if valor < 0:
+        return _texto(cx, topo + altura + 3, texto, ft.Alignment.TOP_CENTER)
+    return _texto(cx, topo - 3, texto, ft.Alignment.BOTTOM_CENTER)
+
+
 def barras(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.Control | None]:
     """Barras verticais com o valor sobre cada barra e linhas horizontais de referência."""
     categorias: list[dict] = dados["categorias"]
     referencias: list[dict] = dados.get("referencias", [])
     percentual = bool(dados.get("percentual"))
     maximo = float(dados["maximo"])
+    minimo = float(dados.get("minimo", 0.0))  # < 0 quando há valores negativos
     esq = 56
     area_l = largura - esq - _MARGEM_DIR
     area_a = altura - _MARGEM_TOPO - _MARGEM_BASE
     base = _MARGEM_TOPO + area_a
 
     def sy(valor: float) -> float:
-        return base - min(max(valor, 0.0), maximo) / maximo * area_a
+        return base - (min(max(valor, minimo), maximo) - minimo) / (maximo - minimo) * area_a
 
     eixo = ft.Paint(color=tema.BORDA, stroke_width=1, style=ft.PaintingStyle.STROKE)
     preenchimento = ft.Paint(color=tema.GRAFICO_BARRA, style=ft.PaintingStyle.FILL)
     contorno = ft.Paint(
         color=tema.GRAFICO_BARRA_BORDA, stroke_width=1.5, style=ft.PaintingStyle.STROKE
     )
+    zero = sy(0.0)  # as barras saem da linha do zero (a base, se não houver negativos)
     formas: list[cv.Shape] = [
-        cv.Line(esq, base, esq + area_l, base, paint=eixo),
+        cv.Line(esq, zero, esq + area_l, zero, paint=eixo),
         cv.Line(esq, _MARGEM_TOPO, esq, base, paint=eixo),
     ]
-    for valor in (0.0, maximo / 2, maximo):
+    for valor in (minimo, (minimo + maximo) / 2, maximo):
         formas.append(
             _texto(
                 esq - 6, sy(valor), _formatar_valor(valor, percentual), ft.Alignment.CENTER_RIGHT
@@ -254,14 +268,11 @@ def barras(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.Co
     meia = min(vaga * 0.3, 60)
     for i, categoria in enumerate(categorias):
         cx = esq + vaga * (i + 0.5)
-        topo = sy(categoria["valor"])
-        altura_barra = max(base - topo, 1)
+        topo, altura_barra = _barra_vertical(zero, sy(categoria["valor"]))
         for paint in (preenchimento, contorno):
-            formas.append(
-                cv.Rect(cx - meia, base - altura_barra, 2 * meia, altura_barra, paint=paint)
-            )
+            formas.append(cv.Rect(cx - meia, topo, 2 * meia, altura_barra, paint=paint))
         valor_txt = _formatar_valor(categoria["valor"], percentual)
-        formas.append(_texto(cx, base - altura_barra - 4, valor_txt, ft.Alignment.BOTTOM_CENTER))
+        formas.append(_rotulo_barra(cx, topo, altura_barra, categoria["valor"], valor_txt))
         formas.append(_texto(cx, base + 6, categoria["rotulo"], ft.Alignment.TOP_CENTER))
 
     for ref in referencias:
@@ -283,20 +294,22 @@ def barras_agrupadas(dados: dict, largura: float, altura: float) -> tuple[cv.Can
     series: list[str] = dados["series"]
     percentual = bool(dados.get("percentual"))
     maximo = float(dados["maximo"])
+    minimo = float(dados.get("minimo", 0.0))  # < 0 quando há valores negativos
     esq = 56
     area_l = largura - esq - _MARGEM_DIR
     area_a = altura - _MARGEM_TOPO - _MARGEM_BASE
     base = _MARGEM_TOPO + area_a
 
     def sy(valor: float) -> float:
-        return base - min(max(valor, 0.0), maximo) / maximo * area_a
+        return base - (min(max(valor, minimo), maximo) - minimo) / (maximo - minimo) * area_a
 
     eixo = ft.Paint(color=tema.BORDA, stroke_width=1, style=ft.PaintingStyle.STROKE)
+    zero = sy(0.0)  # as barras saem da linha do zero (a base, se não houver negativos)
     formas: list[cv.Shape] = [
-        cv.Line(esq, base, esq + area_l, base, paint=eixo),
+        cv.Line(esq, zero, esq + area_l, zero, paint=eixo),
         cv.Line(esq, _MARGEM_TOPO, esq, base, paint=eixo),
     ]
-    for valor in (0.0, maximo / 2, maximo):
+    for valor in (minimo, (minimo + maximo) / 2, maximo):
         formas.append(
             _texto(
                 esq - 6, sy(valor), _formatar_valor(valor, percentual), ft.Alignment.CENTER_RIGHT
@@ -309,20 +322,14 @@ def barras_agrupadas(dados: dict, largura: float, altura: float) -> tuple[cv.Can
         cx = esq + vaga * (i + 0.5)
         inicio = cx - largura_barra * len(series) / 2
         for j, valor in enumerate(grupo["valores"]):
-            altura_barra = max(base - sy(valor), 1)
+            topo, altura_barra = _barra_vertical(zero, sy(valor))
             x = inicio + j * largura_barra
             paint = ft.Paint(color=cor_serie(j), style=ft.PaintingStyle.FILL)
-            formas.append(
-                cv.Rect(x + 1, base - altura_barra, largura_barra - 2, altura_barra, paint=paint)
-            )
+            formas.append(cv.Rect(x + 1, topo, largura_barra - 2, altura_barra, paint=paint))
             if largura_barra >= 26:  # rótulo só quando cabe sobre a barra
+                texto = _formatar_valor(valor, percentual)
                 formas.append(
-                    _texto(
-                        x + largura_barra / 2,
-                        base - altura_barra - 3,
-                        _formatar_valor(valor, percentual),
-                        ft.Alignment.BOTTOM_CENTER,
-                    )
+                    _rotulo_barra(x + largura_barra / 2, topo, altura_barra, valor, texto)
                 )
         formas.append(_texto(cx, base + 6, grupo["rotulo"], ft.Alignment.TOP_CENTER))
 

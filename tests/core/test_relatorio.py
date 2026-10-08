@@ -292,6 +292,7 @@ def test_titulos_de_grupo_de_figuras():
         ),
         barras([("Sim", 0.4), ("Não", 0.6)], "p", "Proporção", 1, [("p₀", 0.5, "tracejado")], True),
         barras_agrupadas([("A", [1.0, 2.0]), ("B", [3.0, 4.0])], ["s1", "s2"], "g", "Média"),
+        barras_agrupadas([("A", [-50.0, -48.0]), ("B", [-49.0, 5.0])], ["s1", "s2"], "n", "Média"),
         dispersao(
             np.arange(3000.0),
             np.arange(3000.0) ** 0.5,

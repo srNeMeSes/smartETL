@@ -145,3 +145,20 @@ def test_barras_agrupadas_uma_cor_por_serie():
 
 def test_paleta_de_series_cicla():
     assert cor_serie(len(tema.GRAFICO_SERIES)) == cor_serie(0)
+
+
+@pytest.mark.parametrize("agrupadas", [False, True])
+def test_barras_negativas_descem_a_partir_do_zero(agrupadas):
+    if agrupadas:
+        fig = barras_agrupadas([("g", [-40.0, 20.0])], ["A", "B"], "t", "y")
+    else:
+        fig = barras([("A", -40.0), ("B", 20.0)], "t", "y")
+    canvas = _canvas(desenhar_figura(fig))
+    retangulos = [s for s in canvas.shapes if isinstance(s, cv.Rect)]
+    negativa, positiva = retangulos[0], retangulos[-1]
+    zero = positiva.y + positiva.height  # base da barra positiva = linha do zero
+    assert negativa.y == pytest.approx(zero)  # a negativa começa no zero e desce
+    assert negativa.height == pytest.approx(2 * positiva.height)  # |−40| = 2·20
+    assert negativa.y + negativa.height <= ALTURA
+    linhas_zero = [s for s in canvas.shapes if isinstance(s, cv.Line) and s.y1 == s.y2 == zero]
+    assert linhas_zero  # eixo horizontal na altura do zero

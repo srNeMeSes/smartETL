@@ -174,3 +174,14 @@ def test_barras_agrupadas_figura():
     assert fig.dados["maximo"] == 1.0
     with pytest.raises(ValueError):
         barras_agrupadas([("m", [1.0])], ["A", "B"], "t", "y")
+
+
+def test_barras_com_valores_negativos():
+    # Médias negativas (ex.: ANOVA de 2 fatores com lucro): o eixo desce até o menor valor.
+    fig = barras_agrupadas([("m", [-50.0, -48.0]), ("n", [-49.0, 10.0])], ["A", "B"], "t", "y")
+    assert (fig.dados["minimo"], fig.dados["maximo"]) == (-50.0, 10.0)
+    fig = barras_agrupadas([("m", [-5.0, -2.0])], ["A", "B"], "t", "y")
+    assert (fig.dados["minimo"], fig.dados["maximo"]) == (-5.0, 0.0)
+    fig = barras([("a", -3.0), ("b", 0.0)], "t", "y")
+    assert (fig.dados["minimo"], fig.dados["maximo"]) == (-3.0, 0.0)
+    assert barras([("a", 0.4)], "t", "y", maximo=1.0).dados["minimo"] == 0.0

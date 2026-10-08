@@ -203,6 +203,15 @@ def _boxplot(ax, dados: dict) -> None:
     ax.set_ylabel(dados["rotulo_y"])
 
 
+def _limites_barras(ax, dados: dict) -> None:
+    """Eixo de `minimo` (0, ou negativo) a `maximo`, com folga para os rótulos das barras."""
+    minimo, maximo = float(dados.get("minimo", 0.0)), float(dados["maximo"])
+    folga = (maximo - minimo) * 0.12
+    ax.set_ylim(minimo - (folga if minimo < 0 else 0.0), maximo + folga)
+    if minimo < 0:
+        ax.axhline(0, color=CORES["borda"], linewidth=1)
+
+
 def _barras(ax, dados: dict) -> None:
     percentual = bool(dados.get("percentual"))
     rotulos = [c["rotulo"] for c in dados["categorias"]]
@@ -213,7 +222,7 @@ def _barras(ax, dados: dict) -> None:
     ax.bar_label(barras, labels=[_rotulo_valor(v, percentual) for v in valores], padding=2)
     for ref in dados.get("referencias", []):
         ax.axhline(ref["valor"], label=ref["rotulo"], **_estilo_linha(ref["estilo"]))
-    ax.set_ylim(0, float(dados["maximo"]) * 1.12)
+    _limites_barras(ax, dados)
     ax.set_ylabel(dados["rotulo_y"])
     if percentual:
         ax.yaxis.set_major_formatter(_percentual_eixo)
@@ -237,7 +246,7 @@ def _barras_agrupadas(ax, dados: dict) -> None:
                 fontsize=7,
             )
     ax.set_xticks(range(len(grupos)), [g["rotulo"] for g in grupos])
-    ax.set_ylim(0, float(dados["maximo"]) * 1.12)
+    _limites_barras(ax, dados)
     ax.set_ylabel(dados["rotulo_y"])
     if percentual:
         ax.yaxis.set_major_formatter(_percentual_eixo)
