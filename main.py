@@ -9,6 +9,7 @@ splash pela tela principal ao terminar. A splash fica ao menos `DURACAO_MINIMA` 
 import logging
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -94,6 +95,20 @@ def carregar_aplicativo(page: ft.Page, raiz: ft.AnimatedSwitcher, inicio: float)
     raiz.content = tela.raiz
     page.update()
     controller.iniciar()
+    identificar_na_barra_de_tarefas(page.title)
+
+
+def identificar_na_barra_de_tarefas(titulo: str) -> threading.Thread:
+    """Nome "smartETL", ícone e "Fixar na barra de tarefas" corretos no Windows (a janela é do
+    cliente Flet; ver app/identidade_windows.py). Em thread própria: não atrasa a abertura."""
+    from app import identidade_windows
+
+    dados = identidade_windows.identidade(
+        EMPACOTADO, sys.executable, Path(__file__).resolve(), ICONE
+    )
+    tarefa = threading.Thread(target=identidade_windows.aplicar, args=(titulo, dados), daemon=True)
+    tarefa.start()
+    return tarefa
 
 
 if __name__ == "__main__":

@@ -80,3 +80,9 @@ def test_cores_da_decisao():
     # Rejeitar H₀ (o teste encontrou o efeito) em verde; não rejeitar em terracota suave.
     assert tema.DECISAO_REJEITA == "#3F9B6B"
     assert tema.DECISAO_NAO_REJEITA == "#C8705F"
+
+
+def test_indicador_da_aba_ativa_em_laranja():
+    from app.ui.painel_abas import PainelAbas
+
+    assert PainelAbas()._barra.indicator_color == tema.LARANJA

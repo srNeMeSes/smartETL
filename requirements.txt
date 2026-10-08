@@ -8,6 +8,7 @@ scipy==1.18.1
 statsmodels==0.15.0
 fpdf2==2.8.9          # exportação da análise em PDF
 matplotlib==3.11.2    # gráficos do PDF (backend Agg)
+pywin32==312; sys_platform == "win32"  # nome/ícone na barra de tarefas do Windows
 
 # Desenvolvimento
 pytest==9.1.1

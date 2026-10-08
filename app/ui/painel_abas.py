@@ -42,7 +42,7 @@ def processando() -> ft.Row:
 class PainelAbas(ft.Container):
     def __init__(self):
         self._paineis = [ft.Container(padding=20, expand=True) for _ in range(4)]
-        self._barra = ft.TabBar(tabs=[])
+        self._barra = ft.TabBar(tabs=[], indicator_color=tema.LARANJA)  # linha da aba ativa
         self._vista = ft.TabBarView(expand=True, controls=[])
         self.tabs = ft.Tabs(
             selected_index=ABA_PARAMETROS,

@@ -66,3 +66,13 @@ def teste_indisponivel(monkeypatch):
         registry._POR_ID, info.id, registry.TesteInfo(info.id, info.nome, info.grupo)
     )
     return info.id
+
+
+@pytest.fixture(autouse=True)
+def sem_identidade_na_barra_de_tarefas(monkeypatch):
+    """Os testes que rodam o main() não procuram nem alteram uma janela real do Windows."""
+    from app import identidade_windows
+
+    chamadas: list[tuple] = []
+    monkeypatch.setattr(identidade_windows, "aplicar", lambda *args: chamadas.append(args))
+    return chamadas

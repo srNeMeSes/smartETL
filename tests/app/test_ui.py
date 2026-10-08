@@ -348,6 +348,19 @@ def test_main_monta_pagina(page, monkeypatch):
     page.run_task.assert_called_once_with(page.window.center)  # janela centralizada
     assert page.window.icon == str(app_main.ICONE) and app_main.ICONE.name == "icon2.ico"
     assert app_main.ICONE.exists()  # ícone da janela (canto superior esquerdo)
+
+
+def test_main_identifica_a_janela_na_barra_de_tarefas(
+    page, monkeypatch, sem_identidade_na_barra_de_tarefas
+):
+    # Nome "smartETL" e "Fixar na barra de tarefas" que reabre o app (não o cliente Flet).
+    monkeypatch.setattr(app_main, "DURACAO_MINIMA", 0)
+    app_main.main(page)
+    app_main.identificar_na_barra_de_tarefas(page.title).join(timeout=5)
+    titulo, dados = sem_identidade_na_barra_de_tarefas[-1]
+    assert titulo == "smartETL — Processamento de dados"
+    assert dados.nome == "smartETL" and dados.icone.endswith("icon2.ico,0")
+    assert "main.py" in dados.comando  # rodando do código: pythonw main.py
     (servico,), _ = page.services.append.call_args
     assert isinstance(servico, ft.FilePicker)
     assert page.add.call_count == 1
