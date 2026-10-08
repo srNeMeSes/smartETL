@@ -16,6 +16,9 @@ qui-quadrado a ANOVA, correlações e regressões — têm os valores conferidos
    e as listas de colunas já vêm filtradas pelo tipo certo (numérica, categórica, com 2 valores…).
 4. **Clique em Executar teste.** O resultado abre na aba **Análise**; os gráficos ficam em
    **Visualização**. Nas regressões há ainda a aba **Simulação**.
+5. **Exporte a análise** (opcional) com o botão **Exportar PDF**, no topo da aba Análise: o
+   relatório traz os parâmetros, a decisão, a interpretação, os avisos, todas as tabelas e todos
+   os gráficos.
 
 Para experimentar sem dados próprios, use as bases da pasta [`bases/`](bases/): o
 [`bases/README.md`](bases/README.md) diz, para cada uma, que teste usar, como preencher o
@@ -80,13 +83,13 @@ python main.py
 ```
 
 As dependências estão fixadas em `requirements.txt`: Flet 0.86.2 (interface), pandas, numpy,
-scipy, statsmodels, openpyxl e python-calamine (leitura de XLSX); pytest e ruff para
-desenvolvimento.
+scipy, statsmodels, openpyxl e python-calamine (leitura de XLSX), fpdf2 e matplotlib (relatório
+em PDF); pytest, ruff e pypdf para desenvolvimento.
 
 ## Desenvolvimento
 
 ```bash
-pytest -q                               # ~1000 testes, sem abrir janela
+pytest -q                               # ~1100 testes, sem abrir janela
 ruff check . && ruff format --check .   # lint e formatação
 python scripts/medir_desempenho.py      # tempos de leitura e de cada teste com n = 100 000
 ```
@@ -126,7 +129,8 @@ core/                      # lógica estatística, sem Flet
   validacao.py             # regras de validação reutilizáveis
   interpretacao.py         # decisão e textos de interpretação em pt-BR
   figuras.py               # dados dos gráficos
-  diagnosticos.py          # pressupostos das regressões (GQ, HMC, GVIF, Hosmer-Lemeshow...)
+  diagnosticos.py          # pressupostos (Shapiro-Wilk, GQ, HMC, GVIF, Hosmer-Lemeshow...)
+  relatorio.py             # exportação da análise em PDF
   exatos.py                # odds ratio condicional (Fisher)
   testes/                  # um módulo por grupo de testes
 tests/                     # pytest (core/ e app/) e referências do R

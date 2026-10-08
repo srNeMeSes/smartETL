@@ -81,6 +81,8 @@ PARAMS = {
     "friedman": {"colunas": ["x1", "x2", "x3"], "comparacoes": True, "alfa": 0.05},
     "anova_1fator": {"coluna": "y", "grupo": "grupo", "tukey": True, "alfa": 0.05},
     "anova_2fator": {"coluna": "y", "fator_a": "grupo", "fator_b": "fator", "alfa": 0.05},
+    "correlacao_pearson": {"x": "x1", "y": "y", "alfa": 0.05},
+    "correlacao_spearman": {"x": "x1", "y": "y", "alfa": 0.05},
     "regres_linear": {"y": "y", "preditores": ["x1", "x2", "inteiro", "grupo"], "alfa": 0.05},
     "regres_logit": {
         "y": "binaria",

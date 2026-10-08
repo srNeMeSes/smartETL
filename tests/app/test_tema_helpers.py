@@ -57,3 +57,20 @@ def test_border_only():
     borda = helpers.border_only(right=lado)
     assert borda.right == lado
     assert borda.left != lado
+
+
+def test_cores_do_relatorio_pdf_iguais_as_do_tema():
+    from core.relatorio import CORES, SERIES
+
+    assert CORES == {
+        "laranja": tema.LARANJA,
+        "laranja_suave": tema.LARANJA_SUAVE,
+        "roxo": tema.ROXO,
+        "fundo": tema.FUNDO,
+        "borda": tema.BORDA,
+        "texto": tema.TEXTO,
+        "texto_secundario": tema.TEXTO_SECUNDARIO,
+        "rejeita": tema.DECISAO_REJEITA,
+        "nao_rejeita": tema.DECISAO_NAO_REJEITA,
+    }
+    assert SERIES == tema.GRAFICO_SERIES

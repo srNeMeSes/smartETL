@@ -4,6 +4,7 @@ import asyncio
 import logging
 import threading
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -13,6 +14,13 @@ from app.state import AppState
 from core import registry
 from core.base import ErroExecucao, ErroValidacao, ResultadoTeste, TesteBase
 from core.io import DadosCarregados, ErroLeitura, carregar_dados
+from core.relatorio import (
+    ContextoRelatorio,
+    descrever_parametros,
+    garantir_extensao,
+    gerar_pdf,
+    nome_sugerido,
+)
 
 log = logging.getLogger(__name__)
 
@@ -21,6 +29,7 @@ class Visao(Protocol):
     """O que o controller precisa da interface."""
 
     async def escolher_arquivo(self) -> str | None: ...
+    async def escolher_destino_pdf(self, nome_sugerido: str) -> str | None: ...
     def exibir_dados(self, df: pd.DataFrame) -> None: ...
     def exibir_sem_arquivo(self) -> None: ...
     def exibir_indisponivel(self, info: registry.TesteInfo) -> None: ...
@@ -44,6 +53,7 @@ class Controller:
         self.visao = visao
         self._obter_teste = obter_teste
         self._executando = threading.Lock()  # executar() roda fora da thread da UI
+        self._exportando = False
 
     def iniciar(self) -> None:
         """Renderiza o estado inicial (inclusive o teste já marcado na sidebar)."""
@@ -177,6 +187,61 @@ class Controller:
         self.estado.ultimo_resultado = resultado
         self.visao.exibir_resultado(resultado)
         return resultado
+
+    # ---------------- Exportação ----------------
+    async def exportar_pdf(self) -> str | None:
+        """Pergunta onde salvar e grava o PDF do último resultado (gerado fora da thread da
+        UI). Devolve o caminho salvo, ou None."""
+        resultado = self.estado.ultimo_resultado
+        if resultado is None:
+            self.visao.notificar("Execute o teste antes de exportar a análise.", erro=True)
+            return None
+        if self._exportando:
+            return None
+        self._exportando = True
+        try:
+            info = self._obter_teste(self.estado.teste_id)
+            agora = datetime.now()
+            try:
+                caminho = await self.visao.escolher_destino_pdf(nome_sugerido(info.id, agora))
+            except Exception:
+                log.exception("Falha ao abrir o diálogo de salvar")
+                self.visao.notificar("Não foi possível abrir o diálogo para salvar.", erro=True)
+                return None
+            if not caminho:
+                return None
+            caminho = garantir_extensao(caminho)
+            contexto = ContextoRelatorio(
+                nome_teste=info.nome,
+                arquivo=self.estado.nome_arquivo,
+                linhas=len(self.estado.df) if self.estado.df is not None else None,
+                gerado_em=agora,
+                parametros=descrever_parametros(info.criar().parametros(), self.estado.params),
+            )
+            self.visao.notificar("Gerando o PDF...")
+            return await asyncio.to_thread(self._salvar_pdf, caminho, resultado, contexto)
+        finally:
+            self._exportando = False
+
+    def _salvar_pdf(
+        self, caminho: str, resultado: ResultadoTeste, contexto: ContextoRelatorio
+    ) -> str | None:
+        nome = Path(caminho).name
+        try:
+            Path(caminho).write_bytes(gerar_pdf(resultado, contexto))
+        except PermissionError:
+            self.visao.notificar(
+                f"Não foi possível salvar '{nome}'. Verifique se o arquivo não está aberto em "
+                "outro programa.",
+                erro=True,
+            )
+            return None
+        except Exception:
+            log.exception("Falha ao gerar o PDF %s", caminho)
+            self.visao.notificar(f"Não foi possível gerar o PDF '{nome}'.", erro=True)
+            return None
+        self.visao.notificar(f"Análise exportada para '{caminho}'.")
+        return caminho
 
     # ---------------- Simulação ----------------
     def simular(self, valores: dict, variavel: str | None = None) -> Any:

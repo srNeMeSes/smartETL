@@ -20,7 +20,7 @@ from app.ui.painel_abas import ABA_ANALISE, PainelAbas
 from app.ui.painel_parametros import PainelParametros
 from app.ui.sidebar import Sidebar
 from app.ui.tabela_dados import MAX_LINHAS, TabelaDados, formatar_celula
-from app.ui.tela_principal import SEM_ARQUIVO, SEM_EXECUCAO, TelaPrincipal
+from app.ui.tela_principal import ROTULO_EXPORTAR, SEM_ARQUIVO, SEM_EXECUCAO, TelaPrincipal
 from core import registry
 from core.base import ComparacaoPValores, ErroValidacao, ParametroSpec, ResultadoTeste, TesteBase
 from core.figuras import histograma
@@ -433,6 +433,9 @@ def test_exibir_resultado_preenche_analise_e_cards(tela_controller, csv_valido):
     assert do_tipo(tela.painel.analise, ft.DataTable)
     assert tela.card_analise in list(iterar_controles(tela.painel.analise))
     assert tela.card_analise._textos_p_esquerda[0].value == "0,010"
+    rodape = "p-valores da última execução do teste de hipótese."
+    assert tela.card_analise._texto_rodape.value == rodape
+    assert tela.formulario.card._texto_rodape.value == rodape
     assert tela.formulario.card._textos_p_direita[0].value == "0,020"
     assert tela.painel.tabs.selected_index == ABA_ANALISE
     assert "Nenhum gráfico" in _textos_aba(tela.painel.visualizacao)
@@ -829,3 +832,31 @@ def test_correlacoes_na_interface(tela_controller):
     tela.sidebar.botao_executar.on_click(None)
     (lista,) = [d for d in do_tipo(tela.painel.visualizacao, ft.Dropdown) if d.label == "Escala"]
     assert [o.key for o in lista.options] == ["Valores", "Postos"]
+
+
+def test_botao_exportar_pdf_so_depois_da_execucao(tela_controller, csv_valido):
+    tela, controller = tela_controller
+    controller.carregar_arquivo(str(csv_valido))
+    assert tela.botao_pdf is None
+    assert ROTULO_EXPORTAR not in _textos_aba(tela.painel.analise)
+    resultado = ResultadoTeste("teste_t_1am", {}, 0.5, 0.05, "Não rejeita H0", "ok")
+    tela.exibir_resultado(resultado)
+    assert tela.botao_pdf in list(iterar_controles(tela.painel.analise))
+    assert ROTULO_EXPORTAR in _textos_aba(tela.painel.analise)
+    assert tela.botao_pdf.on_click == tela._ao_clicar_exportar
+    controller.selecionar_teste("teste_t_2am")
+    assert tela.botao_pdf is None
+    assert ROTULO_EXPORTAR not in _textos_aba(tela.painel.analise)
+
+
+def test_escolher_destino_pdf_usa_o_dialogo_de_salvar(tela_controller, monkeypatch):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    tela, _ = tela_controller
+    salvar = AsyncMock(return_value="C:/saida/r.pdf")
+    monkeypatch.setattr(tela.file_picker, "save_file", salvar)
+    assert asyncio.run(tela.escolher_destino_pdf("anova.pdf")) == "C:/saida/r.pdf"
+    kwargs = salvar.call_args.kwargs
+    assert kwargs["file_name"] == "anova.pdf" and kwargs["allowed_extensions"] == ["pdf"]
+    assert kwargs["file_type"] == ft.FilePickerFileType.CUSTOM

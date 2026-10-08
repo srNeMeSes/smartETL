@@ -169,7 +169,10 @@ class CardComparacaoTestes(ft.Container):
                     "p_direita": formatar_p_valor(p_dir),
                 }
             )
-        return cls(comparacao.titulo_esquerda, comparacao.titulo_direita, linhas)
+        card = cls(comparacao.titulo_esquerda, comparacao.titulo_direita, linhas)
+        if any(p is not None for par in comparacao.linhas for p in par):
+            card._texto_rodape.value = NOTA_CALCULADO  # card criado já com o resultado
+        return card
 
     @staticmethod
     def _linhas_padrao() -> list[dict]:

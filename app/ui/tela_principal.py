@@ -37,6 +37,7 @@ def cor_da_decisao(texto: str) -> str:
 SEM_ARQUIVO = "Carregue um arquivo para começar."
 SEM_EXECUCAO = "Configure os parâmetros e clique em Executar teste."
 EXTENSOES = ["xlsx", "csv"]
+ROTULO_EXPORTAR = "Exportar PDF"
 
 
 class TelaPrincipal:
@@ -49,6 +50,7 @@ class TelaPrincipal:
         self.formulario: PainelParametros | None = None
         self.card_analise: CardComparacaoTestes | None = None
         self.simulacao: PainelSimulacao | None = None
+        self.botao_pdf: ft.Button | None = None
 
         self.file_picker = ft.FilePicker()
         page.services.append(self.file_picker)
@@ -101,6 +103,9 @@ class TelaPrincipal:
     def _ao_selecionar_teste(self, teste_id: str) -> None:
         self._controller.selecionar_teste(teste_id)
 
+    async def _ao_clicar_exportar(self, e: ft.Event) -> None:
+        await self._controller.exportar_pdf()
+
     def _ao_clicar_executar(self, e: ft.Event) -> None:
         # Fora da thread da UI: "Processando..." aparece e a janela não congela.
         self.page.run_thread(self._controller.executar)
@@ -111,6 +116,14 @@ class TelaPrincipal:
             allow_multiple=False, allowed_extensions=EXTENSOES
         )
         return arquivos[0].path if arquivos else None
+
+    async def escolher_destino_pdf(self, nome_sugerido: str) -> str | None:
+        return await self.file_picker.save_file(
+            dialog_title="Exportar a análise em PDF",
+            file_name=nome_sugerido,
+            file_type=ft.FilePickerFileType.CUSTOM,
+            allowed_extensions=["pdf"],
+        )
 
     def exibir_dados(self, df: pd.DataFrame) -> None:
         self.tabela.mostrar(df)
@@ -156,9 +169,13 @@ class TelaPrincipal:
     def exibir_resultado(self, resultado: ResultadoTeste) -> None:
         if resultado.secoes:
             self.card_analise = None
-            self.painel.definir_analise(self._analise_por_secoes(resultado.secoes))
+            conteudo: ft.Control = self._analise_por_secoes(resultado.secoes)
         else:
-            self.painel.definir_analise(self._analise_padrao(resultado))
+            conteudo = self._analise_padrao(resultado)
+        conteudo.expand = True
+        self.painel.definir_analise(
+            ft.Column([self._barra_exportar(), conteudo], spacing=8, expand=True)
+        )
         self.painel.definir_visualizacao(self._visualizacao(resultado))
         self.simulacao = None
         if resultado.simulacao is not None:
@@ -213,8 +230,32 @@ class TelaPrincipal:
         )
 
     # ---------------- Internos ----------------
+    def _barra_exportar(self) -> ft.Row:
+        """Botão "Exportar PDF" no topo da Análise (só existe depois de uma execução)."""
+        self.botao_pdf = ft.Button(
+            content=ft.Row(
+                [
+                    ft.Icon(ft.Icons.PICTURE_AS_PDF_OUTLINED, size=18, color=tema.LARANJA),
+                    ft.Text(
+                        ROTULO_EXPORTAR, size=13, color=tema.LARANJA, weight=ft.FontWeight.W_600
+                    ),
+                ],
+                spacing=8,
+                tight=True,
+            ),
+            on_click=self._ao_clicar_exportar,
+            bgcolor=tema.LARANJA_SUAVE,
+            style=ft.ButtonStyle(
+                shape=ft.RoundedRectangleBorder(radius=tema.RAIO_PEQUENO),
+                padding=pad(horizontal=14, vertical=12),
+                elevation=0,
+            ),
+        )
+        return ft.Row([self.botao_pdf], alignment=ft.MainAxisAlignment.END)
+
     def _limpar_teste(self) -> None:
         self._teste = None
+        self.botao_pdf = None
         self.formulario = None
         self.card_analise = None
         self.simulacao = None
@@ -222,6 +263,7 @@ class TelaPrincipal:
 
     def _definir_abas_sem_resultado(self) -> None:
         """Análise com o card zerado (2ª instância) e Visualização com estado vazio."""
+        self.botao_pdf = None
         comparacao = self._teste.comparacao_inicial() if self._teste else None
         analise: list[ft.Control] = [mensagem(SEM_EXECUCAO)]
         self.card_analise = None

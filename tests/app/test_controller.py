@@ -24,6 +24,7 @@ class VisaoFalsa:
 
     def __init__(self, caminho=None, params=None):
         self.caminho = caminho
+        self.destino_pdf = None  # caminho devolvido pelo diálogo de salvar (None = cancelou)
         self.params = params if params is not None else {}
         self.chamadas: list[tuple] = []
         self.notificacoes: list[tuple[str, bool]] = []
@@ -33,6 +34,10 @@ class VisaoFalsa:
         if isinstance(self.caminho, Exception):
             raise self.caminho
         return self.caminho
+
+    async def escolher_destino_pdf(self, nome_sugerido):
+        self.chamadas.append(("destino_pdf", nome_sugerido))
+        return self.destino_pdf
 
     def exibir_dados(self, df):
         self.chamadas.append(("dados", df.shape))
@@ -687,3 +692,77 @@ def test_integracao_correlacoes_carregar_selecionar_executar(controller, visao, 
     assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == teste_id
     assert resultado.estatisticas["n"] == 58 and resultado.estatisticas["n_descartadas"] == 2
     assert visao.chamadas[-1] == ("resultado", teste_id)
+
+
+# ---------------------------------------------------------------------------
+# Exportação em PDF
+# ---------------------------------------------------------------------------
+
+
+def _executar_anova(controller, visao):
+    controller.carregar_arquivo(str(BASES / "fertilizantes_br.csv"))
+    controller.selecionar_teste("anova_1fator")
+    visao.params = {"coluna": "produtividade", "grupo": "fertilizante", "alfa": 0.05}
+    return controller.executar()
+
+
+def test_exportar_pdf_sem_resultado(controller, visao):
+    assert asyncio.run(controller.exportar_pdf()) is None
+    assert visao.notificacoes[-1] == ("Execute o teste antes de exportar a análise.", True)
+    assert not any(c[0] == "destino_pdf" for c in visao.chamadas)
+
+
+def test_exportar_pdf_salva_o_arquivo(controller, visao, tmp_path):
+    _executar_anova(controller, visao)
+    visao.destino_pdf = str(tmp_path / "relatorio")  # sem extensão: o controller acrescenta
+    caminho = asyncio.run(controller.exportar_pdf())
+    assert caminho == str(tmp_path / "relatorio.pdf")
+    assert (tmp_path / "relatorio.pdf").read_bytes().startswith(b"%PDF")
+    nome = visao.ultima()[1]
+    assert visao.ultima()[0] == "destino_pdf" and nome.startswith("anova_1fator_")
+    assert nome.endswith(".pdf")
+    assert [m for m, _ in visao.notificacoes[-2:]] == [
+        "Gerando o PDF...",
+        f"Análise exportada para '{caminho}'.",
+    ]
+
+
+def test_exportar_pdf_cancelado(controller, visao, tmp_path):
+    _executar_anova(controller, visao)
+    antes = len(visao.notificacoes)
+    assert asyncio.run(controller.exportar_pdf()) is None
+    assert len(visao.notificacoes) == antes and not list(tmp_path.iterdir())
+
+
+def test_exportar_pdf_arquivo_bloqueado(controller, visao, tmp_path, monkeypatch):
+    _executar_anova(controller, visao)
+    visao.destino_pdf = str(tmp_path / "aberto.pdf")
+
+    def bloqueado(self, dados):
+        raise PermissionError
+
+    monkeypatch.setattr("pathlib.Path.write_bytes", bloqueado)
+    assert asyncio.run(controller.exportar_pdf()) is None
+    mensagem, erro = visao.notificacoes[-1]
+    assert erro and "Não foi possível salvar 'aberto.pdf'" in mensagem
+    assert "aberto em outro programa" in mensagem
+
+
+def test_exportar_pdf_falha_na_geracao(controller, visao, tmp_path, monkeypatch):
+    _executar_anova(controller, visao)
+    visao.destino_pdf = str(tmp_path / "x.pdf")
+
+    def falha(*args):
+        raise RuntimeError("quebrou")
+
+    monkeypatch.setattr("app.controller.gerar_pdf", falha)
+    assert asyncio.run(controller.exportar_pdf()) is None
+    assert visao.notificacoes[-1] == ("Não foi possível gerar o PDF 'x.pdf'.", True)
+    assert not (tmp_path / "x.pdf").exists()
+
+
+def test_novo_teste_descarta_o_resultado_exportavel(controller, visao):
+    _executar_anova(controller, visao)
+    controller.selecionar_teste("teste_t_1am")
+    assert asyncio.run(controller.exportar_pdf()) is None
+    assert visao.notificacoes[-1][1]
