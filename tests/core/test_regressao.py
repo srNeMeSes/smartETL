@@ -12,7 +12,7 @@ import json
 import numpy as np
 import pandas as pd
 import pytest
-from conftest import RAIZ
+from conftest import BASES, RAIZ
 
 from core.base import ErroValidacao, GrupoFiguras
 from core.diagnosticos import DW_SEM, VIF_MODERADA, VIF_MUITO_GRAVE
@@ -459,6 +459,7 @@ def test_formulario(teste):
     assert [(s.nome, s.tipo) for s in specs] == [
         ("y", "coluna_numerica"),
         ("preditores", "preditores"),
+        ("como_categoricas", "multi_coluna"),
         ("referencias", "niveis_referencia"),
         ("ordenar_por", "ordenacao"),
         ("confianca", "opcao"),
@@ -466,4 +467,53 @@ def test_formulario(teste):
     ]
     assert "Só colunas numéricas" in specs[0].ajuda
     assert specs[2].depende_de == "preditores" and not specs[2].obrigatorio
-    assert specs[3].padrao == VALORES_AJUSTADOS and specs[4].padrao == "95%"
+    assert specs[4].padrao == VALORES_AJUSTADOS and specs[5].padrao == "95%"
+
+
+# ---------------------------------------------------------------------------
+# Numéricas codificadas tratadas como categóricas
+# ---------------------------------------------------------------------------
+
+
+def test_numerica_codificada_como_categorica_igual_ao_statsmodels():
+    # quartos (1 a 5) como categoria = C(quartos, Treatment(ref)) do statsmodels/R.
+    import statsmodels.formula.api as smf
+
+    from core.io import carregar_dados
+
+    df = carregar_dados(BASES / "imoveis_br.csv").df
+    params = {
+        "y": "preco",
+        "preditores": ["area_m2", "quartos"],
+        "como_categoricas": ["quartos"],
+        "referencias": {"quartos": "2"},
+        "alfa": 0.05,
+    }
+    r = TesteRegressaoLinear().executar(df, params)
+    ref = smf.ols("preco ~ area_m2 + C(quartos, Treatment(2))", data=df).fit()
+    assert r.estatisticas["r2"] == pytest.approx(ref.rsquared, rel=1e-10)
+    assert r.estatisticas["gl1"] == ref.df_model == 1 + (df["quartos"].nunique() - 1)
+    coef = r.tabelas["Coeficientes"]
+    assert "quartos (ref.: 2)" in coef["Preditor"].tolist()
+    simulador = r.simulacao
+    (campo,) = [c for c in simulador.campos if c.nome == "quartos"]
+    assert campo.categorica and campo.referencia == "2" and "5" in campo.niveis
+    sem = TesteRegressaoLinear().executar(
+        df, {k: v for k, v in params.items() if k != "como_categoricas"}
+    )
+    assert sem.estatisticas["gl1"] == 2  # sem a opção: uma inclinação para quartos
+
+
+def test_como_categoricas_validacao():
+    from core.io import carregar_dados
+
+    df = carregar_dados(BASES / "imoveis_br.csv").df
+    base = {"y": "preco", "preditores": ["area_m2"], "alfa": 0.05}
+    erros = TesteRegressaoLinear().validar(df, base | {"como_categoricas": ["quartos"]})
+    assert erros == [
+        "A coluna 'quartos' foi marcada como categórica, mas não está entre os preditores."
+    ]
+    erros = TesteRegressaoLinear().validar(
+        df, base | {"preditores": ["area_m2"], "como_categoricas": ["area_m2"]}
+    )
+    assert any("valores distintos" in e and "máximo 50 níveis" in e for e in erros)

@@ -12,6 +12,10 @@ decisões complementares tomadas na mesma data. Qualquer mudança deve ser confi
   - O usuário escolhe o nível de referência de cada categórica por lista suspensa.
   - Padrão inicial: o nível mais frequente.
   - Avisar quando um nível tiver poucas observações (ex.: < 5).
+  - **Numéricas codificadas** (ex.: escolaridade 1 a 5): o campo "Tratar como categóricas"
+    (só lista os preditores numéricos marcados) faz a coluna entrar como dummies, com nível de
+    referência como as demais; até 50 níveis. Sem a marca, numéricas entram como número.
+    Vale também na regressão logística (acrescentado em 2026-10-08, revisão geral).
 - **Validações:** remover linhas com valores ausentes nas variáveis do modelo e informar quantas
   foram removidas; exigir n > p + 1; detectar colinearidade perfeita e informar quais variáveis a
   causam.

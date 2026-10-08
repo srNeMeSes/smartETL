@@ -367,3 +367,35 @@ def test_simulacao_inteiro_sem_ponto_de_milhar():
     assert _formatar(campo, 1200.0) == "1200" and _formatar(campo, 3.0) == "3"
     continuo = CampoSimulacao("x", False, 1234.5, 0.0, 9999.0)
     assert _formatar(continuo, 1234.5) == "1.234,50"  # com vírgula: sem ambiguidade
+
+
+def test_tratar_como_categoricas_so_mostra_preditores_numericos_marcados(page):
+    tela = TelaPrincipal(page)
+    controller = Controller(AppState(), tela)
+    tela.conectar(controller)
+    controller.carregar_arquivo(str(BASES / "imoveis_br.csv"))
+    tela.sidebar.selecionar("regres_linear")
+    form = tela.formulario
+    form.controle("y").value = "preco"
+    form.controle("y").on_select(None)
+    caixas = {c.label: c for c in form.controle("preditores").controls}
+    forcadas = {c.label: c for c in form.controle("como_categoricas").controls}
+    assert not any(c.visible for c in forcadas.values())  # nenhum preditor marcado ainda
+    for nome in ("area_m2", "quartos"):
+        caixas[nome].value = True
+        caixas[nome].on_change(None)
+    assert {n for n, c in forcadas.items() if c.visible} == {"area_m2", "quartos"}
+    assert form.controle("referencias").controls == []  # numéricas: sem nível de referência
+    forcadas["quartos"].value = True
+    forcadas["quartos"].on_change(None)
+    (lista,) = form.controle("referencias").controls
+    assert lista.label == "Nível de referência de 'quartos'"
+    valores = form.coletar_valores()
+    assert valores["como_categoricas"] == ["quartos"]
+    # Desmarcar o preditor desmarca a opção e tira a lista de referência.
+    caixas["quartos"].value = False
+    caixas["quartos"].on_change(None)
+    assert not forcadas["quartos"].visible and not forcadas["quartos"].value
+    assert form.controle("referencias").controls == []
+    tela.sidebar.botao_executar.on_click(None)
+    assert controller.estado.ultimo_resultado is not None

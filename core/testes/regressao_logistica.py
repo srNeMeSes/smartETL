@@ -27,6 +27,7 @@ from core.interpretacao import (
 )
 from core.testes.regressao import (
     CONFIANCAS,
+    SPEC_COMO_CATEGORICAS,
     VALORES_AJUSTADOS,
     DadosModelo,
     Previsao,
@@ -34,6 +35,7 @@ from core.testes.regressao import (
     TesteRegressaoLinear,
     _confianca,
     avisos_dos_dados,
+    erros_como_categoricas,
     formatar_coeficiente,
     linhas_coeficientes,
     preparar_dados,
@@ -181,6 +183,7 @@ class TesteRegressaoLogistica(TesteRegressaoLinear):
                 "evento", "Evento (o valor que conta como sucesso)", "nivel", depende_de="y"
             ),
             ParametroSpec("preditores", "Preditores (X)", "preditores", depende_de="y"),
+            SPEC_COMO_CATEGORICAS,
             ParametroSpec(
                 "referencias",
                 "Nível de referência",
@@ -235,10 +238,14 @@ class TesteRegressaoLogistica(TesteRegressaoLinear):
             params.get("confianca", "95%"), CONFIANCAS, "Escolha um nível de confiança válido."
         )
         erros += erro_alfa(params.get("alfa", 0.05))
+        erros += erros_como_categoricas(df, preditores, params.get("como_categoricas"))
         if erros:
             return erros
         binario = binarizar(df, nome_y, evento)
-        dados = preparar_dados(binario, nome_y, preditores, params.get("referencias"))
+        como_categoricas = params.get("como_categoricas")
+        dados = preparar_dados(
+            binario, nome_y, preditores, params.get("referencias"), como_categoricas
+        )
         if len(dados.y) and np.ptp(dados.y) == 0:
             classe = evento if dados.y[0] == 1 else "o outro valor"
             return [
@@ -246,7 +253,12 @@ class TesteRegressaoLogistica(TesteRegressaoLinear):
                 "casos das duas classes."
             ]
         return self._erros_modelo(
-            binario, nome_y, preditores, params.get("referencias"), VALORES_AJUSTADOS
+            binario,
+            nome_y,
+            preditores,
+            params.get("referencias"),
+            VALORES_AJUSTADOS,
+            como_categoricas,
         )
 
     # ---------------- Execução ----------------
@@ -264,7 +276,9 @@ class TesteRegressaoLogistica(TesteRegressaoLinear):
         confianca = _confianca(params.get("confianca", "95%"))
         limiar = converter_numero(params.get("limiar", LIMIAR_PADRAO))
         binario = binarizar(df, nome_y, evento)
-        dados = preparar_dados(binario, nome_y, preditores, params.get("referencias"))
+        dados = preparar_dados(
+            binario, nome_y, preditores, params.get("referencias"), params.get("como_categoricas")
+        )
         n, k = dados.x.shape
 
         ajuste = self._ajustar(sm, dados.y, dados.x)

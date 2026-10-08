@@ -30,6 +30,7 @@ from core.validacao import erro_alfa, erro_opcao, erros_coluna
 
 INTERCEPTO = "(Intercepto)"
 MIN_POR_NIVEL = 5
+MAX_NIVEIS_CATEGORICA = 50  # numérica marcada como categórica: no máximo isto de níveis
 
 
 @dataclass(frozen=True)
@@ -78,15 +79,21 @@ def nivel_referencia_padrao(serie: pd.Series) -> str | None:
 
 
 def preparar_dados(
-    df: pd.DataFrame, nome_y: str, preditores: list[str], referencias: dict[str, str] | None = None
+    df: pd.DataFrame,
+    nome_y: str,
+    preditores: list[str],
+    referencias: dict[str, str] | None = None,
+    como_categoricas: list[str] | None = None,
 ) -> DadosModelo:
     """Monta y e X (intercepto + numéricas + k − 1 dummies por categórica).
 
     Linhas com valor ausente em y ou em algum preditor são descartadas. `referencias` dá o nível
     de referência de cada categórica (ausente ou inválido → o mais frequente). A ordem das
-    dummies segue a ordem crescente dos níveis, sem a referência.
+    dummies segue a ordem crescente dos níveis, sem a referência. `como_categoricas`: preditores
+    numéricos que são códigos de categoria (ex.: escolaridade 1 a 5) e entram como dummies.
     """
     referencias = referencias or {}
+    forcadas = set(como_categoricas or [])
     linhas = df[[nome_y, *preditores]].dropna()
     descartadas = len(df) - len(linhas)
     colunas = [INTERCEPTO]
@@ -94,7 +101,7 @@ def preparar_dados(
     variaveis = []
     for nome in preditores:
         serie = linhas[nome]
-        if e_categorica(serie):
+        if e_categorica(serie) or nome in forcadas:
             textos = serie.map(rotulo_nivel)
             niveis = niveis_ordenados(serie)
             referencia = referencias.get(nome)
@@ -239,6 +246,39 @@ def residuos_por_eixo(
                 [linha_zero(xs)],
             )
     return GrupoFiguras("Eixo X", opcoes, VALORES_AJUSTADOS)
+
+
+SPEC_COMO_CATEGORICAS = ParametroSpec(
+    "como_categoricas",
+    "Tratar como categóricas",
+    "multi_coluna",
+    obrigatorio=False,
+    depende_de="preditores",
+    ajuda=(
+        "Preditores numéricos que são códigos de categoria (ex.: escolaridade de 1 a 5): "
+        "marcados, entram com um coeficiente por nível em vez de uma inclinação."
+    ),
+)
+
+
+def erros_como_categoricas(
+    df: pd.DataFrame, preditores: list[str], como_categoricas: list[str] | None
+) -> list[str]:
+    """Cada coluna marcada como categórica precisa ser um preditor, com até 50 níveis."""
+    erros = []
+    for nome in como_categoricas or []:
+        if nome not in preditores:
+            erros.append(
+                f"A coluna '{nome}' foi marcada como categórica, mas não está entre os preditores."
+            )
+            continue
+        niveis = df[nome].dropna().nunique()
+        if niveis > MAX_NIVEIS_CATEGORICA:
+            erros.append(
+                f"A coluna '{nome}' tem {niveis} valores distintos: tratada como categórica, "
+                f"geraria coeficientes demais (máximo {MAX_NIVEIS_CATEGORICA} níveis)."
+            )
+    return erros
 
 
 # ---------------------------------------------------------------------------
@@ -526,6 +566,7 @@ class TesteRegressaoLinear(TesteBase):
                 ),
             ),
             ParametroSpec("preditores", "Preditores (X)", "preditores", depende_de="y"),
+            SPEC_COMO_CATEGORICAS,
             ParametroSpec(
                 "referencias",
                 "Nível de referência",
@@ -576,7 +617,17 @@ class TesteRegressaoLinear(TesteBase):
         erros += erro_alfa(params.get("alfa", 0.05))
         if erros:
             return erros
-        return self._erros_modelo(df, nome_y, preditores, params.get("referencias"), ordenar)
+        erros = erros_como_categoricas(df, preditores, params.get("como_categoricas"))
+        if erros:
+            return erros
+        return self._erros_modelo(
+            df,
+            nome_y,
+            preditores,
+            params.get("referencias"),
+            ordenar,
+            params.get("como_categoricas"),
+        )
 
     def _erros_modelo(
         self,
@@ -585,8 +636,9 @@ class TesteRegressaoLinear(TesteBase):
         preditores: list[str],
         referencias: dict | None,
         ordenar: str,
+        como_categoricas: list[str] | None = None,
     ) -> list[str]:
-        dados = preparar_dados(df, nome_y, preditores, referencias)
+        dados = preparar_dados(df, nome_y, preditores, referencias, como_categoricas)
         n, k = dados.x.shape
         erros = [
             f"O preditor '{v.nome}' tem um único nível nas linhas completas ('{v.niveis[0]}'): "
@@ -639,7 +691,9 @@ class TesteRegressaoLinear(TesteBase):
         alfa = float(params.get("alfa", 0.05))
         confianca = _confianca(params.get("confianca", "95%"))
         ordenar = params.get("ordenar_por") or VALORES_AJUSTADOS
-        dados = preparar_dados(df, nome_y, preditores, params.get("referencias"))
+        dados = preparar_dados(
+            df, nome_y, preditores, params.get("referencias"), params.get("como_categoricas")
+        )
         n, k = dados.x.shape
 
         ajuste = sm.OLS(dados.y, dados.x).fit()

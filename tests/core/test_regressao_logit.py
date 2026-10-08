@@ -406,10 +406,40 @@ def test_formulario(teste):
         ("y", "coluna_binaria"),
         ("evento", "nivel"),
         ("preditores", "preditores"),
+        ("como_categoricas", "multi_coluna"),
         ("referencias", "niveis_referencia"),
         ("limiar", "numero"),
         ("confianca", "opcao"),
         ("alfa", "alfa"),
     ]
     assert specs[1].depende_de == "y" and specs[2].depende_de == "y"
-    assert specs[4].padrao == 0.5
+    assert specs[5].padrao == 0.5
+
+
+def test_numerica_codificada_como_categorica_na_logistica():
+    # faixa etária codificada 1..4 (a partir da idade) como categoria = C(faixa) no statsmodels.
+    import statsmodels.formula.api as smf
+    from conftest import BASES
+
+    from core.io import carregar_dados
+
+    df = carregar_dados(BASES / "credito_br.csv").df
+    df["faixa"] = (df["idade"] // 15).clip(1, 4)
+    params = {
+        "y": "inadimplente",
+        "evento": "Sim",
+        "preditores": ["renda", "faixa"],
+        "como_categoricas": ["faixa"],
+        "referencias": {"faixa": "1"},
+        "alfa": 0.05,
+    }
+    r = TesteRegressaoLogistica().executar(df, params)
+    dados = df.assign(y=(df["inadimplente"] == "Sim").astype(float))
+    ref = smf.logit("y ~ renda + C(faixa, Treatment(1))", data=dados).fit(disp=0)
+    assert r.estatisticas["gl"] == ref.df_model == 1 + (df["faixa"].nunique() - 1)
+    assert r.estatisticas["loglik"] == pytest.approx(ref.llf, rel=1e-8)
+    assert "faixa (ref.: 1)" in r.tabelas["Coeficientes"]["Preditor"].tolist()
+    erros = TesteRegressaoLogistica().validar(df, params | {"preditores": ["renda"]})
+    assert (
+        "A coluna 'faixa' foi marcada como categórica, mas não está entre os preditores." in erros
+    )

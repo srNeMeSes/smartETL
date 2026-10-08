@@ -83,6 +83,8 @@ class PainelParametros(ft.Row):
                 origem = self._controles.get(spec.depende_de or "")
                 if spec.tipo == "preditores" and origem is not None:
                     self._excluir_alvo(origem, caixas)
+                elif spec.tipo == "multi_coluna" and origem is not None:
+                    self._so_marcadas(origem, caixas)
                 return ft.Column(
                     controls=[
                         ft.Text(spec.rotulo, weight=ft.FontWeight.BOLD, color=tema.CAMPO_ROTULO),
@@ -137,6 +139,44 @@ class PainelParametros(ft.Row):
         origem.on_select = atualizar
         atualizar()
 
+    @staticmethod
+    def _encadear(caixa: ft.Checkbox, funcao) -> None:
+        """Acrescenta `funcao` ao on_change da caixa sem apagar o que já estava ligado."""
+        anterior = caixa.on_change
+
+        def ambos(evento=None) -> None:
+            if anterior is not None:
+                anterior(evento)
+            funcao(evento)
+
+        caixa.on_change = ambos
+
+    def _so_marcadas(self, origem: ft.Column, caixas: list[ft.Checkbox]) -> None:
+        """Só as colunas marcadas em `origem` (os preditores) aparecem; desmarcar um preditor
+        desmarca a caixa dele aqui (ex.: "Tratar como categóricas")."""
+
+        def atualizar(_evento=None) -> None:
+            marcados = {c.label for c in origem.controls if c.value}
+            for caixa in caixas:
+                caixa.visible = caixa.label in marcados
+                if not caixa.visible and caixa.value:
+                    caixa.value = False
+                    if caixa.on_change is not None:
+                        caixa.on_change(None)
+                if esta_na_pagina(caixa):
+                    caixa.update()
+
+        for caixa in origem.controls:
+            self._encadear(caixa, atualizar)
+        atualizar()
+
+    def _forcadas(self, depende_de: str | None) -> ft.Column | None:
+        """Caixas "Tratar como categóricas" ligadas aos mesmos preditores, se o teste as tiver."""
+        for spec in self.specs:
+            if spec.tipo == "multi_coluna" and spec.depende_de == depende_de:
+                return self._controles.get(spec.nome)
+        return None
+
     def _excluir_alvo(self, origem: ft.Dropdown, caixas: list[ft.Checkbox]) -> None:
         """A coluna escolhida em `origem` (a variável dependente) some da lista de preditores;
         se estava marcada, é desmarcada (e o que depende das caixas é atualizado)."""
@@ -161,15 +201,18 @@ class PainelParametros(ft.Row):
     def _ligar_referencias(
         self, spec: ParametroSpec, origem: ft.Column, destino: ft.Column
     ) -> None:
-        """Uma lista de níveis por coluna categórica marcada em `origem` (padrão: a mais frequente).
+        """Uma lista de níveis por coluna categórica marcada em `origem` (padrão: a mais frequente),
+        inclusive as numéricas marcadas em "Tratar como categóricas".
 
         Escolhas já feitas são mantidas quando outras caixas são marcadas ou desmarcadas.
         """
         listas = self._referencias[spec.nome]
+        forcadas = self._forcadas(spec.depende_de)
 
         def atualizar(_evento=None) -> None:
             marcadas = [c.label for c in origem.controls if c.value]
-            categoricas = [c for c in marcadas if e_categorica(self._df[c])]
+            extra = {c.label for c in forcadas.controls if c.value} if forcadas else set()
+            categoricas = [c for c in marcadas if e_categorica(self._df[c]) or c in extra]
             for coluna in list(listas):
                 if coluna not in categoricas:
                     del listas[coluna]
@@ -185,8 +228,8 @@ class PainelParametros(ft.Row):
             if esta_na_pagina(destino):
                 destino.update()
 
-        for caixa in origem.controls:
-            caixa.on_change = atualizar
+        for caixa in [*origem.controls, *(forcadas.controls if forcadas else [])]:
+            self._encadear(caixa, atualizar)
         atualizar()
 
     def controle(self, nome: str) -> ft.Control:

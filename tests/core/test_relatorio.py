@@ -100,6 +100,17 @@ def _ler(conteudo: bytes) -> tuple[list[str], int]:
     return textos, sum(len(pagina.images) for pagina in leitor.pages)
 
 
+def _corpo(paginas: list[str], nome_teste: str) -> str:
+    """Texto contínuo do relatório, sem o cabeçalho e o rodapé de cada página (um parágrafo que
+    passa de uma página para a outra fica inteiro)."""
+    rodape = re.compile(rf"\s*{RODAPE}\s*Página \d+ de \d+\s*$")
+    partes = []
+    for pagina in paginas:
+        texto = pagina[len(nome_teste) :] if pagina.startswith(nome_teste) else pagina
+        partes.append(rodape.sub("", texto))
+    return " ".join(partes)
+
+
 def _compacto(texto: str) -> str:
     return re.sub(r"\s+", "", texto)
 
@@ -126,7 +137,7 @@ def test_conteudo_do_relatorio(relatorios, teste_id):
     resultado, contexto, conteudo = relatorios[teste_id]
     assert conteudo.startswith(b"%PDF")
     paginas, imagens = _ler(conteudo)
-    tudo = _compacto(" ".join(paginas))
+    tudo = _compacto(_corpo(paginas, contexto.nome_teste))
 
     for i, pagina in enumerate(paginas, start=1):
         # Cabeçalho: só o nome do teste; "smartETL" só no rodapé ("by smartETL").
@@ -200,7 +211,7 @@ def test_regressao_tem_secoes_tabelas_largas_e_grupo_de_figuras(relatorios):
     paginas, imagens = _ler(conteudo)
     grupos = [f for f in resultado.figuras if isinstance(f, GrupoFiguras)]
     assert grupos and imagens > len(resultado.figuras)  # todas as opções do "Eixo X"
-    texto = " ".join(paginas)
+    texto = _corpo(paginas, "Regressão Linear")
     assert texto.index("Pressupostos") < texto.index("Coeficientes")  # ordem das seções
     # Dicas das colunas (tooltips na interface) viram notas no PDF.
     dicas = [
