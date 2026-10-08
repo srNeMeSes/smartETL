@@ -12,6 +12,7 @@ from core.interpretacao import formatar_numero
 LARGURA = 640
 ALTURA = 220
 _MARGEM_ESQ, _MARGEM_DIR, _MARGEM_TOPO, _MARGEM_BASE = 36, 16, 26, 26
+FOLGA_NEGATIVOS = 0.12  # fração da amplitude abaixo do menor valor negativo
 
 
 def desenhar_figura(figura: Figura, largura: float = LARGURA, altura: float = ALTURA) -> ft.Control:
@@ -239,6 +240,8 @@ def barras(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.Co
     percentual = bool(dados.get("percentual"))
     maximo = float(dados["maximo"])
     minimo = float(dados.get("minimo", 0.0))  # < 0 quando há valores negativos
+    if minimo < 0:  # folga abaixo da barra mais baixa para o rótulo do valor não tocar o eixo
+        minimo -= (maximo - minimo) * FOLGA_NEGATIVOS
     esq = 56
     area_l = largura - esq - _MARGEM_DIR
     area_a = altura - _MARGEM_TOPO - _MARGEM_BASE
@@ -295,6 +298,8 @@ def barras_agrupadas(dados: dict, largura: float, altura: float) -> tuple[cv.Can
     percentual = bool(dados.get("percentual"))
     maximo = float(dados["maximo"])
     minimo = float(dados.get("minimo", 0.0))  # < 0 quando há valores negativos
+    if minimo < 0:  # folga abaixo da barra mais baixa para o rótulo do valor não tocar o eixo
+        minimo -= (maximo - minimo) * FOLGA_NEGATIVOS
     esq = 56
     area_l = largura - esq - _MARGEM_DIR
     area_a = altura - _MARGEM_TOPO - _MARGEM_BASE
