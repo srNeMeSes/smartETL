@@ -401,10 +401,18 @@ TABELA_MEDIAS = "Médias por combinação"
 _MAX_CELULAS_LISTADAS = 5
 
 
-def _texto_p(p: float) -> str:
-    """Texto "p = 0,012" ou "p < 0,001"."""
+def _texto_p(p: float, nome: str = "p") -> str:
+    """Texto "p = 0,012" ou "p < 0,001" (`nome` troca o "p", ex.: "p ajustado")."""
     texto = formatar_p_valor(p)
-    return f"p {texto}" if texto.startswith("<") else f"p = {texto}"
+    return f"{nome} {texto}" if texto.startswith("<") else f"{nome} = {texto}"
+
+
+def bonferroni(p: float, testes: int) -> float:
+    """p ajustado por Bonferroni: min(1, p × número de testes)."""
+    return min(1.0, p * testes)
+
+
+ROTULO_BONFERRONI = "p ajustado (Bonferroni)"
 
 
 class TesteAnova2Fatores(TesteBase):
@@ -416,9 +424,11 @@ class TesteAnova2Fatores(TesteBase):
     soma (`statsmodels` `ols` + `anova_lm`); somas de quadrados Tipo II (padrão) ou Tipo III — em
     desenho balanceado coincidem; no desbalanceado há aviso. Tabela por fonte (SQ, gl, QM, F, p,
     η² parcial = SQ/(SQ + SQ resíduo)). Decisão principal: com a interação, a do termo A × B;
-    sem ela, rejeita H₀ se algum efeito principal tiver p ≤ α (p-valor exibido = o menor dos
-    dois). A interpretação comenta cada efeito. Levene (mediana) entre as combinações só como
-    aviso quando p < 0,05 (exige ≥ 2 observações por combinação). Sem pós-teste e sem card.
+    sem ela, os dois efeitos principais são testados juntos com correção de Bonferroni (p × 2,
+    decisão do autor): rejeita H₀ se algum p ajustado for ≤ α (p-valor exibido = o menor p
+    ajustado), o que mantém o erro tipo I global em α. A interpretação comenta cada efeito.
+    Levene (mediana) entre as combinações só como aviso quando p < 0,05 (exige ≥ 2 observações
+    por combinação). Sem pós-teste e sem card.
     """
 
     id = "anova_2fator"
@@ -624,8 +634,10 @@ class TesteAnova2Fatores(TesteBase):
 
         if interacao:
             p_valor = estatisticas["p_ab"]
-        else:
-            p_valor = min(estatisticas["p_a"], estatisticas["p_b"])
+        else:  # dois testes (A e B) para uma decisão: Bonferroni
+            for chave in ("a", "b"):
+                estatisticas[f"p_bonferroni_{chave}"] = bonferroni(estatisticas[f"p_{chave}"], 2)
+            p_valor = min(estatisticas["p_bonferroni_a"], estatisticas["p_bonferroni_b"])
         estatisticas["p_valor"] = p_valor
 
         avisos = self._avisos(dados, contagens, descartadas, balanceado, tipo_sq, estatisticas)
@@ -647,6 +659,11 @@ class TesteAnova2Fatores(TesteBase):
             ("Observações (N)", f"{len(dados)}"),
             ("Interação A × B", "Incluída" if interacao else "Não incluída"),
             ("Soma de quadrados", tipo_sq),
+            *(
+                []
+                if interacao
+                else [("Correção (2 efeitos principais)", "Bonferroni: p ajustado = p × 2")]
+            ),
             ("Desenho", "Balanceado" if balanceado else "Desbalanceado"),
             ("R² do modelo", formatar_numero(estatisticas["r2"])),
             ("p-valor do Levene (mediana)", formatar_p_valor(estatisticas["p_levene"])),
@@ -669,11 +686,18 @@ class TesteAnova2Fatores(TesteBase):
             ],
             columns=[f"{fator_a} (A)", f"{fator_b} (B)", "n", "Média", "Desvio padrão"],
         )
+        tabela_anova = pd.DataFrame(
+            linhas_anova, columns=["Fonte", "SQ", "gl", "QM", "F", "p", "η² parcial"]
+        )
+        if not interacao:
+            tabela_anova.insert(
+                6,
+                ROTULO_BONFERRONI,
+                [formatar_p_valor(estatisticas[f"p_bonferroni_{c}"]) for c in ("a", "b")] + [""],
+            )
         tabelas = {
             "Resumo": pd.DataFrame(resumo, columns=["Medida", "Valor"]),
-            "Tabela ANOVA": pd.DataFrame(
-                linhas_anova, columns=["Fonte", "SQ", "gl", "QM", "F", "p", "η² parcial"]
-            ),
+            "Tabela ANOVA": tabela_anova,
             TABELA_MEDIAS: tabela_medias,
         }
         figura = barras_agrupadas(
@@ -756,12 +780,19 @@ class TesteAnova2Fatores(TesteBase):
     def _interpretacao(
         e: dict[str, float], alfa: float, coluna: str, fator_a: str, fator_b: str, interacao: bool
     ) -> str:
+        # Sem a interação, os efeitos principais são julgados pelo p ajustado (Bonferroni).
+        ajustado = not interacao
+
+        def p_de(chave: str) -> float:
+            return e[f"p_bonferroni_{chave}"] if ajustado else e[f"p_{chave}"]
+
         def rejeita(chave: str) -> bool:
-            return decidir(e[f"p_{chave}"], alfa) == REJEITA_H0
+            return decidir(p_de(chave), alfa) == REJEITA_H0
 
         def frase(chave: str, efeito: str, h0: str) -> str:
             acao = "rejeita-se H₀" if rejeita(chave) else "não se rejeita H₀"
-            return f"{efeito[0].upper()}{efeito[1:]}: {_texto_p(e[f'p_{chave}'])}, {acao} ({h0})."
+            nome = ROTULO_BONFERRONI if ajustado else "p"
+            return f"{efeito[0].upper()}{efeito[1:]}: {_texto_p(p_de(chave), nome)}, {acao} ({h0})."
 
         partes = [f"Com α = {formatar_alfa(alfa)}:"]
         if interacao:

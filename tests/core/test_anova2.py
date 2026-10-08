@@ -215,14 +215,40 @@ def test_decisao_pela_interacao(teste):
 def test_decisao_sem_interacao(teste):
     r = teste.executar(_df(BALANCEADO), _params(interacao=False))
     e = r.estatisticas
-    assert r.p_valor == min(e["p_a"], e["p_b"]) and r.decisao == REJEITA_H0
+    # Dois efeitos para uma decisão: Bonferroni (p × 2, limitado a 1).
+    assert e["p_bonferroni_a"] == pytest.approx(min(1.0, 2 * e["p_a"]))
+    assert e["p_bonferroni_b"] == pytest.approx(min(1.0, 2 * e["p_b"]))
+    assert r.p_valor == min(e["p_bonferroni_a"], e["p_bonferroni_b"]) and r.decisao == REJEITA_H0
     assert "Interação" not in r.interpretacao
+    assert "Efeito de 'A': p ajustado (Bonferroni) " in r.interpretacao
+    anova = r.tabelas["Tabela ANOVA"]
+    assert anova["p ajustado (Bonferroni)"].tolist() == [
+        _p_br(e["p_bonferroni_a"]),
+        _p_br(e["p_bonferroni_b"]),
+        "",
+    ]
+    resumo = dict(r.tabelas["Resumo"].itertuples(index=False, name=None))
+    assert resumo["Correção (2 efeitos principais)"] == "Bonferroni: p ajustado = p × 2"
     assert "a média de 'y' difere entre os níveis de 'A' e de 'B'." in r.interpretacao
     rng = np.random.default_rng(3)
     ruido = {chave: list(rng.normal(10, 1, 4)) for chave in BALANCEADO}
     r = teste.executar(_df(ruido), _params(interacao=False))
     assert r.decisao == NAO_REJEITA_H0
     assert "Não há evidência suficiente de efeito de 'A' ou de 'B'" in r.interpretacao
+
+
+def test_bonferroni_muda_a_decisao_entre_alfa_e_alfa_sobre_2(teste, monkeypatch):
+    # p = 0,04 em A sem interação: sem correção rejeitaria; com Bonferroni (0,08) não rejeita.
+    from core.testes import anova as modulo
+
+    r = teste.executar(_df(BALANCEADO), _params(interacao=False))
+    e = dict(r.estatisticas, p_a=0.04, p_b=0.5, p_bonferroni_a=0.08, p_bonferroni_b=1.0)
+    texto = modulo.TesteAnova2Fatores._interpretacao(e, 0.05, "y", "A", "B", False)
+    assert "Efeito de 'A': p ajustado (Bonferroni) = 0,080, não se rejeita H₀" in texto
+    assert "Não há evidência suficiente de efeito" in texto
+    assert modulo.bonferroni(0.6, 2) == 1.0 and modulo.bonferroni(0.02, 2) == 0.04
+    r = teste.executar(_df(BALANCEADO), _params())  # com interação: p sem ajuste
+    assert "p ajustado (Bonferroni)" not in r.tabelas["Tabela ANOVA"].columns
 
 
 def test_tabelas_figura_e_sem_card(teste):
