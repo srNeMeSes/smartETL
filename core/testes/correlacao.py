@@ -68,6 +68,7 @@ class _Correlacao(TesteBase):
     """Base comum: duas colunas numéricas, linhas completas, H₀: ρ = 0."""
 
     simbolo = "r"
+    parametro = "ρ"  # parâmetro populacional citado no H₀ (Kendall: τ)
     metodo = ""
 
     def parametros(self) -> list[ParametroSpec]:
@@ -123,7 +124,7 @@ class _Correlacao(TesteBase):
 
     # ---------------- Comum ----------------
     def _interpretacao(self, coef: float, p: float, alfa: float, alternativa: str, x, y) -> str:
-        h0 = f"ρ = 0: não há correlação entre '{x}' e '{y}'"
+        h0 = f"{self.parametro} = 0: não há correlação entre '{x}' e '{y}'"
         resumo = f"{self.simbolo} = {formatar_numero(coef, 3)}: {descrever(coef)}"
         if alternativa == "two-sided":
             rejeita = f"Há evidência estatística de correlação entre '{x}' e '{y}' ({resumo})."

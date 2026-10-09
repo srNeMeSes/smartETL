@@ -1,4 +1,4 @@
-"""Registro dos testes: 21 ids, rótulos e ordem oficiais (CLAUDE.md §7)."""
+"""Registro dos testes: 22 ids, rótulos e ordem oficiais (CLAUDE.md §7)."""
 
 import pytest
 
@@ -30,6 +30,7 @@ LISTA_OFICIAL = [
     ("information_value", "Information Value (IV)"),
     ("correlacao_pearson", "Correlação de Pearson"),
     ("correlacao_spearman", "Correlação de Spearman"),
+    ("correlacao_kendall", "Correlação de Kendall"),
     ("correlacao_parcial", "Correlação parcial"),
     # Regressão
     ("regres_linear", "Regressão Linear"),
@@ -47,8 +48,8 @@ GRUPOS = [
 ]
 
 
-def test_21_testes_registrados():
-    assert len(registry.listar()) == 21
+def test_22_testes_registrados():
+    assert len(registry.listar()) == 22
 
 
 def test_sem_ids_nem_rotulos_duplicados():
@@ -111,6 +112,7 @@ def test_testes_implementados():
         "information_value",
         "correlacao_pearson",
         "correlacao_spearman",
+        "correlacao_kendall",
         "correlacao_parcial",
         "regres_linear",
         "regres_logit",

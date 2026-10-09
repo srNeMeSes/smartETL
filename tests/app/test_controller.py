@@ -709,7 +709,9 @@ def test_integracao_regressao_logistica_carregar_selecionar_executar_simular(con
     assert 0 < previsao.valor < 1 and previsao.classe in ("Sim", "Não")
 
 
-@pytest.mark.parametrize("teste_id", ["correlacao_pearson", "correlacao_spearman"])
+@pytest.mark.parametrize(
+    "teste_id", ["correlacao_pearson", "correlacao_spearman", "correlacao_kendall"]
+)
 def test_integracao_correlacoes_carregar_selecionar_executar(controller, visao, teste_id):
     # Checklist §9, item 7, para as correlações, com a base do projeto (bases/).
     assert controller.carregar_arquivo(str(BASES / "estudo_br.csv"))
