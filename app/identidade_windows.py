@@ -6,8 +6,16 @@ isto, o Windows mostra a descrição do cliente ("Flet description") e, ao fixar
 próprio, nome, ícone e o comando de reabrir (o smartETL.exe, ou o `pythonw main.py` rodando do
 código) —, o que vale também para janelas de outro processo. Em outros sistemas, ou sem o
 pywin32, não faz nada. Falhas só vão para o log: nunca impedem o app de abrir.
+
+Cuidado: o Windows guarda, para cada ID, o PRIMEIRO comando de reabrir que viu (num atalho em
+"User Pinned/ImplicitAppShortcuts", que fica lá mesmo depois de desafixar) e ignora mudanças
+posteriores. Em 2026-10-08 um teste manual gravou "python.exe teste" no ID antigo e o ícone
+fixado passou a abrir só um console. Por isso o ID é derivado do próprio comando de reabrir
+(prefixo + 10 dígitos do SHA-1 do caminho): executável e código, ou o app em outra pasta, têm IDs
+diferentes, e um atalho guardado sempre corresponde ao comando atual.
 """
 
+import hashlib
 import logging
 import sys
 import time
@@ -16,7 +24,8 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-ID_APLICATIVO = "smartETL.TestesDeHipotese"
+PREFIXO_EXECUTAVEL = "smartETL.Desktop"  # smartETL.exe
+PREFIXO_CODIGO = "smartETL.Codigo"  # pythonw main.py (desenvolvimento)
 NOME = "smartETL"
 ESPERA_JANELA = 10.0  # segundos procurando a janela do cliente Flet
 
@@ -40,10 +49,19 @@ def comando_reabrir(empacotado: bool, executavel: str, script: Path) -> str:
     return f'"{interpretador}" "{script}"'
 
 
+def id_aplicativo(empacotado: bool, comando: str) -> str:
+    """ID do AppUserModel ligado ao comando de reabrir (sem espaços, bem abaixo de 128 caracteres).
+
+    O mesmo comando dá sempre o mesmo ID (o ícone fixado continua agrupando a janela); outro
+    comando — outra pasta, executável × código — dá outro ID, sem atalho antigo guardado.
+    """
+    assinatura = hashlib.sha1(comando.lower().encode("utf-8")).hexdigest()[:10]
+    return f"{PREFIXO_EXECUTAVEL if empacotado else PREFIXO_CODIGO}.{assinatura}"
+
+
 def identidade(empacotado: bool, executavel: str, script: Path, icone: Path) -> Identidade:
-    return Identidade(
-        ID_APLICATIVO, NOME, f"{icone},0", comando_reabrir(empacotado, executavel, script)
-    )
+    comando = comando_reabrir(empacotado, executavel, script)
+    return Identidade(id_aplicativo(empacotado, comando), NOME, f"{icone},0", comando)
 
 
 def _procurar_janela(titulo: str, espera: float) -> int:
@@ -88,7 +106,12 @@ def aplicar(titulo: str, dados: Identidade, espera: float = ESPERA_JANELA) -> bo
             log.warning("Janela '%s' não encontrada para a barra de tarefas", titulo)
             return False
         _gravar(hwnd, dados)
-        log.info("Identidade da janela aplicada (%s; reabrir: %s)", dados.nome, dados.comando)
+        log.info(
+            "Identidade da janela aplicada (%s, ID %s; reabrir: %s)",
+            dados.nome,
+            dados.id_aplicativo,
+            dados.comando,
+        )
         return True
     except Exception:
         log.exception("Falha ao aplicar a identidade da janela na barra de tarefas")

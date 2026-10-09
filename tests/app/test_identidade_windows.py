@@ -32,8 +32,24 @@ def test_comando_reabrir_do_codigo_usa_pythonw(tmp_path):
 
 def test_identidade():
     dados = iw.identidade(True, r"C:\smartETL.exe", Path("main.py"), ICONE)
-    assert (dados.id_aplicativo, dados.nome) == ("smartETL.TestesDeHipotese", "smartETL")
+    assert dados.nome == "smartETL" and dados.id_aplicativo.startswith("smartETL.Desktop.")
     assert dados.icone == f"{ICONE},0" and dados.comando == r'"C:\smartETL.exe"'
+
+
+def test_id_ligado_ao_comando_de_reabrir():
+    # O Windows guarda o 1º comando de cada ID (mesmo depois de desafixar): o ID muda junto com
+    # o comando, para um atalho antigo nunca abrir outra coisa.
+    exe = iw.identidade(True, r"C:\Apps\smartETL\smartETL.exe", Path("main.py"), ICONE)
+    igual = iw.identidade(True, r"C:\APPS\smartETL\smartETL.exe", Path("main.py"), ICONE)
+    movido = iw.identidade(True, r"D:\Outra\smartETL\smartETL.exe", Path("main.py"), ICONE)
+    codigo = iw.identidade(False, r"C:\venv\python.exe", Path("main.py"), ICONE)
+    assert exe.id_aplicativo == igual.id_aplicativo  # o Windows não diferencia maiúsculas
+    assert movido.id_aplicativo != exe.id_aplicativo
+    assert codigo.id_aplicativo.startswith("smartETL.Codigo.")
+    for dados in (exe, movido, codigo):
+        assert " " not in dados.id_aplicativo and len(dados.id_aplicativo) < 128
+    antigos = {"smartETL.TestesDeHipotese", "smartETL.Desktop", "smartETL.Desktop.Codigo"}
+    assert not {exe.id_aplicativo, codigo.id_aplicativo} & antigos  # IDs já usados nesta máquina
 
 
 def test_aplicar_fora_do_windows_nao_faz_nada(monkeypatch):
