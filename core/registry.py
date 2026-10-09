@@ -6,6 +6,7 @@ from core.base import TesteBase
 from core.testes.anova import TesteAnova1Fator, TesteAnova2Fatores
 from core.testes.categoricos import QuiQuadrado, TesteFisher, TesteMcNemar
 from core.testes.correlacao import TesteCorrelacaoPearson, TesteCorrelacaoSpearman
+from core.testes.correlacao_parcial import TesteCorrelacaoParcial
 from core.testes.information_value import TesteInformationValue
 from core.testes.medias import TesteT1Amostra, TesteT2Amostras, TesteTPareado
 from core.testes.nao_parametricos import (
@@ -54,6 +55,7 @@ _CATALOGO: tuple[TesteInfo, ...] = (
     TesteInfo("information_value", "Information Value (IV)", "Relação", TesteInformationValue),
     TesteInfo("correlacao_pearson", "Correlação de Pearson", "Relação", TesteCorrelacaoPearson),
     TesteInfo("correlacao_spearman", "Correlação de Spearman", "Relação", TesteCorrelacaoSpearman),
+    TesteInfo("correlacao_parcial", "Correlação parcial", "Relação", TesteCorrelacaoParcial),
     TesteInfo("regres_linear", "Regressão Linear", "Regressão", TesteRegressaoLinear),
     TesteInfo("regres_logit", "Regressão Logística", "Regressão", TesteRegressaoLogistica),
 )

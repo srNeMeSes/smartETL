@@ -722,6 +722,26 @@ def test_integracao_correlacoes_carregar_selecionar_executar(controller, visao, 
     assert visao.chamadas[-1] == ("resultado", teste_id)
 
 
+def test_integracao_correlacao_parcial_carregar_selecionar_executar(controller, visao):
+    # Checklist §9, item 7, para a correlação parcial, com a base do projeto (bases/).
+    assert controller.carregar_arquivo(str(BASES / "estudo_br.csv"))
+    controller.selecionar_teste("correlacao_parcial")
+    assert visao.ultima()[:2] == ("formulario", "correlacao_parcial")
+    visao.params = {
+        "x": "horas_estudo",
+        "y": "nota",
+        "controles": ["faltas"],
+        "metodo": "Pearson",
+        "alternativa": "ρ ≠ 0",
+        "alfa": 0.05,
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "correlacao_parcial"
+    assert resultado.estatisticas["n"] == 58 and resultado.estatisticas["gl"] == 55
+    assert resultado.comparacao.titulo_direita == "Simples"
+    assert visao.chamadas[-1] == ("resultado", "correlacao_parcial")
+
+
 def test_integracao_information_value_carregar_selecionar_executar(controller, visao):
     # Checklist §9, item 7, para o IV, com a base do projeto (bases/).
     assert controller.carregar_arquivo(str(BASES / "credito_br.csv"))

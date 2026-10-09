@@ -93,7 +93,7 @@ smartetl/
 │   └── state.py                  # df, teste selecionado, parâmetros, último resultado
 ├── core/
 │   ├── base.py                   # contratos (ver abaixo) e exceções de domínio
-│   ├── registry.py               # TesteInfo(id, nome, grupo, classe) dos 20 testes
+│   ├── registry.py               # TesteInfo(id, nome, grupo, classe) dos 21 testes
 │   ├── io.py                     # carregar_dados → DadosCarregados; ErroLeitura
 │   ├── tipos.py                  # PerfilColuna / detectar_tipos (numérica, categórica, binária)
 │   ├── interpretacao.py          # decidir (p ≤ α), interpretar, formatar_numero/p_valor em pt-BR
@@ -274,6 +274,7 @@ Implementar **nesta ordem**, um de cada vez.
 | 18 | `correlacao_pearson` | Correlação de Pearson | Relação | `scipy.stats.pearsonr` | 2 colunas numéricas; card com a Spearman |
 | 19 | `correlacao_spearman` | Correlação de Spearman | Relação | `scipy.stats.spearmanr` | 2 colunas numéricas |
 | 20 | `information_value` | Information Value (IV) | Relação | WoE/IV (Siddiqi), implementação própria | y binário + evento + colunas X |
+| 21 | `correlacao_parcial` | Correlação parcial | Relação | resíduos (= `ppcor::pcor.test`) | X, Y numéricas + 1..k controles; Pearson ou Spearman |
 
 Os itens 18 e 19 foram acrescentados depois da Fase 5, a pedido do autor (2026-10-07); na barra lateral o grupo fica entre ANOVA e Regressão. Em 2026-10-08 o grupo **Correlação passou a se chamar Relação** e recebeu o item 20, `information_value` (primeiro do grupo); correlação parcial e de Kendall virão depois, no mesmo grupo.
 
@@ -312,6 +313,7 @@ testes_hipotese = [
     ("information_value", "Information Value (IV)"),
     ("correlacao_pearson", "Correlação de Pearson"),
     ("correlacao_spearman", "Correlação de Spearman"),
+    ("correlacao_parcial", "Correlação parcial"),
 
     # Regressão
     ("regres_linear", "Regressão Linear"),
@@ -449,7 +451,7 @@ Só então passe ao próximo teste.
 | `core/io` | leitura de CSV (`,` e `;`, decimal `,`, encodings) e XLSX, detecção de tipos, NaN, arquivos inválidos |
 | `core/validacao` | cada regra isoladamente |
 | Cada teste em `core/testes` | checklist acima |
-| `registry` | os 20 ids registrados, sem duplicatas, rótulos idênticos à lista oficial, ordem preservada |
+| `registry` | os 21 ids registrados, sem duplicatas, rótulos idênticos à lista oficial, ordem preservada |
 | `controller` | fluxo carregar → selecionar → executar → resultado; arquivo carregado depois da seleção atualiza o painel; erros tratados |
 | `app/ui` | montagem sem exceção; sidebar com todos os testes; as 3 abas existem (4 com Simulação, só na regressão linear); estados vazios corretos; `CardComparacaoTestes.atualizar_p_values` altera os textos esperados |
 
@@ -510,6 +512,7 @@ No Windows (PowerShell 5.1), passe mensagens de commit com `git commit -F arquiv
 - Pós-testes (Tukey, Dunn) e pressupostos extras (Shapiro-Wilk, Levene) como funcionalidade adicional. **Decidido em parte:** Dunn com Holm no Kruskal-Wallis, opcional e desligado por padrão. Tukey HSD na ANOVA de 1 fator, opcional e desligado; Levene (centrado na mediana) só como aviso não bloqueante quando p < 0,05. **Shapiro-Wilk (decidido e implementado, 2026-10-08):** nos três testes t (sobre a coluna, cada grupo ou as diferenças) e nas duas ANOVAs (sobre os resíduos), com α fixo de 0,05 como o Levene; linha "p-valor do Shapiro-Wilk (...)" no Resumo ("—" com n < 3 ou valores constantes; Lilliefors acima de 5000) e aviso não bloqueante que sugere o equivalente (Wilcoxon, Mann-Whitney, Kruskal-Wallis; na ANOVA de 2 fatores, uma transformação) e, com n ≥ 30, lembra que a falta de normalidade afeta pouco o teste. Funções em `core/diagnosticos.py` (`normalidade_amostra`, `aviso_normalidade`); referências do R em `tests/referencias_r/gerar_referencias_normalidade.R`.
 - **Regressão logística (decidido e implementado, 2026-10-07):** `docs/regressao_logistica.md`.
 - **Correlações (decidido e implementado, 2026-10-07):** grupo novo Correlação (entre ANOVA e Regressão), dois testes. Entrada: X e Y numéricas, linhas completas (aviso), n ≥ 3, variação nas duas. H₀: ρ = 0 com ≠ / > / <. Pearson: r, r², t (n − 2 gl), IC pela z de Fisher (unilateral quando H₁ é), força pelas faixas de Cohen (|r| < 0,1 desprezível, < 0,3 fraca, < 0,5 moderada, senão forte), aviso se |r − ρₛ| > 0,2, dispersão com a reta de mínimos quadrados e **card Pearson × Spearman**. Spearman: ρₛ com postos médios, p pela aproximação t (= `cor.test(exact = FALSE)`), IC pela z de Fisher com a variância de Bonett-Wright, aviso de empates, dispersão de valores ou postos (lista "Escala"), **sem card**. Referências do R em `tests/referencias_r/gerar_referencias_correlacao.R`; base `bases/estudo_br.csv`.
+- **Correlação parcial (decidido e implementado, 2026-10-08):** `core/testes/correlacao_parcial.py`. X, Y e 1..k controles numéricos (`multi_coluna`), linhas completas (aviso), n ≥ k + 4; controles constantes/colineares ou X/Y explicadas totalmente pelos controles bloqueiam. Método Pearson (padrão) ou Spearman (postos médios), r entre os resíduos das regressões sobre [1, Z] (= `ppcor::pcor.test`); t com n − 2 − k gl, H₁ ≠/>/<; IC pela z de Fisher com var 1/(n − 3 − k); **card parcial × simples** (mesmo método, sem controles); aviso se |parcial − simples| > 0,2; dispersão dos resíduos com a reta. Referências: `tests/referencias_r/gerar_referencias_parcial.R` (ppcor 1.1 instalado na biblioteca do projeto); base `bases/estudo_br.csv` (controle `faltas`).
 - **Information Value (decidido e implementado, 2026-10-08):** `core/testes/information_value.py`, não é teste de hipótese: `p_valor=None`, `decisao=""` (a Análise e o PDF omitem a linha da decisão; sem α no formulário). Entrada: y com 2 valores + evento, colunas X (`preditores`), faixas 5/10/20 (padrão 10). Quantitativas com mais valores distintos que o nº de faixas viram faixas por quantis (`qcut`, faixas repetidas juntadas), rotuladas pelo menor e maior valor observados ("18 – 30"); poucas distintas e categóricas: um valor por categoria; X ausente = "(ausente)"; y ausente descartado. WoE = ln(%não eventos/%eventos), IV = Σ(%NE − %E)·WoE; categoria com contagem zero: +0,5 nas duas contagens (aviso). Tabela geral Variável | IV | Poder preditivo | Categorias (maior IV primeiro, faixas de Siddiqi; > 0,5 "verificar vazamento" com aviso) e uma tabela por variável (categorias pelo maior IV + Total em negrito). Gráficos: IV por variável (linhas 0,1 e 0,3) e WoE por categoria (lista "Variável"). Referência: exemplo calculado à mão + `crosstab` independente (`tests/core/test_information_value.py`).
 - **Regressão linear (decidido, 2026-10-06):** especificação e decisões em `docs/regressao_linear.md` (referências geradas com o R instalado na máquina; entradas do grupo Diagnóstico removidas; teste F na seção do modelo; aba Simulação só para a regressão).
 - **Exportação em PDF (decidido e implementado, 2026-10-08):** botão "Exportar PDF" na linha das abas, à direita (`PainelAbas.definir_acao`; visível em qualquer aba, só depois de uma execução) → diálogo de salvar (`FilePicker.save_file`, nome `<teste>_<data-hora>.pdf`) → `Controller.exportar_pdf` gera fora da thread da UI (`asyncio.to_thread`) e notifica. Conteúdo (`core/relatorio.py`, fpdf2 + DejaVu Sans do matplotlib): cabeçalho com **só o nome do teste** em todas as páginas (pedido do autor), arquivo, data/hora e parâmetros; decisão colorida, interpretação, avisos e tabelas (ou as seções, nas regressões), com as dicas das colunas em notas; o card como tabela; todas as figuras (cada opção de um `GrupoFiguras`, desenhadas com matplotlib/Agg); sem a Simulação. Rodapé: **"by smartETL"** e "Página X de Y". As cores do PDF repetem as de `tema.py` (há teste).

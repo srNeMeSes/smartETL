@@ -75,6 +75,7 @@ PARAMS = {
     "correlacao_spearman": {"x": "x1", "y": "y"},
     "regres_linear": {"y": "y", "preditores": ["x1", "x2", "grupo"]},
     "regres_logit": {"y": "binaria", "evento": "Sim", "preditores": ["x1", "grupo"]},
+    "correlacao_parcial": {"x": "x1", "y": "y", "controles": ["x2"]},
     "information_value": {"y": "binaria", "evento": "Sim", "preditores": ["x1", "grupo", "fator"]},
 }
 
