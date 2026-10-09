@@ -14,6 +14,10 @@ CARTAO = "#FFFFFF"
 BORDA = "#E7E8EC"
 TRANSPARENTE = "transparent"
 
+# Prévia dos dados: cabeçalho e linhas alternadas, bem próximos do branco
+TABELA_CABECALHO = "#F9FAFB"
+TABELA_ZEBRA = "#FBFBFC"
+
 # Texto
 TEXTO = "#232529"
 TEXTO_SECUNDARIO = "#8A8D93"
@@ -51,3 +55,21 @@ FONTE = "Segoe UI, Roboto, Arial, sans-serif"
 # Raios
 RAIO_CARTAO = 16
 RAIO_PEQUENO = 10
+
+
+def tema_da_pagina() -> ft.Theme:
+    """Fonte e barras de rolagem do app inteiro.
+
+    A barra padrão quase some no branco (cinza ~#F6F6F8): parada fica no cinza claro do texto e,
+    sob o mouse ou arrastada, no cinza secundário.
+    """
+    return ft.Theme(
+        font_family=FONTE,
+        scrollbar_theme=ft.ScrollbarTheme(
+            thumb_color={
+                ft.ControlState.HOVERED: TEXTO_SECUNDARIO,
+                ft.ControlState.DRAGGED: TEXTO_SECUNDARIO,
+                ft.ControlState.DEFAULT: TEXTO_TERCIARIO,
+            },
+        ),
+    )

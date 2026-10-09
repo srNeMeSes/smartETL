@@ -57,7 +57,7 @@ def configurar_pagina(page: ft.Page) -> None:
         page.window.icon = str(ICONE)  # canto superior esquerdo e barra de tarefas (Windows)
     page.bgcolor = tema.FUNDO
     page.padding = 0
-    page.theme = ft.Theme(font_family=tema.FONTE)
+    page.theme = tema.tema_da_pagina()
     page.window.width = 1440
     page.window.height = 900
     page.window.min_width = 1150

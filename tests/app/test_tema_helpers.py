@@ -86,3 +86,11 @@ def test_indicador_da_aba_ativa_em_laranja():
     from app.ui.painel_abas import PainelAbas
 
     assert PainelAbas()._barra.indicator_color == tema.LARANJA
+
+
+def test_tema_da_pagina_fonte_e_barras_visiveis():
+    tema_pagina = tema.tema_da_pagina()
+    assert tema_pagina.font_family == tema.FONTE
+    cores = tema_pagina.scrollbar_theme.thumb_color
+    assert cores[ft.ControlState.DEFAULT] == tema.TEXTO_TERCIARIO
+    assert cores[ft.ControlState.HOVERED] == cores[ft.ControlState.DRAGGED] == tema.TEXTO_SECUNDARIO

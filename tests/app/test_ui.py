@@ -1,5 +1,6 @@
 """Montagem da interface sem janela (página falsa) e integração com o controller."""
 
+from types import SimpleNamespace
 from typing import ClassVar
 from unittest.mock import MagicMock
 
@@ -19,7 +20,7 @@ from app.ui.componentes.card_comparacao import CardComparacaoTestes
 from app.ui.painel_abas import ABA_ANALISE, PainelAbas
 from app.ui.painel_parametros import PainelParametros
 from app.ui.sidebar import Sidebar
-from app.ui.tabela_dados import MAX_LINHAS, TabelaDados, formatar_celula
+from app.ui.tabela_dados import LARGURA_MAXIMA, MAX_LINHAS, TabelaDados, formatar_celula
 from app.ui.tela_principal import ROTULO_EXPORTAR, SEM_ARQUIVO, SEM_EXECUCAO, TelaPrincipal
 from core import registry
 from core.base import ComparacaoPValores, ErroValidacao, ParametroSpec, ResultadoTeste, TesteBase
@@ -93,15 +94,16 @@ def test_sidebar_botoes_conectados(sidebar):
 
 
 def _cabecalhos(tabela):
-    return [(c.label.value, c.label.color) for c in tabela.tabela.columns]
+    return [(t.value, t.color) for t in tabela.titulos]
 
 
 def test_tabela_estado_vazio():
     tabela = TabelaDados()
     assert tabela.vazia
     assert _cabecalhos(tabela) == [(f"column{i}", tema.TEXTO_TERCIARIO) for i in range(1, 21)]
-    assert len(tabela.tabela.rows) == 12
+    assert len(tabela.linhas) == len(tabela.corpo.controls) == 12
     assert tabela.height == 320
+    assert "Nenhum arquivo carregado" in tabela.rodape.value
 
 
 def test_tabela_com_dados_sem_colunas_fantasmas(df_exemplo):
@@ -111,18 +113,62 @@ def test_tabela_com_dados_sem_colunas_fantasmas(df_exemplo):
     assert not tabela.vazia
     # Coluna real cujo nome começa com "column" não é mais pintada como fantasma.
     assert _cabecalhos(tabela) == [(str(c), tema.TEXTO_SECUNDARIO) for c in df.columns]
-    assert len(tabela.tabela.rows) == len(df)
-    assert all(len(r.cells) == df.shape[1] for r in tabela.tabela.rows)
+    assert len(tabela.linhas) == len(df)
+    assert all(len(celulas) == df.shape[1] for celulas in tabela.linhas)
+    assert tabela.rodape.value == f"Prévia: {len(df)} linhas  ·  {df.shape[1]} colunas"
     tabela.mostrar_vazio()
-    assert tabela.vazia and len(tabela.tabela.columns) == 20
+    assert tabela.vazia and len(tabela.titulos) == 20
 
 
 def test_tabela_limita_linhas_e_formata_nan():
     df = pd.DataFrame({"x": [np.nan, *range(1, MAX_LINHAS + 50)]})
     tabela = TabelaDados()
     tabela.mostrar(df)
-    assert len(tabela.tabela.rows) == MAX_LINHAS
-    assert tabela.tabela.rows[0].cells[0].content.value == ""
+    assert len(tabela.linhas) == len(tabela.corpo.controls) == MAX_LINHAS
+    assert tabela.linhas[0][0].value == ""
+    assert tabela.rodape.value == "Prévia: primeiras 100 de 150 linhas  ·  1 coluna"
+
+
+def test_tabela_rodape_com_milhar_e_singular():
+    tabela = TabelaDados()
+    tabela.mostrar(pd.DataFrame({"x": range(12_345), "y": 0}))
+    assert tabela.rodape.value == "Prévia: primeiras 100 de 12.345 linhas  ·  2 colunas"
+    tabela.mostrar(pd.DataFrame({"x": [1]}))
+    assert tabela.rodape.value == "Prévia: 1 linha  ·  1 coluna"
+
+
+def test_tabela_alinha_numeros_a_direita_e_corta_texto_longo():
+    longo = "texto bem comprido " * 10
+    df = pd.DataFrame({"valor": [1.5, 2.0], "nome": ["Ana", longo], "ok": [True, False]})
+    tabela = TabelaDados()
+    tabela.mostrar(df)
+    valor, nome, ok = tabela.linhas[1]
+    assert valor.text_align == ft.TextAlign.RIGHT and valor.value == "2,0"
+    assert nome.text_align == ok.text_align == ft.TextAlign.LEFT  # lógica não é número
+    assert nome.width == LARGURA_MAXIMA and nome.tooltip == longo  # "…" e valor inteiro no mouse
+    assert nome.overflow == ft.TextOverflow.ELLIPSIS
+    assert tabela.linhas[0][1].tooltip is None  # "Ana" cabe
+
+
+def test_tabela_larga_rola_e_estreita_ocupa_o_cartao():
+    tabela = TabelaDados()
+    tabela.mostrar(pd.DataFrame({f"coluna_{i}": [i * 1000.25] for i in range(40)}))
+    larga = tabela.grade.width
+    assert larga > 3000  # maior que a janela: a barra horizontal percorre a grade
+    tabela._ao_redimensionar(SimpleNamespace(width=1100.0, height=286.0))
+    assert tabela.grade.width == larga
+    tabela.mostrar(pd.DataFrame({"x": [1]}))
+    assert tabela.grade.width == 1100.0  # cabeçalho e listras até a borda do cartão
+    tabela._ao_redimensionar(SimpleNamespace(width=900.0, height=286.0))
+    assert tabela.grade.width == 900.0
+
+
+def test_tabela_linhas_numeradas_e_alternadas(df_exemplo):
+    tabela = TabelaDados()
+    tabela.mostrar(df_exemplo)
+    linhas = tabela.corpo.controls
+    assert [linha.content.controls[0].value for linha in linhas[:3]] == ["1", "2", "3"]
+    assert linhas[0].bgcolor == tema.CARTAO and linhas[1].bgcolor == tema.TABELA_ZEBRA
 
 
 @pytest.mark.parametrize(
@@ -498,9 +544,9 @@ def test_csv_brasileiro_alimenta_formulario(tela_controller, tmp_path):
     arquivo = tmp_path / "br.csv"
     arquivo.write_bytes("nome;nota;turma\nJoão;7,5;A\nAna;8,0;B\n".encode("latin-1"))
     controller.carregar_arquivo(str(arquivo))
-    assert [c.label.value for c in tela.tabela.tabela.columns] == ["nome", "nota", "turma"]
+    assert [t.value for t in tela.tabela.titulos] == ["nome", "nota", "turma"]
     assert [o.key for o in tela.formulario.controle("coluna").options] == ["nota"]
-    assert tela.tabela.tabela.rows[0].cells[0].content.value == "João"
+    assert tela.tabela.linhas[0][0].value == "João"
 
 
 def test_formulario_t_2am_filtra_grupo_binario(tela_controller, tmp_path, page):
