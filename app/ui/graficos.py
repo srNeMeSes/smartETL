@@ -233,6 +233,19 @@ def _rotulo_barra(cx: float, topo: float, altura: float, valor: float, texto: st
     return _texto(cx, topo - 3, texto, ft.Alignment.BOTTOM_CENTER)
 
 
+LARGURA_CARACTERE = 6.2  # px por caractere no texto de 11 pt dos eixos (estimativa)
+ALTURA_LINHA_ROTULO = 14
+
+
+def _rotulos_eixo(rotulos: list[str], area_l: float) -> tuple[list[str], int]:
+    """Rótulos do eixo x; se algum não cabe na sua vaga (ex.: faixas "5,00 – 11,80"), quebra
+    em duas linhas no " – " e devolve 1 linha extra de altura a reservar embaixo."""
+    vaga = area_l / max(len(rotulos), 1)
+    if all(len(r) * LARGURA_CARACTERE <= vaga - 4 for r in rotulos):
+        return rotulos, 0
+    return [r.replace(" – ", " –\n", 1) for r in rotulos], 1
+
+
 def barras(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.Control | None]:
     """Barras verticais com o valor sobre cada barra e linhas horizontais de referência."""
     categorias: list[dict] = dados["categorias"]
@@ -244,7 +257,8 @@ def barras(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.Co
         minimo -= (maximo - minimo) * FOLGA_NEGATIVOS
     esq = 56
     area_l = largura - esq - _MARGEM_DIR
-    area_a = altura - _MARGEM_TOPO - _MARGEM_BASE
+    rotulos, linhas_extra = _rotulos_eixo([c["rotulo"] for c in categorias], area_l)
+    area_a = altura - _MARGEM_TOPO - _MARGEM_BASE - linhas_extra * ALTURA_LINHA_ROTULO
     base = _MARGEM_TOPO + area_a
 
     def sy(valor: float) -> float:
@@ -276,7 +290,7 @@ def barras(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.Co
             formas.append(cv.Rect(cx - meia, topo, 2 * meia, altura_barra, paint=paint))
         valor_txt = _formatar_valor(categoria["valor"], percentual)
         formas.append(_rotulo_barra(cx, topo, altura_barra, categoria["valor"], valor_txt))
-        formas.append(_texto(cx, base + 6, categoria["rotulo"], ft.Alignment.TOP_CENTER))
+        formas.append(_texto(cx, base + 6, rotulos[i], ft.Alignment.TOP_CENTER))
 
     for ref in referencias:
         y = sy(ref["valor"])

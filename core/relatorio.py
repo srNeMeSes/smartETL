@@ -552,8 +552,9 @@ def _cabecalho(escritor: _Escritor, contexto: ContextoRelatorio) -> None:
 
 def _resultado_padrao(escritor: _Escritor, resultado: ResultadoTeste) -> None:
     escritor.titulo("Resultado")
-    texto, cor = _decisao(resultado.decisao)
-    escritor.paragrafo(texto, cor=cor, estilo="B", tamanho=12)
+    if resultado.decisao:  # sem decisão em técnicas que não são testes (ex.: IV)
+        texto, cor = _decisao(resultado.decisao)
+        escritor.paragrafo(texto, cor=cor, estilo="B", tamanho=12)
     escritor.paragrafo(resultado.interpretacao)
     for aviso in resultado.avisos:
         escritor.aviso(aviso)

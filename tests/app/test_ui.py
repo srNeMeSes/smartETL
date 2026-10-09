@@ -914,3 +914,16 @@ def test_log_em_arquivo_no_executavel(tmp_path, monkeypatch):
             h.close()
         for h in antes:
             raiz.addHandler(h)
+
+
+def test_resultado_sem_decisao_nao_mostra_a_linha_da_decisao(tela_controller, csv_valido):
+    # Técnicas que não são testes de hipótese (ex.: IV) não têm "Rejeita/Não rejeita H₀".
+    tela, controller = tela_controller
+    controller.carregar_arquivo(str(csv_valido))
+    resultado = ResultadoTeste("information_value", {}, None, float("nan"), "", "Resumo do IV.")
+    tela.exibir_resultado(resultado)
+    textos_analise = _textos_aba(tela.painel.analise)
+    assert "Resumo do IV." in textos_analise
+    vazios = [c for c in do_tipo(tela.painel.analise, ft.Text) if c.value == ""]
+    assert not vazios  # nenhuma linha de decisão vazia
+    assert not any(t in textos_analise for t in ("Rejeita H₀", "Não rejeita H₀"))

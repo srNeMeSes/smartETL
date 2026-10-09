@@ -162,3 +162,13 @@ def test_barras_negativas_descem_a_partir_do_zero(agrupadas):
     assert negativa.y + negativa.height <= ALTURA
     linhas_zero = [s for s in canvas.shapes if isinstance(s, cv.Line) and s.y1 == s.y2 == zero]
     assert linhas_zero  # eixo horizontal na altura do zero
+
+
+def test_rotulos_longos_de_faixas_quebram_em_duas_linhas():
+    # 10 faixas do IV ("5,00 – 11,80"...) não cabem lado a lado: quebram no " – ".
+    categorias = [(f"{i},00 – {i + 6},80", 0.5 - i / 10) for i in range(10)]
+    canvas = _canvas(desenhar_figura(barras(categorias, "WoE", "WoE")))
+    rotulos = [s.value for s in canvas.shapes if isinstance(s, cv.Text) and "–" in s.value]
+    assert rotulos and all(r.count("\n") == 1 and r.split("\n")[0].endswith("–") for r in rotulos)
+    curtas = _canvas(desenhar_figura(barras([("A", 1.0), ("B", 2.0)], "t", "y")))
+    assert not any("\n" in s.value for s in curtas.shapes if isinstance(s, cv.Text))

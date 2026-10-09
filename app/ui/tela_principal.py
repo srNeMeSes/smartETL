@@ -278,10 +278,12 @@ class TelaPrincipal:
     @staticmethod
     def _resumo(resultado: ResultadoTeste) -> ft.Column:
         decisao = resultado.decisao.replace("H0", "H₀")
-        linhas: list[ft.Control] = [
-            ft.Text(decisao, size=16, weight=ft.FontWeight.BOLD, color=cor_da_decisao(decisao)),
-            ft.Text(resultado.interpretacao, size=14, color=tema.TEXTO),
-        ]
+        linhas: list[ft.Control] = []
+        if decisao:  # sem decisão em técnicas que não são testes de hipótese (ex.: IV)
+            linhas.append(
+                ft.Text(decisao, size=16, weight=ft.FontWeight.BOLD, color=cor_da_decisao(decisao))
+            )
+        linhas.append(ft.Text(resultado.interpretacao, size=14, color=tema.TEXTO))
         linhas += [
             ft.Row(
                 [

@@ -50,7 +50,7 @@ formulário e qual resultado esperar.
 | Categóricos | Qui-quadrado (independência ou aderência), Teste exato de Fisher, McNemar |
 | Não paramétricos | Teste do sinal, Wilcoxon, Mann-Whitney U, Kruskal-Wallis (com Dunn), Friedman |
 | ANOVA | ANOVA (1 fator — clássica ou Welch, com Tukey HSD), ANOVA (2 fatores — Tipo II ou III) |
-| Correlação | Correlação de Pearson (com o card Pearson × Spearman), Correlação de Spearman |
+| Relação | Information Value (IV, com WoE por categoria), Correlação de Pearson (com o card Pearson × Spearman), Correlação de Spearman |
 | Regressão | Regressão Linear, Regressão Logística |
 
 Destaques:

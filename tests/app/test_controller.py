@@ -722,6 +722,25 @@ def test_integracao_correlacoes_carregar_selecionar_executar(controller, visao, 
     assert visao.chamadas[-1] == ("resultado", teste_id)
 
 
+def test_integracao_information_value_carregar_selecionar_executar(controller, visao):
+    # Checklist §9, item 7, para o IV, com a base do projeto (bases/).
+    assert controller.carregar_arquivo(str(BASES / "credito_br.csv"))
+    controller.selecionar_teste("information_value")
+    assert visao.ultima()[:2] == ("formulario", "information_value")
+    visao.params = {
+        "y": "inadimplente",
+        "evento": "Sim",
+        "preditores": ["renda", "idade", "comprometimento_pct", "vinculo"],
+        "faixas": "10",
+    }
+    resultado = controller.executar()
+    assert isinstance(resultado, ResultadoTeste) and resultado.teste_id == "information_value"
+    geral = resultado.tabelas["Information Value por variável"]
+    assert sorted(geral["Variável"]) == sorted(visao.params["preditores"])
+    assert resultado.decisao == "" and resultado.p_valor is None
+    assert visao.chamadas[-1] == ("resultado", "information_value")
+
+
 # ---------------------------------------------------------------------------
 # Exportação em PDF
 # ---------------------------------------------------------------------------

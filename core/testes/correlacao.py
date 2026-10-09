@@ -1,4 +1,4 @@
-"""Correlação de Pearson e de Spearman (grupo Correlação)."""
+"""Correlação de Pearson e de Spearman (grupo Relação)."""
 
 import math
 
@@ -169,7 +169,7 @@ class TesteCorrelacaoPearson(_Correlacao):
 
     id = "correlacao_pearson"
     nome = "Correlação de Pearson"
-    grupo = "Correlação"
+    grupo = "Relação"
     simbolo = "r"
 
     def comparacao_inicial(self) -> ComparacaoPValores:
@@ -287,7 +287,7 @@ class TesteCorrelacaoSpearman(_Correlacao):
 
     id = "correlacao_spearman"
     nome = "Correlação de Spearman"
-    grupo = "Correlação"
+    grupo = "Relação"
     simbolo = "ρₛ"
 
     def executar(self, df: pd.DataFrame, params: dict) -> ResultadoTeste:
