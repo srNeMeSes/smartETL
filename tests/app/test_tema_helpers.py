@@ -88,9 +88,22 @@ def test_indicador_da_aba_ativa_em_laranja():
     assert PainelAbas()._barra.indicator_color == tema.LARANJA
 
 
-def test_tema_da_pagina_fonte_e_barras_visiveis():
+def test_tema_da_pagina_fonte_e_barras_discretas():
     tema_pagina = tema.tema_da_pagina()
     assert tema_pagina.font_family == tema.FONTE
     cores = tema_pagina.scrollbar_theme.thumb_color
-    assert cores[ft.ControlState.DEFAULT] == tema.TEXTO_TERCIARIO
-    assert cores[ft.ControlState.HOVERED] == cores[ft.ControlState.DRAGGED] == tema.TEXTO_SECUNDARIO
+    assert cores[ft.ControlState.DEFAULT] == tema.BARRA_ROLAGEM
+    assert cores[ft.ControlState.HOVERED] == cores[ft.ControlState.DRAGGED]
+    assert cores[ft.ControlState.HOVERED] == tema.BARRA_ROLAGEM_ATIVA
+    # Quase transparente parada; um pouco mais visível sob o mouse.
+    opacidade = {c: float(cores[c].split(",")[1]) for c in cores}
+    assert opacidade[ft.ControlState.DEFAULT] <= 0.2 < opacidade[ft.ControlState.HOVERED] <= 0.5
+
+
+def test_coluna_rolavel_recua_o_conteudo_da_barra():
+    texto = ft.Text("x")
+    coluna = helpers.coluna_rolavel([texto], spacing=8, expand=1)
+    assert coluna.scroll == ft.ScrollMode.AUTO and coluna.expand == 1
+    (recuo,) = coluna.controls
+    assert recuo.padding.right == helpers.ESPACO_BARRA > 0
+    assert recuo.content.controls == [texto] and recuo.content.spacing == 8

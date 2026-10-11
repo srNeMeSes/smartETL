@@ -6,7 +6,7 @@ import pandas as pd
 from app.ui import tema
 from app.ui.componentes import campos
 from app.ui.componentes.card_comparacao import CardComparacaoTestes
-from app.ui.helpers import esta_na_pagina
+from app.ui.helpers import coluna_rolavel, esta_na_pagina
 from core.base import ALFAS, TIPOS_COLUNA, ErroValidacao, ParametroSpec, TesteBase
 from core.testes.regressao import e_categorica, niveis_ordenados, nivel_referencia_padrao
 from core.tipos import PerfilColuna, detectar_tipos, niveis_coluna, nivel_sucesso_padrao
@@ -33,8 +33,8 @@ class PainelParametros(ft.Row):
         self._opcoes_coluna: dict[str, list[str]] = {}
         self._referencias: dict[str, dict[str, ft.Dropdown]] = {}  # spec → {coluna: dropdown}
 
-        formulario = ft.Column(
-            controls=[
+        formulario = coluna_rolavel(
+            [
                 ft.Column(
                     spacing=0.9,
                     controls=[
@@ -52,7 +52,8 @@ class PainelParametros(ft.Row):
             ],
             spacing=15,
             # Rola quando há mais campos do que cabem na aba (ex.: 4 campos no t de uma amostra).
-            scroll=ft.ScrollMode.AUTO,
+            # Divide a largura com o card (expand 1:1); sem card, ocupa a aba.
+            expand=1,
         )
 
         comparacao = teste.comparacao_inicial()

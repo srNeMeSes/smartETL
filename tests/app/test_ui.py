@@ -973,3 +973,19 @@ def test_resultado_sem_decisao_nao_mostra_a_linha_da_decisao(tela_controller, cs
     vazios = [c for c in do_tipo(tela.painel.analise, ft.Text) if c.value == ""]
     assert not vazios  # nenhuma linha de decisão vazia
     assert not any(t in textos_analise for t in ("Rejeita H₀", "Não rejeita H₀"))
+
+
+def test_card_e_coluna_dividem_a_largura_nas_duas_abas(tela_controller, csv_valido):
+    # Card com metade da largura (antes ocupava tudo o que sobrava), nas duas abas.
+    tela, controller = tela_controller
+    controller.carregar_arquivo(str(csv_valido))
+    form = tela.formulario
+    formulario, _, card = form.controls
+    assert formulario.expand == card.expand == 1
+    comparacao = TesteT1Amostra().comparacao_inicial()
+    tela.exibir_resultado(
+        ResultadoTeste("teste_t_1am", {}, 0.5, 0.05, "Não rejeita H0", "ok", comparacao=comparacao)
+    )
+    detalhes, _, card_analise = tela.painel.analise.controls
+    assert card_analise is tela.card_analise
+    assert detalhes.expand == card_analise.expand == 1

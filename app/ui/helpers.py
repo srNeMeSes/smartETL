@@ -39,6 +39,19 @@ def border_only(
     return ft.Border(**{lado: valor for lado, valor in lados.items() if valor is not None})
 
 
+ESPACO_BARRA = 18  # recuo à direita do conteúdo rolável: a barra passa ao lado, não por cima
+
+
+def coluna_rolavel(controles: list[ft.Control], spacing: float, **kwargs) -> ft.Column:
+    """Coluna com rolagem vertical e o conteúdo recuado de `ESPACO_BARRA` à direita."""
+    interna = ft.Column(controles, spacing=spacing)
+    return ft.Column(
+        [ft.Container(content=interna, padding=pad(right=ESPACO_BARRA))],
+        scroll=ft.ScrollMode.AUTO,
+        **kwargs,
+    )
+
+
 def esta_na_pagina(controle: ft.BaseControl) -> bool:
     """Se o controle já foi montado (no Flet 0.86.2, `.page` lança RuntimeError se não foi)."""
     try:

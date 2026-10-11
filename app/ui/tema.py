@@ -52,6 +52,10 @@ SOMBRA_CARTAO = ft.Colors.with_opacity(0.06, ft.Colors.BLACK)
 # Tipografia
 FONTE = "Segoe UI, Roboto, Arial, sans-serif"
 
+# Barras de rolagem: cinza quase transparente, um pouco mais forte sob o mouse
+BARRA_ROLAGEM = ft.Colors.with_opacity(0.18, TEXTO_SECUNDARIO)
+BARRA_ROLAGEM_ATIVA = ft.Colors.with_opacity(0.40, TEXTO_SECUNDARIO)
+
 # Raios
 RAIO_CARTAO = 16
 RAIO_PEQUENO = 10
@@ -60,16 +64,16 @@ RAIO_PEQUENO = 10
 def tema_da_pagina() -> ft.Theme:
     """Fonte e barras de rolagem do app inteiro.
 
-    A barra padrão quase some no branco (cinza ~#F6F6F8): parada fica no cinza claro do texto e,
-    sob o mouse ou arrastada, no cinza secundário.
+    Parada, a barra é um cinza quase transparente (não disputa atenção com o conteúdo); sob o
+    mouse ou arrastada, fica um pouco mais visível (pedido do autor, 2026-10-11).
     """
     return ft.Theme(
         font_family=FONTE,
         scrollbar_theme=ft.ScrollbarTheme(
             thumb_color={
-                ft.ControlState.HOVERED: TEXTO_SECUNDARIO,
-                ft.ControlState.DRAGGED: TEXTO_SECUNDARIO,
-                ft.ControlState.DEFAULT: TEXTO_TERCIARIO,
+                ft.ControlState.HOVERED: BARRA_ROLAGEM_ATIVA,
+                ft.ControlState.DRAGGED: BARRA_ROLAGEM_ATIVA,
+                ft.ControlState.DEFAULT: BARRA_ROLAGEM,
             },
         ),
     )

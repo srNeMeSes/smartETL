@@ -9,7 +9,7 @@ from app.ui import tema
 from app.ui.componentes import campos
 from app.ui.componentes.card_comparacao import CardComparacaoTestes
 from app.ui.graficos import desenhar_figura
-from app.ui.helpers import border_all, esta_na_pagina, pad
+from app.ui.helpers import border_all, coluna_rolavel, esta_na_pagina, pad
 from app.ui.painel_abas import ABA_ANALISE, PainelAbas, mensagem, processando
 from app.ui.painel_parametros import PainelParametros
 from app.ui.painel_simulacao import PainelSimulacao
@@ -201,16 +201,15 @@ class TelaPrincipal:
         detalhes += [self._tabela(nome, df) for nome, df in resultado.tabelas.items()]
         if resultado.comparacao is None:
             self.card_analise = None
-            analise: ft.Control = ft.Column(
-                detalhes, spacing=16, scroll=ft.ScrollMode.AUTO, expand=True
-            )
+            analise: ft.Control = coluna_rolavel(detalhes, spacing=16, expand=True)
         else:
             self.card_analise = CardComparacaoTestes.de_comparacao(resultado.comparacao)
             if self.formulario is not None and self.formulario.card is not None:
                 self.formulario.card.aplicar(resultado.comparacao, atualizar_pagina=False)
             analise = ft.Row(
                 [
-                    ft.Column(detalhes, spacing=16, scroll=ft.ScrollMode.AUTO, width=440),
+                    # Metade da largura para as tabelas e metade para o card (expand 1:1).
+                    coluna_rolavel(detalhes, spacing=16, expand=1),
                     ft.Column(width=12),
                     self.card_analise,
                 ],
@@ -342,7 +341,7 @@ class TelaPrincipal:
                 self._linha_icone(n, ft.Icons.INFO_OUTLINE, tema.TEXTO_SECUNDARIO)
                 for n in secao.notas
             ]
-        return ft.Column(controles, spacing=12, scroll=ft.ScrollMode.AUTO, expand=True)
+        return coluna_rolavel(controles, spacing=12, expand=True)
 
     @staticmethod
     def _tabela(nome: str | None, df: pd.DataFrame) -> ft.Column:
