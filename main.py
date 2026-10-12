@@ -1,4 +1,4 @@
-"""Ponto de entrada do Signa: `python main.py`.
+"""Ponto de entrada do Sigra: `python main.py`.
 
 No topo só entram Flet e a splash. `main` mostra a tela de abertura e retorna logo — no Flet
 0.86.2 o que um `main` síncrono adiciona só chega à janela quando ele termina. O carregamento
@@ -39,7 +39,7 @@ CLIENTE_FLET = recurso("flet_client/flet")
 
 
 def configurar_log() -> None:
-    """No executável não há console: o log vai para %LOCALAPPDATA%/Signa/signa.log
+    """No executável não há console: o log vai para %LOCALAPPDATA%/Sigra/sigra.log
     (é o "Detalhes no log" das mensagens de erro); rodando do código, para o terminal."""
     formato = "%(asctime)s %(levelname)s %(name)s: %(message)s"
     # O fontTools (usado pelo PDF) registra cada etapa do subconjunto de fontes em INFO.
@@ -48,15 +48,15 @@ def configurar_log() -> None:
     if not EMPACOTADO:
         logging.basicConfig(level=logging.INFO, format=formato)
         return
-    pasta = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Signa"
+    pasta = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Sigra"
     pasta.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
-        level=logging.INFO, format=formato, filename=pasta / "signa.log", encoding="utf-8"
+        level=logging.INFO, format=formato, filename=pasta / "sigra.log", encoding="utf-8"
     )
 
 
 def configurar_pagina(page: ft.Page) -> None:
-    page.title = "Signa — Processamento de dados"
+    page.title = "Sigra — Processamento de dados"
     if ICONE.exists():
         page.window.icon = str(ICONE)  # canto superior esquerdo e barra de tarefas (Windows)
     page.bgcolor = tema.FUNDO
@@ -112,7 +112,7 @@ def usar_cliente_flet_embutido() -> bool:
 
 
 def identificar_na_barra_de_tarefas(titulo: str) -> threading.Thread:
-    """Nome "Signa", ícone e "Fixar na barra de tarefas" corretos no Windows (a janela é do
+    """Nome "Sigra", ícone e "Fixar na barra de tarefas" corretos no Windows (a janela é do
     cliente Flet; ver app/identidade_windows.py). Em thread própria: não atrasa a abertura."""
     from app import identidade_windows
 

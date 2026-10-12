@@ -1,4 +1,4 @@
-"""Campos de formulário com o estilo único do Signa."""
+"""Campos de formulário com o estilo único do Sigra."""
 
 from collections.abc import Sequence
 

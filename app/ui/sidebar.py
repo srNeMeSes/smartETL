@@ -91,7 +91,7 @@ class Sidebar(ft.Container):
         return ft.Row(
             [
                 ft.Icon(ft.Icons.BAR_CHART, size=30, color=tema.LARANJA),
-                ft.Text("Signa", size=21, weight=ft.FontWeight.BOLD, color=tema.TEXTO),
+                ft.Text("Sigra", size=21, weight=ft.FontWeight.BOLD, color=tema.TEXTO),
             ],
             spacing=2,
         )

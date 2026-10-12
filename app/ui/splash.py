@@ -18,7 +18,7 @@ class Splash(ft.Container):
         logo = ft.Row(
             [
                 ft.Icon(ft.Icons.BAR_CHART, size=64, color=tema.LARANJA),
-                ft.Text("Signa", size=44, weight=ft.FontWeight.BOLD, color=tema.TEXTO),
+                ft.Text("Sigra", size=44, weight=ft.FontWeight.BOLD, color=tema.TEXTO),
             ],
             spacing=4,
             alignment=ft.MainAxisAlignment.CENTER,

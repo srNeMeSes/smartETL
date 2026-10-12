@@ -1,4 +1,4 @@
-# Gera o pacote MSIX do Signa para a Microsoft Store (dist\Signa-<versão>-x64.msix), a partir do
+# Gera o pacote MSIX do Sigra para a Microsoft Store (dist\Sigra-<versão>-x64.msix), a partir do
 # executável já gerado por scripts\gerar_executavel.ps1. Rodar da raiz do projeto:
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\gerar_msix.ps1 `
@@ -13,13 +13,13 @@
 # -Registrar instala a pasta do pacote neste PC (exige o Modo de Desenvolvedor), para testar o app
 # como se tivesse vindo da Loja: Menu Iniciar, barra de tarefas, pasta somente leitura.
 #
-# Dentro do pacote: dist\Signa (executável), o cliente Flet já desempacotado em
-# Signa\_internal\flet_client (main.usar_cliente_flet_embutido), as imagens geradas por
+# Dentro do pacote: dist\Sigra (executável), o cliente Flet já desempacotado em
+# Sigra\_internal\flet_client (main.usar_cliente_flet_embutido), as imagens geradas por
 # scripts\gerar_imagens_msix.py e o resources.pri que indexa as escalas dessas imagens.
 
 param(
-    [string]$NomePacote = "Signa.Teste",
-    [string]$Editor = "CN=Signa Teste",
+    [string]$NomePacote = "Sigra.Teste",
+    [string]$Editor = "CN=Sigra Teste",
     [string]$NomeEditor = "Evaniel Arcanjo Da Silva",
     [string]$Versao = "1.0.0.0",
     [switch]$Registrar
@@ -32,7 +32,7 @@ Set-Location $raiz
 if ($Versao -notmatch '^\d+\.\d+\.\d+\.0$') {
     throw "Versão no formato X.Y.Z.0 (a Loja exige o último número 0): $Versao"
 }
-if (-not (Test-Path "dist\Signa\Signa.exe")) {
+if (-not (Test-Path "dist\Sigra\Sigra.exe")) {
     throw "Gere o executável antes: scripts\gerar_executavel.ps1"
 }
 $python = Join-Path $raiz "venv\Scripts\python.exe"
@@ -69,10 +69,10 @@ if (Test-Path $saida) { Remove-Item $saida -Recurse -Force }
 $layout = Join-Path $saida "layout"
 $recursos = Join-Path $saida "recursos"
 New-Item -ItemType Directory -Force $layout, $recursos | Out-Null
-Copy-Item "dist\Signa" (Join-Path $layout "Signa") -Recurse
+Copy-Item "dist\Sigra" (Join-Path $layout "Sigra") -Recurse
 
-# Cliente Flet desempacotado (o flet-windows.zip do pacote já tem o ícone e a versão do Signa)
-$internos = Join-Path $layout "Signa\_internal"
+# Cliente Flet desempacotado (o flet-windows.zip do pacote já tem o ícone e a versão do Sigra)
+$internos = Join-Path $layout "Sigra\_internal"
 Expand-Archive -Path (Join-Path $internos "flet_desktop\app\flet-windows.zip") `
     -DestinationPath (Join-Path $internos "flet_client")
 if (-not (Test-Path (Join-Path $internos "flet_client\flet\flet.exe"))) {
@@ -106,7 +106,7 @@ if ($LASTEXITCODE -ne 0) { throw "makepri new falhou ($LASTEXITCODE)" }
 Copy-Item (Join-Path $recursos "Assets") (Join-Path $layout "Assets") -Recurse
 
 # 4. Pacote
-$msix = Join-Path $raiz "dist\Signa-$Versao-x64.msix"
+$msix = Join-Path $raiz "dist\Sigra-$Versao-x64.msix"
 & $makeappx pack /d $layout /p $msix /o | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "makeappx pack falhou ($LASTEXITCODE)" }
 Write-Output "Pacote: $msix ($([math]::Round((Get-Item $msix).Length / 1MB)) MB)"
@@ -116,5 +116,5 @@ if ($Registrar) {
     Get-AppxPackage -Name $NomePacote | Remove-AppxPackage
     Add-AppxPackage -Register $arquivoManifesto
     $instalado = Get-AppxPackage -Name $NomePacote
-    Write-Output "Registrado neste PC para teste: shell:AppsFolder\$($instalado.PackageFamilyName)!Signa"
+    Write-Output "Registrado neste PC para teste: shell:AppsFolder\$($instalado.PackageFamilyName)!Sigra"
 }

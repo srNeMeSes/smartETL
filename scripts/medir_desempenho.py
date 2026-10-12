@@ -1,4 +1,4 @@
-"""Mede o desempenho das partes do Signa que dependem do tamanho dos dados (Fase 5).
+"""Mede o desempenho das partes do Sigra que dependem do tamanho dos dados (Fase 5).
 
     python scripts/medir_desempenho.py            # n = 100 000 linhas
     python scripts/medir_desempenho.py 20000      # outro n
@@ -103,7 +103,7 @@ def completar(info, params: dict) -> dict:
 
 
 def main(n: int) -> None:
-    print(f"Signa — medição de desempenho (n = {n:,} linhas)".replace(",", "."))
+    print(f"Sigra — medição de desempenho (n = {n:,} linhas)".replace(",", "."))
     df = base_sintetica(n)
     with tempfile.TemporaryDirectory() as pasta:
         csv = Path(pasta) / "base_br.csv"

@@ -1,9 +1,9 @@
 """Identidade da janela na barra de tarefas do Windows (nome, ícone e o que "Fixar" abre).
 
-A janela do app pertence ao cliente do Flet (`flet.exe`), não ao Python nem ao Signa.exe: sem
+A janela do app pertence ao cliente do Flet (`flet.exe`), não ao Python nem ao Sigra.exe: sem
 isto, o Windows mostra a descrição do cliente ("Flet description") e, ao fixar, fixa o
 `flet.exe`, que sozinho não abre o app. Gravamos na janela as propriedades AppUserModel — ID
-próprio, nome, ícone e o comando de reabrir (o Signa.exe, ou o `pythonw main.py` rodando do
+próprio, nome, ícone e o comando de reabrir (o Sigra.exe, ou o `pythonw main.py` rodando do
 código) —, o que vale também para janelas de outro processo. Em outros sistemas, ou sem o
 pywin32, não faz nada. Falhas só vão para o log: nunca impedem o app de abrir.
 
@@ -28,9 +28,9 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-PREFIXO_EXECUTAVEL = "Signa.Desktop"  # Signa.exe
-PREFIXO_CODIGO = "Signa.Codigo"  # pythonw main.py (desenvolvimento)
-NOME = "Signa"
+PREFIXO_EXECUTAVEL = "Sigra.Desktop"  # Sigra.exe
+PREFIXO_CODIGO = "Sigra.Codigo"  # pythonw main.py (desenvolvimento)
+NOME = "Sigra"
 ESPERA_JANELA = 10.0  # segundos procurando a janela do cliente Flet
 APPMODEL_ERROR_NO_PACKAGE = 15700  # GetCurrentPackageFullName: processo sem identidade de pacote
 

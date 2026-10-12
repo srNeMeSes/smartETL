@@ -10,7 +10,7 @@ Conteúdo, na ordem: cabeçalho com o nome do teste (em todas as páginas); arqu
 parâmetros; decisão (com a cor da interface), interpretação e avisos — ou as seções, quando o
 teste as define (regressões); tabelas (com as dicas das colunas em nota); o card de comparação
 como tabela; todas as figuras (cada opção de um `GrupoFiguras`). A aba Simulação fica de fora.
-Rodapé: "by Signa" e o número da página.
+Rodapé: "by Sigra" e o número da página.
 """
 
 import io
@@ -54,7 +54,7 @@ CORES = {
 }
 SERIES = ("#FF6A1A", "#7C3AED", "#0F9D8A", "#E0A100", "#5B6B7F", "#D9467A", "#3B82C4", "#8C6D46")
 
-RODAPE = "by Signa"
+RODAPE = "by Sigra"
 FONTE = "Inter"
 FONTE_RESERVA = "DejaVu"
 MARGEM = 15  # mm
@@ -437,7 +437,7 @@ def _criar_pdf(nome_teste: str):
     # sobre o x com o posicionamento da fonte; sem ele, sai deslocada para a direita.
     pdf.set_text_shaping(True)
     pdf.set_title(nome_teste)
-    pdf.set_creator("Signa")
+    pdf.set_creator("Sigra")
     pdf.alias_nb_pages()
     return pdf
 

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Manifesto do pacote MSIX do Signa (Microsoft Store). Modelo: scripts/gerar_msix.ps1 troca os
+  Manifesto do pacote MSIX do Sigra (Microsoft Store). Modelo: scripts/gerar_msix.ps1 troca os
   campos {{...}} pelos valores do Partner Center (Identidade do produto) e pela versão.
   App de desktop (PyInstaller + cliente Flet) em confiança total: runFullTrust.
 -->
@@ -17,7 +17,7 @@
     ProcessorArchitecture="x64" />
 
   <Properties>
-    <DisplayName>Signa</DisplayName>
+    <DisplayName>Sigra</DisplayName>
     <PublisherDisplayName>{{NOME_EDITOR}}</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
     <Description>Testes de hipótese, ANOVA, correlação e regressão a partir de arquivos CSV e XLSX, com interpretação em português.</Description>
@@ -32,9 +32,9 @@
   </Resources>
 
   <Applications>
-    <Application Id="Signa" Executable="Signa\Signa.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="Sigra" Executable="Sigra\Sigra.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="Signa"
+        DisplayName="Sigra"
         Description="Testes de hipótese e análise estatística de dados"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
@@ -43,7 +43,7 @@
           Wide310x150Logo="Assets\Wide310x150Logo.png"
           Square71x71Logo="Assets\SmallTile.png"
           Square310x310Logo="Assets\LargeTile.png"
-          ShortName="Signa" />
+          ShortName="Sigra" />
       </uap:VisualElements>
     </Application>
   </Applications>

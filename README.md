@@ -1,4 +1,4 @@
-# Signa — Testes de Hipótese
+# Sigra — Testes de Hipótese
 
 Aplicativo desktop para análise estatística de bases de dados. Você carrega um arquivo CSV ou
 XLSX, escolhe um teste na barra lateral, preenche os parâmetros e recebe o resultado: decisão,
@@ -88,10 +88,10 @@ em PDF); pytest, ruff e pypdf para desenvolvimento.
 
 ## Executável para Windows
 
-Para usar sem instalar o Python, descompacte `Signa-windows.zip` e abra
-`Signa\Signa.exe`. A pasta inteira precisa ir junto: o `.exe` usa os arquivos de
+Para usar sem instalar o Python, descompacte `Sigra-windows.zip` e abra
+`Sigra\Sigra.exe`. A pasta inteira precisa ir junto: o `.exe` usa os arquivos de
 `_internal`. Na primeira abertura, o app prepara a interface sozinho, sem internet. O log fica em
-`%LOCALAPPDATA%\Signa\signa.log` (é o "Detalhes no log" das mensagens de erro).
+`%LOCALAPPDATA%\Sigra\sigra.log` (é o "Detalhes no log" das mensagens de erro).
 
 Para gerar de novo (com o venv instalado, na raiz do projeto):
 
@@ -101,7 +101,7 @@ powershell -ExecutionPolicy Bypass -File scripts\gerar_executavel.ps1
 
 O script roda `flet pack` (PyInstaller) em modo pasta (abre em ~2 s; o modo arquivo único
 descompactaria pandas, scipy e statsmodels a cada abertura) com o ícone `assets/icon2.ico`, que
-aparece no `.exe` e no canto da janela. Saída: `dist\Signa\` e `dist\Signa-windows.zip`.
+aparece no `.exe` e no canto da janela. Saída: `dist\Sigra\` e `dist\Sigra-windows.zip`.
 
 ## Desenvolvimento
 

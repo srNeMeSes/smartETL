@@ -367,7 +367,7 @@ def test_splash():
     from app.ui.splash import MENSAGEM_CARREGANDO, Splash
 
     splash = Splash()
-    assert {"Signa", "Processamento e análise de dados", MENSAGEM_CARREGANDO} <= set(textos(splash))
+    assert {"Sigra", "Processamento e análise de dados", MENSAGEM_CARREGANDO} <= set(textos(splash))
     assert do_tipo(splash, ft.ProgressRing) and splash.bgcolor == tema.FUNDO
 
 
@@ -386,7 +386,7 @@ def test_main_mostra_splash_e_troca_pela_tela(page, monkeypatch):
 def test_main_monta_pagina(page, monkeypatch):
     monkeypatch.setattr(app_main, "DURACAO_MINIMA", 0)
     app_main.main(page)
-    assert page.title == "Signa — Processamento de dados"
+    assert page.title == "Sigra — Processamento de dados"
     assert (page.window.width, page.window.height) == (1440, 900)
     assert (page.window.min_width, page.window.min_height) == (1150, 720)
     page.run_task.assert_called_once_with(page.window.center)  # janela centralizada
@@ -401,13 +401,13 @@ def test_main_monta_pagina(page, monkeypatch):
 def test_main_identifica_a_janela_na_barra_de_tarefas(
     page, monkeypatch, sem_identidade_na_barra_de_tarefas
 ):
-    # Nome "Signa" e "Fixar na barra de tarefas" que reabre o app (não o cliente Flet).
+    # Nome "Sigra" e "Fixar na barra de tarefas" que reabre o app (não o cliente Flet).
     monkeypatch.setattr(app_main, "DURACAO_MINIMA", 0)
     app_main.main(page)
     app_main.identificar_na_barra_de_tarefas(page.title).join(timeout=5)
     titulo, dados = sem_identidade_na_barra_de_tarefas[-1]
-    assert titulo == "Signa — Processamento de dados"
-    assert dados.nome == "Signa" and dados.icone.endswith("icon2.ico,0")
+    assert titulo == "Sigra — Processamento de dados"
+    assert dados.nome == "Sigra" and dados.icone.endswith("icon2.ico,0")
     assert "main.py" in dados.comando  # rodando do código: pythonw main.py
     (servico,), _ = page.services.append.call_args
     assert isinstance(servico, ft.FilePicker)
@@ -940,7 +940,7 @@ def test_escolher_destino_pdf_usa_o_dialogo_de_salvar(tela_controller, monkeypat
 
 
 def test_log_em_arquivo_no_executavel(tmp_path, monkeypatch):
-    # Sem console no executável, o log ("Detalhes no log") vai para %LOCALAPPDATA%/Signa.
+    # Sem console no executável, o log ("Detalhes no log") vai para %LOCALAPPDATA%/Sigra.
     import logging
 
     raiz = logging.getLogger()
@@ -954,7 +954,7 @@ def test_log_em_arquivo_no_executavel(tmp_path, monkeypatch):
         logging.getLogger("teste").info("mensagem de teste")
         for h in raiz.handlers:
             h.flush()
-        arquivo = tmp_path / "Signa" / "signa.log"
+        arquivo = tmp_path / "Sigra" / "sigra.log"
         assert "mensagem de teste" in arquivo.read_text(encoding="utf-8")
     finally:
         for h in list(raiz.handlers):
