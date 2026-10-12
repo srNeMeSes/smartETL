@@ -26,6 +26,17 @@ if ($LASTEXITCODE -ne 0) { throw "flet pack falhou ($LASTEXITCODE)" }
 
 $zip = Join-Path $raiz "dist\Signa-windows.zip"
 if (Test-Path $zip) { Remove-Item $zip }
-Compress-Archive -Path (Join-Path $raiz "dist\Signa") -DestinationPath $zip
+# Logo depois do build o antivírus ainda lê os arquivos novos e o zip falha com "arquivo em uso"
+# (aconteceu em dois builds seguidos): espera e tenta de novo.
+for ($tentativa = 1; ; $tentativa++) {
+    try {
+        Compress-Archive -Path (Join-Path $raiz "dist\Signa") -DestinationPath $zip -Force -ErrorAction Stop
+        break
+    } catch {
+        if ($tentativa -ge 6) { throw }
+        Write-Output "Zip: arquivo em uso, nova tentativa em 10 s ($tentativa/5)"
+        Start-Sleep -Seconds 10
+    }
+}
 Write-Output "Executavel: dist\Signa\Signa.exe"
 Write-Output "Para distribuir: $zip"
