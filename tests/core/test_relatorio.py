@@ -19,11 +19,12 @@ from core import registry
 from core.base import ComparacaoPValores, Figura, GrupoFiguras, ParametroSpec, ResultadoTeste
 from core.figuras import barras, barras_agrupadas, boxplot, cascata, dispersao, histograma
 from core.relatorio import (
+    ARQUIVOS_INTER,
     RODAPE,
     ContextoRelatorio,
-    _caminho_fontes,
     _celula,
     _figuras,
+    caminho_inter,
     descrever_parametros,
     figura_png,
     garantir_extensao,
@@ -181,11 +182,9 @@ def test_conteudo_do_relatorio(relatorios, teste_id):
 
 
 def test_fontes_cobrem_todos_os_caracteres(relatorios):
-    """A DejaVu Sans tem um glifo para cada caractere escrito (μ, ρₛ, H₀, ≠, η², ⚠...)."""
-    mapas = [
-        set(TTFont(_caminho_fontes() / nome).getBestCmap())
-        for nome in ("DejaVuSans.ttf", "DejaVuSans-Bold.ttf")
-    ]
+    """A Inter (regular e negrito) tem um glifo para cada caractere escrito (μ, ρₛ, H₀, ≠, η²,
+    ⚠...): a DejaVu de reserva não precisa entrar em nenhum relatório de hoje."""
+    mapas = [set(TTFont(caminho_inter() / nome).getBestCmap()) for nome in ARQUIVOS_INTER.values()]
     cobertos = set.intersection(*mapas)
     textos = []
     for resultado, contexto, _ in relatorios.values():
@@ -326,3 +325,29 @@ def test_titulos_de_grupo_de_figuras():
 def test_figura_png(figura: Figura):
     png = figura_png(figura)
     assert png.startswith(PNG) and len(png) > 5000
+
+
+def test_pdf_usa_a_inter_em_regular_e_negrito(relatorios):
+    """Mesma fonte da interface; a DejaVu só entraria para um glifo que faltasse na Inter."""
+    _, _, conteudo = relatorios["teste_t_1am"]
+    fontes = set()
+    for pagina in PdfReader(io.BytesIO(conteudo)).pages:
+        for fonte in pagina["/Resources"]["/Font"].values():
+            fontes.add(str(fonte.get_object()["/BaseFont"]).split("+")[-1])
+    assert fontes == {"Inter", "InterBold"}  # nomes que o fpdf2 dá (família + estilo)
+
+
+def test_graficos_do_pdf_usam_a_inter():
+    from matplotlib import font_manager
+
+    figura_png(histograma([1.0, 2.0, 2.5, 4.0], "Distribuição", "x", []))
+    for peso, arquivo in (("normal", "Inter-Regular.ttf"), ("bold", "Inter-Bold.ttf")):
+        propriedades = font_manager.FontProperties(family="Inter", weight=peso)
+        assert font_manager.findfont(propriedades, fallback_to_default=False).endswith(arquivo)
+
+
+def test_pdf_com_text_shaping_para_o_x_barra():
+    # Sem shaping, a barra do "x̄" (U+0304) sai deslocada na Inter; conferido na página renderizada.
+    from core.relatorio import _criar_pdf
+
+    assert _criar_pdf("Teste t (uma amostra)").text_shaping

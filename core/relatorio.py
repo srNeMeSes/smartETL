@@ -1,8 +1,10 @@
 """Relatório em PDF de um resultado: a aba Análise inteira e os gráficos da Visualização.
 
 Sem Flet. O PDF é montado com fpdf2 e os gráficos com matplotlib (backend Agg, importado só
-quando um relatório é gerado). A fonte é a DejaVu Sans que acompanha o matplotlib: cobre os
-símbolos usados nos textos (μ, ρₛ, H₀, ≠, ≤, η², −...).
+quando um relatório é gerado). A fonte é a Inter, a mesma da interface, em arquivos estáticos
+(assets/fonts/Inter-Regular.ttf e Inter-Bold.ttf, gerados por scripts/gerar_fontes_pdf.py): cobre
+os símbolos usados nos textos (μ, ρₛ, H₀, ≠, ≤, η², −, ⚠...). A DejaVu Sans do matplotlib fica de
+reserva para algum caractere que a Inter não tenha (fpdf2 e matplotlib trocam só esse glifo).
 
 Conteúdo, na ordem: cabeçalho com o nome do teste (em todas as páginas); arquivo, data/hora e
 parâmetros; decisão (com a cor da interface), interpretação e avisos — ou as seções, quando o
@@ -13,6 +15,7 @@ Rodapé: "by Signa" e o número da página.
 
 import io
 import itertools
+import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -52,7 +55,8 @@ CORES = {
 SERIES = ("#FF6A1A", "#7C3AED", "#0F9D8A", "#E0A100", "#5B6B7F", "#D9467A", "#3B82C4", "#8C6D46")
 
 RODAPE = "by Signa"
-FONTE = "DejaVu"
+FONTE = "Inter"
+FONTE_RESERVA = "DejaVu"
 MARGEM = 15  # mm
 TITULO_COMPARACAO = "Comparação de p-valores"
 FONTE_TABELA, FONTE_TABELA_MIN = 8.5, 6.0
@@ -311,9 +315,10 @@ def figura_png(figura: Figura, largura_pol: float = 7.0, altura_pol: float = 3.6
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    _registrar_inter_no_matplotlib()
     with plt.rc_context(
         {
-            "font.family": "DejaVu Sans",
+            "font.family": ["Inter", "DejaVu Sans"],
             "font.size": 8,
             "axes.edgecolor": CORES["borda"],
             "axes.labelcolor": CORES["texto"],
@@ -374,9 +379,28 @@ def _rgb(cor: str) -> tuple[int, int, int]:
 
 
 def _caminho_fontes() -> Path:
+    """Pasta da DejaVu Sans (reserva), que acompanha o matplotlib."""
     import matplotlib
 
     return Path(matplotlib.get_data_path()) / "fonts" / "ttf"
+
+
+def caminho_inter() -> Path:
+    """Pasta da Inter: dentro do executável (PyInstaller) ou na raiz do projeto."""
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[1]))
+    return base / "assets" / "fonts"
+
+
+ARQUIVOS_INTER = {"": "Inter-Regular.ttf", "B": "Inter-Bold.ttf"}
+
+
+def _registrar_inter_no_matplotlib() -> None:
+    from matplotlib import font_manager
+
+    registrados = {Path(f.fname).name for f in font_manager.fontManager.ttflist}
+    for arquivo in ARQUIVOS_INTER.values():
+        if arquivo not in registrados:
+            font_manager.fontManager.addfont(str(caminho_inter() / arquivo))
 
 
 def _criar_pdf(nome_teste: str):
@@ -403,10 +427,15 @@ def _criar_pdf(nome_teste: str):
     pdf = _Relatorio(format="A4")
     pdf.set_margins(MARGEM, MARGEM, MARGEM)
     pdf.set_auto_page_break(True, margin=18)
-    pasta = _caminho_fontes()
-    pdf.add_font(FONTE, "", str(pasta / "DejaVuSans.ttf"))
-    pdf.add_font(FONTE, "B", str(pasta / "DejaVuSans-Bold.ttf"))
-    pdf.add_font(FONTE, "I", str(pasta / "DejaVuSans-Oblique.ttf"))
+    for estilo, arquivo in ARQUIVOS_INTER.items():
+        pdf.add_font(FONTE, estilo, str(caminho_inter() / arquivo))
+    reserva = _caminho_fontes()
+    pdf.add_font(FONTE_RESERVA, "", str(reserva / "DejaVuSans.ttf"))
+    pdf.add_font(FONTE_RESERVA, "B", str(reserva / "DejaVuSans-Bold.ttf"))
+    pdf.set_fallback_fonts([FONTE_RESERVA])  # só para um glifo que falte na Inter
+    # Text shaping (uharfbuzz): na Inter, a barra do "x̄" (acento combinante U+0304) só fica
+    # sobre o x com o posicionamento da fonte; sem ele, sai deslocada para a direita.
+    pdf.set_text_shaping(True)
     pdf.set_title(nome_teste)
     pdf.set_creator("Signa")
     pdf.alias_nb_pages()
