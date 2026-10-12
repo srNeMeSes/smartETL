@@ -33,6 +33,9 @@ def recurso(caminho: str) -> Path:
 
 ASSETS = recurso("assets")
 ICONE = ASSETS / "icon2.ico"
+# Cliente Flet já desempacotado dentro do executável: só no pacote MSIX (scripts/gerar_msix.ps1),
+# onde a pasta do app é somente leitura e a janela deve rodar com a identidade do pacote.
+CLIENTE_FLET = recurso("flet_client/flet")
 
 
 def configurar_log() -> None:
@@ -100,6 +103,14 @@ def carregar_aplicativo(page: ft.Page, raiz: ft.AnimatedSwitcher, inicio: float)
     identificar_na_barra_de_tarefas(page.title)
 
 
+def usar_cliente_flet_embutido() -> bool:
+    """Aponta o Flet para o cliente que vem no pacote, em vez de desempacotá-lo em ~/.flet."""
+    if not (EMPACOTADO and (CLIENTE_FLET / "flet.exe").is_file()):
+        return False
+    os.environ["FLET_VIEW_PATH"] = str(CLIENTE_FLET)
+    return True
+
+
 def identificar_na_barra_de_tarefas(titulo: str) -> threading.Thread:
     """Nome "Signa", ícone e "Fixar na barra de tarefas" corretos no Windows (a janela é do
     cliente Flet; ver app/identidade_windows.py). Em thread própria: não atrasa a abertura."""
@@ -115,4 +126,5 @@ def identificar_na_barra_de_tarefas(titulo: str) -> threading.Thread:
 
 if __name__ == "__main__":
     configurar_log()
+    usar_cliente_flet_embutido()
     ft.run(main, assets_dir=str(ASSETS))

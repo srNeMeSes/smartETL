@@ -13,6 +13,10 @@ posteriores. Em 2026-10-08 um teste manual gravou "python.exe teste" no ID antig
 fixado passou a abrir só um console. Por isso o ID é derivado do próprio comando de reabrir
 (prefixo + 10 dígitos do SHA-1 do caminho): executável e código, ou o app em outra pasta, têm IDs
 diferentes, e um atalho guardado sempre corresponde ao comando atual.
+
+Instalado por MSIX (Microsoft Store) nada disso é feito: o processo tem a identidade do pacote e o
+Windows tira nome, ícone e "Fixar" do manifesto. Gravar um ID próprio quebraria essa ligação (e o
+comando de reabrir apontaria para a pasta protegida do pacote).
 """
 
 import hashlib
@@ -28,6 +32,7 @@ PREFIXO_EXECUTAVEL = "Signa.Desktop"  # Signa.exe
 PREFIXO_CODIGO = "Signa.Codigo"  # pythonw main.py (desenvolvimento)
 NOME = "Signa"
 ESPERA_JANELA = 10.0  # segundos procurando a janela do cliente Flet
+APPMODEL_ERROR_NO_PACKAGE = 15700  # GetCurrentPackageFullName: processo sem identidade de pacote
 
 
 @dataclass(frozen=True)
@@ -64,6 +69,17 @@ def identidade(empacotado: bool, executavel: str, script: Path, icone: Path) -> 
     return Identidade(id_aplicativo(empacotado, comando), NOME, f"{icone},0", comando)
 
 
+def em_pacote_msix() -> bool:
+    """Se o processo tem identidade de pacote (instalado por MSIX, como pela Microsoft Store)."""
+    if sys.platform != "win32":
+        return False
+    import ctypes
+
+    tamanho = ctypes.c_uint32(0)
+    erro = ctypes.windll.kernel32.GetCurrentPackageFullName(ctypes.byref(tamanho), None)
+    return erro != APPMODEL_ERROR_NO_PACKAGE
+
+
 def _procurar_janela(titulo: str, espera: float) -> int:
     import win32gui
 
@@ -93,6 +109,9 @@ def _gravar(hwnd: int, dados: Identidade) -> None:
 def aplicar(titulo: str, dados: Identidade, espera: float = ESPERA_JANELA) -> bool:
     """Grava a identidade na janela de título `titulo`. Devolve se conseguiu."""
     if sys.platform != "win32":
+        return False
+    if em_pacote_msix():
+        log.info("App instalado por MSIX: nome, ícone e barra de tarefas vêm do manifesto")
         return False
     try:
         import pythoncom

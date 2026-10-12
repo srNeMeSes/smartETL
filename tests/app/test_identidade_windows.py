@@ -83,3 +83,18 @@ def test_aplicar_sem_janela_ou_com_erro_nao_quebra(monkeypatch):
     monkeypatch.setattr(iw, "_procurar_janela", lambda titulo, espera: 1)
     monkeypatch.setattr(iw, "_gravar", falha)
     assert aplicar_original("t", dados) is False  # só registra no log
+
+
+def test_fora_de_pacote_msix():
+    # Os testes rodam do código, sem identidade de pacote.
+    assert iw.em_pacote_msix() is False
+
+
+def test_aplicar_em_pacote_msix_nao_grava_nada(monkeypatch):
+    # Instalado pela Loja, o Windows tira nome, ícone e "Fixar" do manifesto do pacote.
+    gravados = []
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(iw, "em_pacote_msix", lambda: True)
+    monkeypatch.setattr(iw, "_gravar", lambda hwnd, dados: gravados.append(hwnd))
+    assert aplicar_original("t", iw.identidade(True, "x", Path("m"), ICONE)) is False
+    assert gravados == []

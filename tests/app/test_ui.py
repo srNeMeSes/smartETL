@@ -991,3 +991,21 @@ def test_card_e_coluna_dividem_a_largura_nas_duas_abas(tela_controller, csv_vali
     detalhes, _, card_analise = tela.painel.analise.controls
     assert card_analise is tela.card_analise
     assert detalhes.expand == card_analise.expand == 1
+
+
+def test_cliente_flet_embutido_so_no_pacote(monkeypatch, tmp_path):
+    # MSIX: o cliente Flet vem desempacotado no pacote (pasta do app somente leitura).
+    monkeypatch.delenv("FLET_VIEW_PATH", raising=False)
+    cliente = tmp_path / "flet_client" / "flet"
+    monkeypatch.setattr(app_main, "CLIENTE_FLET", cliente)
+    monkeypatch.setattr(app_main, "EMPACOTADO", True)
+    assert app_main.usar_cliente_flet_embutido() is False  # zip normal: sem a pasta
+    cliente.mkdir(parents=True)
+    (cliente / "flet.exe").write_bytes(b"")
+    assert app_main.usar_cliente_flet_embutido() is True
+    import os
+
+    assert os.environ["FLET_VIEW_PATH"] == str(cliente)
+    monkeypatch.setattr(app_main, "EMPACOTADO", False)  # rodando do código: nunca
+    monkeypatch.delenv("FLET_VIEW_PATH")
+    assert app_main.usar_cliente_flet_embutido() is False and "FLET_VIEW_PATH" not in os.environ
