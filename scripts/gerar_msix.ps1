@@ -14,7 +14,9 @@
 # como se tivesse vindo da Loja: Menu Iniciar, barra de tarefas, pasta somente leitura.
 #
 # Dentro do pacote: dist\Sigra (executável), o cliente Flet já desempacotado em
-# Sigra\_internal\flet_client (main.usar_cliente_flet_embutido), as imagens geradas por
+# Sigra\_internal\flet_client (main.usar_cliente_flet_embutido), com o plugin de localização
+# trocado por um vazio (msix\plugin_vazio: sem ele o Windows pede permissão de localização na
+# primeira abertura, e o app não usa localização), as imagens geradas por
 # scripts\gerar_imagens_msix.py e o resources.pri que indexa as escalas dessas imagens.
 
 param(
@@ -38,9 +40,11 @@ if (-not (Test-Path "dist\Sigra\Sigra.exe")) {
 $python = Join-Path $raiz "venv\Scripts\python.exe"
 
 # 1. makeappx e makepri: pacote NuGet oficial da Microsoft com as ferramentas do Windows SDK
-#    (evita instalar o SDK inteiro). Guardado em build\, baixado uma vez.
+#    (evita instalar o SDK inteiro). Baixado uma vez e guardado em .ferramentas\ (fora de
+#    build\, que o flet pack apaga a cada executável; ignorado pelo git).
 $versaoSdk = "10.0.26100.9169"
-$pastaSdk = Join-Path $raiz "build\msix-ferramentas\$versaoSdk"
+$ferramentas = Join-Path $raiz ".ferramentas"
+$pastaSdk = Join-Path $ferramentas "windows-sdk-buildtools\$versaoSdk"
 function Achar-Ferramenta($nome) {
     Get-ChildItem (Join-Path $pastaSdk "bin") -Recurse -Filter $nome -ErrorAction SilentlyContinue |
         Where-Object { $_.Directory.Name -eq "x64" } | Select-Object -First 1 -ExpandProperty FullName
@@ -78,6 +82,24 @@ Expand-Archive -Path (Join-Path $internos "flet_desktop\app\flet-windows.zip") `
 if (-not (Test-Path (Join-Path $internos "flet_client\flet\flet.exe"))) {
     throw "flet.exe não encontrado no cliente Flet desempacotado"
 }
+
+# Plugin de localização vazio (msix\plugin_vazio): o cliente Flet registra o geolocator ao abrir
+# e, empacotado, o Windows pediria permissão de localização, que o app não usa. Compilado com o
+# Zig do PyPI (pacote ziglang), instalado uma vez em .ferramentas\.
+$zig = Join-Path $ferramentas "zig"
+if (-not (Test-Path (Join-Path $zig "ziglang"))) {
+    & $python -m pip install --quiet --target $zig "ziglang==0.16.0"
+    if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar o Zig (ziglang)" }
+}
+$pluginVazio = Join-Path $saida "plugin_vazio\geolocator_windows_plugin.dll"
+New-Item -ItemType Directory -Force (Split-Path $pluginVazio) | Out-Null
+$env:PYTHONPATH = $zig
+& $python -m ziglang cc -shared -O2 -target x86_64-windows-gnu `
+    (Join-Path $raiz "msix\plugin_vazio\geolocator_windows_plugin.c") -o $pluginVazio
+$codigoZig = $LASTEXITCODE
+Remove-Item Env:\PYTHONPATH
+if ($codigoZig -ne 0) { throw "Falha ao compilar o plugin vazio ($codigoZig)" }
+Copy-Item $pluginVazio (Join-Path $internos "flet_client\flet\geolocator_windows_plugin.dll") -Force
 
 # 3. Imagens, manifesto e resources.pri. O makepri indexa só a pasta das imagens (indexar o
 #    executável inteiro, com milhares de arquivos, só deixaria o .pri maior e mais lento).

@@ -103,6 +103,20 @@ O script roda `flet pack` (PyInstaller) em modo pasta (abre em ~2 s; o modo arqu
 descompactaria pandas, scipy e statsmodels a cada abertura) com o ícone `assets/icon2.ico`, que
 aparece no `.exe` e no canto da janela. Saída: `dist\Sigra\` e `dist\Sigra-windows.zip`.
 
+### Pacote para a Microsoft Store (MSIX)
+
+Depois do executável, com os valores da página **Identidade do produto** do Partner Center:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\gerar_msix.ps1 `
+    -NomePacote "<Package/Identity/Name>" -Editor "<Package/Identity/Publisher>" `
+    -NomeEditor "<Package/Properties/PublisherDisplayName>" -Versao 1.0.0.0
+```
+
+Saída: `dist\Sigra-1.0.0.0-x64.msix`, sem assinatura (a Loja assina na publicação). A cada nova
+submissão, aumente a versão (o último número fica 0: `1.0.1.0`). Com `-Registrar`, o pacote é
+instalado neste PC para teste (exige o Modo de Desenvolvedor do Windows).
+
 ## Desenvolvimento
 
 ```bash
