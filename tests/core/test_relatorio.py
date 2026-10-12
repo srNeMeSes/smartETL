@@ -143,9 +143,10 @@ def test_conteudo_do_relatorio(relatorios, teste_id):
     tudo = _compacto(_corpo(paginas, contexto.nome_teste))
 
     for i, pagina in enumerate(paginas, start=1):
-        # Cabeçalho: só o nome do teste; "smartETL" só no rodapé ("by smartETL").
+        # Cabeçalho: só o nome do teste; "Signa" só no rodapé ("by Signa").
         assert pagina.startswith(contexto.nome_teste)
-        assert pagina.count("smartETL") == 1 and RODAPE in pagina
+        assert pagina.count("Signa") == 1 and RODAPE == "by Signa" and RODAPE in pagina
+        assert "smartETL" not in pagina
         assert f"Página {i} de {len(paginas)}" in pagina
     assert "Arquivo: base.csv (150 linhas)" in paginas[0]
     assert "Gerado em: 08/10/2026 às 14:05" in paginas[0]

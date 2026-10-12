@@ -1,14 +1,24 @@
 """Desenho das figuras com flet.canvas."""
 
+import itertools
+
 import flet as ft
 import flet.canvas as cv
 import pytest
 from ajudantes_ui import do_tipo, textos
 
 from app.ui import tema
-from app.ui.graficos import ALTURA, LARGURA, cor_serie, desenhar_figura
+from app.ui.graficos import (
+    ALTURA,
+    CARACTERE_MEDIO,
+    FOLGA_ROTULO,
+    LARGURA,
+    abreviar,
+    cor_serie,
+    desenhar_figura,
+)
 from core.base import Figura
-from core.figuras import barras, barras_agrupadas, boxplot, histograma
+from core.figuras import barras, barras_agrupadas, boxplot, cascata, histograma
 
 
 @pytest.fixture
@@ -172,3 +182,43 @@ def test_rotulos_longos_de_faixas_quebram_em_duas_linhas():
     assert rotulos and all(r.count("\n") == 1 and r.split("\n")[0].endswith("–") for r in rotulos)
     curtas = _canvas(desenhar_figura(barras([("A", 1.0), ("B", 2.0)], "t", "y")))
     assert not any("\n" in s.value for s in curtas.shapes if isinstance(s, cv.Text))
+
+
+@pytest.mark.parametrize(
+    ("texto", "vaga", "esperado"),
+    [
+        ("distancia_centro_km", 85, "distancia_c."),  # exemplo do autor
+        ("area_m2", 85, "area_m2"),  # cabe: fica inteiro
+        ("Previsto (preco)", 68, "Previsto."),  # não termina em " (."
+        ("idade_anos", 10, "ida."),  # vaga mínima: nunca menos de 4 caracteres
+    ],
+)
+def test_abreviar_rotulo(texto, vaga, esperado):
+    assert abreviar(texto, vaga) == esperado
+
+
+def test_cascata_nomes_longos_nao_se_sobrepoem():
+    # Simulação de imóveis (print do autor): 7 barras em 560 px; os nomes se sobrepunham.
+    figura = cascata(
+        ("Intercepto", 113_406.51),
+        [
+            ("area_m2", 387_341.37),
+            ("quartos", 42_856.42),
+            ("idade_anos", -20_345.43),
+            ("distancia_centro_km", -32_876.76),
+            ("bairro", 106_500.61),
+        ],
+        "Previsto (preco)",
+        "preco",
+        "Contribuição de cada termo",
+    )
+    canvas = do_tipo(desenhar_figura(figura, largura=560, altura=230), cv.Canvas)[0]
+    base = max(f.y for f in canvas.shapes if isinstance(f, cv.Text))
+    nomes = sorted(
+        (f for f in canvas.shapes if isinstance(f, cv.Text) and f.y == base), key=lambda f: f.x
+    )
+    assert [f.value for f in nomes][:2] == ["Intercepto", "area_m2"]
+    assert "distancia_centro_km" not in [f.value for f in nomes]
+    for esquerda, direita in itertools.pairwise(nomes):
+        meias = (len(esquerda.value) + len(direita.value)) * CARACTERE_MEDIO / 2
+        assert direita.x - esquerda.x >= meias + FOLGA_ROTULO  # sobra espaço entre os nomes

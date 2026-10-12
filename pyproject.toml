@@ -1,5 +1,5 @@
 [project]
-name = "smartetl"
+name = "signa"
 version = "0.1.0"
 description = "Processamento de dados e testes de hipótese (Flet)"
 requires-python = ">=3.10"

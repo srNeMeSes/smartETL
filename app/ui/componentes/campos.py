@@ -1,4 +1,4 @@
-"""Campos de formulário com o estilo único do smartETL."""
+"""Campos de formulário com o estilo único do Signa."""
 
 from collections.abc import Sequence
 

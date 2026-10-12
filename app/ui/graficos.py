@@ -233,8 +233,20 @@ def _rotulo_barra(cx: float, topo: float, altura: float, valor: float, texto: st
     return _texto(cx, topo - 3, texto, ft.Alignment.BOTTOM_CENTER)
 
 
-LARGURA_CARACTERE = 6.2  # px por caractere no texto de 11 pt dos eixos (estimativa)
+LARGURA_CARACTERE = 6.6  # px por caractere no texto de 11 px dos eixos (Inter; medida: 6,0-6,6)
 ALTURA_LINHA_ROTULO = 14
+CARACTERE_MEDIO = 6.1  # px por caractere em média (Inter de 11 px), para abreviar nomes
+MINIMO_CARACTERES = 4  # nem a vaga mais estreita encurta o rótulo abaixo disto
+FOLGA_ROTULO = 6  # px de espaço livre entre rótulos vizinhos
+
+
+def abreviar(texto: str, vaga: float) -> str:
+    """Encurta com "." o rótulo que não cabe na sua vaga do eixo x, para não encostar no vizinho
+    (ex.: "distancia_centro_km" → "distancia_c." numa vaga de ~85 px)."""
+    limite = max(int((vaga - FOLGA_ROTULO) // CARACTERE_MEDIO), MINIMO_CARACTERES)
+    if len(texto) <= limite:
+        return texto
+    return texto[: limite - 1].rstrip(" _-–(") + "."
 
 
 def _rotulos_eixo(rotulos: list[str], area_l: float) -> tuple[list[str], int]:
@@ -476,7 +488,7 @@ def cascata(dados: dict, largura: float, altura: float) -> tuple[cv.Canvas, ft.C
         valor = ate - de if 0 < i < len(barras_) - 1 else ate
         texto = ("+" if valor > 0 and 0 < i < len(barras_) - 1 else "") + formatar_numero(valor, 2)
         formas.append(_texto(cx, topo - 3, texto, ft.Alignment.BOTTOM_CENTER))
-        formas.append(_texto(cx, base + 6, rotulo, ft.Alignment.TOP_CENTER))
+        formas.append(_texto(cx, base + 6, abreviar(rotulo, vaga), ft.Alignment.TOP_CENTER))
     legenda = ft.Row(
         [
             ft.Row(

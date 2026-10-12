@@ -36,7 +36,7 @@ LARGURA_MINIMA = 72
 LARGURA_MAXIMA = 260
 LARGURA_FANTASMA = 96
 LARGURA_ICONE = 20  # ícone do tipo + espaço, no cabeçalho
-PX_POR_CARACTERE = 7.4  # média aproximada da fonte de 13 px
+PX_POR_CARACTERE = 7.8  # Inter de 13 px (medida: 6,8 em média, 7,8 nos textos mais largos)
 FONTE_CELULA = 13
 FONTE_CABECALHO = 12.5
 

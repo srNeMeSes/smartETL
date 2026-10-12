@@ -1,4 +1,4 @@
-"""Ponto de entrada do smartETL: `python main.py`.
+"""Ponto de entrada do Signa: `python main.py`.
 
 No topo só entram Flet e a splash. `main` mostra a tela de abertura e retorna logo — no Flet
 0.86.2 o que um `main` síncrono adiciona só chega à janela quando ele termina. O carregamento
@@ -31,11 +31,12 @@ def recurso(caminho: str) -> Path:
     return base / caminho
 
 
-ICONE = recurso("assets/icon2.ico")
+ASSETS = recurso("assets")
+ICONE = ASSETS / "icon2.ico"
 
 
 def configurar_log() -> None:
-    """No executável não há console: o log vai para %LOCALAPPDATA%/smartETL/smartetl.log
+    """No executável não há console: o log vai para %LOCALAPPDATA%/Signa/signa.log
     (é o "Detalhes no log" das mensagens de erro); rodando do código, para o terminal."""
     formato = "%(asctime)s %(levelname)s %(name)s: %(message)s"
     # O fontTools (usado pelo PDF) registra cada etapa do subconjunto de fontes em INFO.
@@ -44,19 +45,20 @@ def configurar_log() -> None:
     if not EMPACOTADO:
         logging.basicConfig(level=logging.INFO, format=formato)
         return
-    pasta = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "smartETL"
+    pasta = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Signa"
     pasta.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
-        level=logging.INFO, format=formato, filename=pasta / "smartetl.log", encoding="utf-8"
+        level=logging.INFO, format=formato, filename=pasta / "signa.log", encoding="utf-8"
     )
 
 
 def configurar_pagina(page: ft.Page) -> None:
-    page.title = "smartETL — Processamento de dados"
+    page.title = "Signa — Processamento de dados"
     if ICONE.exists():
         page.window.icon = str(ICONE)  # canto superior esquerdo e barra de tarefas (Windows)
     page.bgcolor = tema.FUNDO
     page.padding = 0
+    page.fonts = tema.ARQUIVOS_FONTE
     page.theme = tema.tema_da_pagina()
     page.window.width = 1440
     page.window.height = 900
@@ -99,7 +101,7 @@ def carregar_aplicativo(page: ft.Page, raiz: ft.AnimatedSwitcher, inicio: float)
 
 
 def identificar_na_barra_de_tarefas(titulo: str) -> threading.Thread:
-    """Nome "smartETL", ícone e "Fixar na barra de tarefas" corretos no Windows (a janela é do
+    """Nome "Signa", ícone e "Fixar na barra de tarefas" corretos no Windows (a janela é do
     cliente Flet; ver app/identidade_windows.py). Em thread própria: não atrasa a abertura."""
     from app import identidade_windows
 
@@ -113,4 +115,4 @@ def identificar_na_barra_de_tarefas(titulo: str) -> threading.Thread:
 
 if __name__ == "__main__":
     configurar_log()
-    ft.run(main)
+    ft.run(main, assets_dir=str(ASSETS))

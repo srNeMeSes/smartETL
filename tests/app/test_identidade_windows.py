@@ -1,7 +1,7 @@
 """Identidade da janela na barra de tarefas do Windows (app/identidade_windows.py).
 
 A gravação real (pywin32, SHGetPropertyStoreForWindow) foi conferida à mão no app: com ela, o
-botão direito no ícone mostra "smartETL" com o ícone laranja em vez de "Flet description".
+botão direito no ícone mostra "Signa" com o ícone laranja em vez de "Flet description".
 Aqui ficam as regras (comando de reabrir, dados gravados) e os caminhos de falha.
 """
 
@@ -15,8 +15,8 @@ ICONE = Path("C:/app/assets/icon2.ico")
 
 
 def test_comando_reabrir_no_executavel():
-    assert iw.comando_reabrir(True, r"C:\Programas\smartETL\smartETL.exe", Path("x")) == (
-        r'"C:\Programas\smartETL\smartETL.exe"'
+    assert iw.comando_reabrir(True, r"C:\Programas\Signa\Signa.exe", Path("x")) == (
+        r'"C:\Programas\Signa\Signa.exe"'
     )
 
 
@@ -31,24 +31,26 @@ def test_comando_reabrir_do_codigo_usa_pythonw(tmp_path):
 
 
 def test_identidade():
-    dados = iw.identidade(True, r"C:\smartETL.exe", Path("main.py"), ICONE)
-    assert dados.nome == "smartETL" and dados.id_aplicativo.startswith("smartETL.Desktop.")
-    assert dados.icone == f"{ICONE},0" and dados.comando == r'"C:\smartETL.exe"'
+    dados = iw.identidade(True, r"C:\Signa.exe", Path("main.py"), ICONE)
+    assert dados.nome == "Signa" and dados.id_aplicativo.startswith("Signa.Desktop.")
+    assert dados.icone == f"{ICONE},0" and dados.comando == r'"C:\Signa.exe"'
 
 
 def test_id_ligado_ao_comando_de_reabrir():
     # O Windows guarda o 1º comando de cada ID (mesmo depois de desafixar): o ID muda junto com
     # o comando, para um atalho antigo nunca abrir outra coisa.
-    exe = iw.identidade(True, r"C:\Apps\smartETL\smartETL.exe", Path("main.py"), ICONE)
-    igual = iw.identidade(True, r"C:\APPS\smartETL\smartETL.exe", Path("main.py"), ICONE)
-    movido = iw.identidade(True, r"D:\Outra\smartETL\smartETL.exe", Path("main.py"), ICONE)
+    exe = iw.identidade(True, r"C:\Apps\Signa\Signa.exe", Path("main.py"), ICONE)
+    igual = iw.identidade(True, r"C:\APPS\Signa\Signa.exe", Path("main.py"), ICONE)
+    movido = iw.identidade(True, r"D:\Outra\Signa\Signa.exe", Path("main.py"), ICONE)
     codigo = iw.identidade(False, r"C:\venv\python.exe", Path("main.py"), ICONE)
     assert exe.id_aplicativo == igual.id_aplicativo  # o Windows não diferencia maiúsculas
     assert movido.id_aplicativo != exe.id_aplicativo
-    assert codigo.id_aplicativo.startswith("smartETL.Codigo.")
+    assert codigo.id_aplicativo.startswith("Signa.Codigo.")
     for dados in (exe, movido, codigo):
         assert " " not in dados.id_aplicativo and len(dados.id_aplicativo) < 128
     antigos = {"smartETL.TestesDeHipotese", "smartETL.Desktop", "smartETL.Desktop.Codigo"}
+    for dados in (exe, codigo):  # nem os prefixos de antes do nome Signa
+        assert not dados.id_aplicativo.startswith("smartETL")
     assert not {exe.id_aplicativo, codigo.id_aplicativo} & antigos  # IDs já usados nesta máquina
 
 
@@ -64,7 +66,7 @@ def test_aplicar_grava_na_janela_encontrada(monkeypatch):
     monkeypatch.setattr(iw, "_procurar_janela", lambda titulo, espera: 4242)
     monkeypatch.setattr(iw, "_gravar", lambda hwnd, dados: gravados.append((hwnd, dados)))
     dados = iw.identidade(True, "x", Path("m"), ICONE)
-    assert aplicar_original("smartETL — Processamento de dados", dados) is True
+    assert aplicar_original("Signa — Processamento de dados", dados) is True
     assert gravados == [(4242, dados)]
 
 

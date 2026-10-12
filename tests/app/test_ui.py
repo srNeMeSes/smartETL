@@ -367,9 +367,7 @@ def test_splash():
     from app.ui.splash import MENSAGEM_CARREGANDO, Splash
 
     splash = Splash()
-    assert {"smart", "ETL", "Processamento e análise de dados", MENSAGEM_CARREGANDO} <= set(
-        textos(splash)
-    )
+    assert {"Signa", "Processamento e análise de dados", MENSAGEM_CARREGANDO} <= set(textos(splash))
     assert do_tipo(splash, ft.ProgressRing) and splash.bgcolor == tema.FUNDO
 
 
@@ -388,24 +386,28 @@ def test_main_mostra_splash_e_troca_pela_tela(page, monkeypatch):
 def test_main_monta_pagina(page, monkeypatch):
     monkeypatch.setattr(app_main, "DURACAO_MINIMA", 0)
     app_main.main(page)
-    assert page.title == "smartETL — Processamento de dados"
+    assert page.title == "Signa — Processamento de dados"
     assert (page.window.width, page.window.height) == (1440, 900)
     assert (page.window.min_width, page.window.min_height) == (1150, 720)
     page.run_task.assert_called_once_with(page.window.center)  # janela centralizada
     assert page.window.icon == str(app_main.ICONE) and app_main.ICONE.name == "icon2.ico"
     assert app_main.ICONE.exists()  # ícone da janela (canto superior esquerdo)
+    # Fonte Inter embutida: registrada na página e no tema, com o arquivo na pasta de assets.
+    assert page.fonts == {"Inter": "fonts/Inter.ttf"} and page.theme.font_family == "Inter"
+    assert (app_main.ASSETS / page.fonts["Inter"]).exists()
+    assert (app_main.ASSETS / "fonts" / "OFL.txt").exists()  # licença da fonte vai junto
 
 
 def test_main_identifica_a_janela_na_barra_de_tarefas(
     page, monkeypatch, sem_identidade_na_barra_de_tarefas
 ):
-    # Nome "smartETL" e "Fixar na barra de tarefas" que reabre o app (não o cliente Flet).
+    # Nome "Signa" e "Fixar na barra de tarefas" que reabre o app (não o cliente Flet).
     monkeypatch.setattr(app_main, "DURACAO_MINIMA", 0)
     app_main.main(page)
     app_main.identificar_na_barra_de_tarefas(page.title).join(timeout=5)
     titulo, dados = sem_identidade_na_barra_de_tarefas[-1]
-    assert titulo == "smartETL — Processamento de dados"
-    assert dados.nome == "smartETL" and dados.icone.endswith("icon2.ico,0")
+    assert titulo == "Signa — Processamento de dados"
+    assert dados.nome == "Signa" and dados.icone.endswith("icon2.ico,0")
     assert "main.py" in dados.comando  # rodando do código: pythonw main.py
     (servico,), _ = page.services.append.call_args
     assert isinstance(servico, ft.FilePicker)
@@ -938,7 +940,7 @@ def test_escolher_destino_pdf_usa_o_dialogo_de_salvar(tela_controller, monkeypat
 
 
 def test_log_em_arquivo_no_executavel(tmp_path, monkeypatch):
-    # Sem console no executável, o log ("Detalhes no log") vai para %LOCALAPPDATA%/smartETL.
+    # Sem console no executável, o log ("Detalhes no log") vai para %LOCALAPPDATA%/Signa.
     import logging
 
     raiz = logging.getLogger()
@@ -952,7 +954,7 @@ def test_log_em_arquivo_no_executavel(tmp_path, monkeypatch):
         logging.getLogger("teste").info("mensagem de teste")
         for h in raiz.handlers:
             h.flush()
-        arquivo = tmp_path / "smartETL" / "smartetl.log"
+        arquivo = tmp_path / "Signa" / "signa.log"
         assert "mensagem de teste" in arquivo.read_text(encoding="utf-8")
     finally:
         for h in list(raiz.handlers):

@@ -1,9 +1,9 @@
-"""Paleta, raios e tipografia do smartETL. Única fonte de cores da interface."""
+"""Paleta, raios e tipografia do Signa. Única fonte de cores da interface."""
 
 import flet as ft
 
 # Cores da identidade
-LARANJA = "#FF6A1A"  # destaque (identidade smartETL e 1º teste do card)
+LARANJA = "#FF6A1A"  # destaque (identidade Signa e 1º teste do card)
 LARANJA_SUAVE = "#FFF1E6"  # fundo de itens selecionados, ícones e rodapé do card
 ROXO = "#7C3AED"  # 2º teste do card (não paramétrico)
 ROXO_SUAVE = "#EDE9FE"
@@ -50,7 +50,11 @@ GRAFICO_SERIES = (LARANJA, ROXO, "#0F9D8A", "#E0A100", "#5B6B7F", "#D9467A", "#3
 SOMBRA_CARTAO = ft.Colors.with_opacity(0.06, ft.Colors.BLACK)
 
 # Tipografia
-FONTE = "Segoe UI, Roboto, Arial, sans-serif"
+# Inter (SIL Open Font License, assets/fonts/OFL.txt), embutida: a interface fica igual em
+# qualquer máquina. Arquivo variável (eixos de peso e tamanho óptico): um só arquivo cobre
+# do regular ao negrito. O caminho é relativo à pasta de assets do Flet (main.py).
+FONTE = "Inter"
+ARQUIVOS_FONTE = {FONTE: "fonts/Inter.ttf"}
 
 # Barras de rolagem: cinza quase transparente, um pouco mais forte sob o mouse
 BARRA_ROLAGEM = ft.Colors.with_opacity(0.18, TEXTO_SECUNDARIO)

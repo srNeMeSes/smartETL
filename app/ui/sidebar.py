@@ -91,8 +91,7 @@ class Sidebar(ft.Container):
         return ft.Row(
             [
                 ft.Icon(ft.Icons.BAR_CHART, size=30, color=tema.LARANJA),
-                ft.Text("smart", size=21, weight=ft.FontWeight.BOLD, color=tema.TEXTO),
-                ft.Text("ETL", size=21, weight=ft.FontWeight.BOLD, color=tema.LARANJA),
+                ft.Text("Signa", size=21, weight=ft.FontWeight.BOLD, color=tema.TEXTO),
             ],
             spacing=2,
         )
@@ -122,7 +121,9 @@ class Sidebar(ft.Container):
 
     def _linha_teste(self, info: registry.TesteInfo) -> ft.Container:
         icone = ft.Icon(ft.Icons.RADIO_BUTTON_UNCHECKED, size=20)
-        texto = ft.Text(info.nome, size=14)
+        # 13 px: na Inter (mais larga que a Segoe UI), o nome mais longo, "Teste Z (duas
+        # proporções)", cabe nos 260 px da barra mesmo em semi-negrito (selecionado).
+        texto = ft.Text(info.nome, size=13)
         linha = ft.Container(
             content=ft.Row(controls=[icone, texto], spacing=10),
             padding=ft.Padding.symmetric(horizontal=12, vertical=10),
