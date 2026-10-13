@@ -1,4 +1,4 @@
-# Gera o executável do Sigra para Windows (pasta dist\Sigra, com Sigra.exe) e o zip
+﻿# Gera o executável do Sigra para Windows (pasta dist\Sigra, com Sigra.exe) e o zip
 # para distribuir (dist\Sigra-windows.zip). Rodar da raiz do projeto, com o venv instalado:
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\gerar_executavel.ps1

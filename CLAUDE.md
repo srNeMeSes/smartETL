@@ -511,10 +511,12 @@ No executável o log vai para `%LOCALAPPDATA%\Sigra\sigra.log`. O cliente Flet v
 pacote (`flet_desktop/app/flet-windows.zip`) e é extraído no 1º uso, sem internet.
 
 Pacote MSIX para a Microsoft Store (2026-10-12; só quando o autor pedir, como o executável):
-`powershell -ExecutionPolicy Bypass -File scripts\gerar_msix.ps1 -NomePacote ... -Editor ... -NomeEditor ... -Versao X.Y.Z.0`
-→ `dist\Sigra-<versão>-x64.msix`, a partir de `dist\Sigra` (gerar o executável antes). Os três
-valores vêm do Partner Center (Identidade do produto) e precisam ser idênticos; sem eles, valores de
-teste (`Sigra.Teste`). Manifesto em `msix/AppxManifest.xml` (runFullTrust, pt-BR, x64); imagens por
+`powershell -ExecutionPolicy Bypass -File scripts\gerar_msix.ps1 -Versao X.Y.Z.0`
+→ `dist\Sigra-<versão>-x64.msix`, a partir de `dist\Sigra` (gerar o executável antes). Identidade
+padrão = Partner Center: Name `SysArc.Sigra`, Publisher `CN=79E73AAC-3E0F-4BEA-932A-DAA5AC3826DF`,
+PublisherDisplayName `SysArc` (precisam ser idênticos aos de lá). `-Teste` troca para
+`Sigra.Teste` e monta em `build\msix-teste` (saída lá, nunca em `dist\`); `-Registrar` só com
+`-Teste` (a identidade da Loja nunca é registrada no PC de desenvolvimento). Manifesto em `msix/AppxManifest.xml` (runFullTrust, pt-BR, x64); imagens por
 `scripts/gerar_imagens_msix.py`; `makeappx`/`makepri` do NuGet `Microsoft.Windows.SDK.BuildTools`
 (assinatura da Microsoft conferida) e Zig (`ziglang` do PyPI) guardados em `.ferramentas/`
 (o `flet pack` apaga `build/`). No pacote o cliente Flet vai desempacotado
@@ -522,8 +524,8 @@ teste (`Sigra.Teste`). Manifesto em `msix/AppxManifest.xml` (runFullTrust, pt-BR
 `geolocator_windows_plugin.dll` dele é trocado por uma DLL vazia (`msix/plugin_vazio`): o plugin
 original fazia o Windows pedir permissão de localização na 1ª abertura. Empacotado, a identidade
 da barra de tarefas vem do manifesto (`identidade_windows.em_pacote_msix` desliga a gravação
-manual). `-Registrar` instala a pasta do pacote neste PC (Modo de Desenvolvedor) para teste;
-remover com `Get-AppxPackage Sigra.Teste | Remove-AppxPackage`. O .msix vai sem assinatura
+manual). `-Teste -Registrar` instala a pasta do pacote de teste neste PC (Modo de
+Desenvolvedor); remover com `Get-AppxPackage Sigra.Teste | Remove-AppxPackage`. O .msix vai sem assinatura
 (a Loja assina).
 
 No Windows (PowerShell 5.1), passe mensagens de commit com `git commit -F arquivo.txt`: aspas duplas dentro de `-m` são quebradas pelo PowerShell ao chamar executáveis nativos.

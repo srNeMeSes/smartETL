@@ -1,17 +1,22 @@
-# Gera o pacote MSIX do Sigra para a Microsoft Store (dist\Sigra-<versão>-x64.msix), a partir do
+﻿# Gera o pacote MSIX do Sigra para a Microsoft Store (dist\Sigra-<versão>-x64.msix), a partir do
 # executável já gerado por scripts\gerar_executavel.ps1. Rodar da raiz do projeto:
 #
-#   powershell -ExecutionPolicy Bypass -File scripts\gerar_msix.ps1 `
-#       -NomePacote "<Package/Identity/Name>" -Editor "<Package/Identity/Publisher>" `
-#       -NomeEditor "<Package/Properties/PublisherDisplayName>" -Versao 1.0.0.0
+#   powershell -ExecutionPolicy Bypass -File scripts\gerar_msix.ps1 -Versao 1.0.0.0
 #
-# Os três primeiros valores vêm do Partner Center (app > Gerenciamento de produto > Identidade do
-# produto) e precisam ser exatamente iguais, senão a Loja recusa o pacote. Sem eles, o script usa
-# valores de teste (o pacote serve para testar neste PC, não para enviar à Loja).
+# A identidade padrão é a do Sigra no Partner Center (app > Gerenciamento de produtos > Identidade
+# do produto): Name, Publisher e PublisherDisplayName precisam ser exatamente iguais aos de lá,
+# senão a Loja recusa o pacote. A cada submissão, aumente a versão (o último número fica 0).
 # A Loja assina o pacote na publicação: o .msix enviado vai sem assinatura.
 #
-# -Registrar instala a pasta do pacote neste PC (exige o Modo de Desenvolvedor), para testar o app
-# como se tivesse vindo da Loja: Menu Iniciar, barra de tarefas, pasta somente leitura.
+# Teste neste PC (exige o Modo de Desenvolvedor), como se o app tivesse vindo da Loja (Menu
+# Iniciar, barra de tarefas, pasta somente leitura):
+#
+#   powershell -ExecutionPolicy Bypass -File scripts\gerar_msix.ps1 -Teste -Registrar
+#
+# -Teste usa uma identidade própria (Sigra.Teste) e monta tudo em build\msix-teste, sem tocar no
+# pacote da Loja; a identidade da Loja nunca é registrada aqui (um registro de desenvolvedor com
+# ela conflitaria com a instalação real pela Loja). Remover o teste:
+#   Get-AppxPackage Sigra.Teste | Remove-AppxPackage
 #
 # Dentro do pacote: dist\Sigra (executável), o cliente Flet já desempacotado em
 # Sigra\_internal\flet_client (main.usar_cliente_flet_embutido), com o plugin de localização
@@ -20,16 +25,25 @@
 # scripts\gerar_imagens_msix.py e o resources.pri que indexa as escalas dessas imagens.
 
 param(
-    [string]$NomePacote = "Sigra.Teste",
-    [string]$Editor = "CN=Sigra Teste",
-    [string]$NomeEditor = "Evaniel Arcanjo Da Silva",
+    [string]$NomePacote = "SysArc.Sigra",
+    [string]$Editor = "CN=79E73AAC-3E0F-4BEA-932A-DAA5AC3826DF",
+    [string]$NomeEditor = "SysArc",
     [string]$Versao = "1.0.0.0",
+    [switch]$Teste,
     [switch]$Registrar
 )
 
 $ErrorActionPreference = "Stop"
 $raiz = Split-Path -Parent $PSScriptRoot
 Set-Location $raiz
+
+if ($Registrar -and -not $Teste) {
+    throw "Use -Registrar junto com -Teste: a identidade da Loja não é registrada neste PC."
+}
+if ($Teste) {
+    $NomePacote = "Sigra.Teste"
+    $Editor = "CN=Sigra Teste"
+}
 
 if ($Versao -notmatch '^\d+\.\d+\.\d+\.0$') {
     throw "Versão no formato X.Y.Z.0 (a Loja exige o último número 0): $Versao"
@@ -68,7 +82,7 @@ foreach ($ferramenta in $makeappx, $makepri) {
 }
 
 # 2. Pasta do pacote
-$saida = Join-Path $raiz "build\msix"
+$saida = Join-Path $raiz $(if ($Teste) { "build\msix-teste" } else { "build\msix" })
 if (Test-Path $saida) { Remove-Item $saida -Recurse -Force }
 $layout = Join-Path $saida "layout"
 $recursos = Join-Path $saida "recursos"
@@ -128,7 +142,8 @@ if ($LASTEXITCODE -ne 0) { throw "makepri new falhou ($LASTEXITCODE)" }
 Copy-Item (Join-Path $recursos "Assets") (Join-Path $layout "Assets") -Recurse
 
 # 4. Pacote
-$msix = Join-Path $raiz "dist\Sigra-$Versao-x64.msix"
+# O da Loja vai para dist\; o de teste fica em build\msix-teste (não pode ser enviado à Loja).
+$msix = if ($Teste) { Join-Path $saida "Sigra-$Versao-x64-teste.msix" } else { Join-Path $raiz "dist\Sigra-$Versao-x64.msix" }
 & $makeappx pack /d $layout /p $msix /o | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "makeappx pack falhou ($LASTEXITCODE)" }
 Write-Output "Pacote: $msix ($([math]::Round((Get-Item $msix).Length / 1MB)) MB)"

@@ -105,17 +105,23 @@ aparece no `.exe` e no canto da janela. Saída: `dist\Sigra\` e `dist\Sigra-wind
 
 ### Pacote para a Microsoft Store (MSIX)
 
-Depois do executável, com os valores da página **Identidade do produto** do Partner Center:
+Depois do executável (a identidade do Partner Center — `SysArc.Sigra`, editor SysArc — já é o
+padrão do script):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\gerar_msix.ps1 `
-    -NomePacote "<Package/Identity/Name>" -Editor "<Package/Identity/Publisher>" `
-    -NomeEditor "<Package/Properties/PublisherDisplayName>" -Versao 1.0.0.0
+powershell -ExecutionPolicy Bypass -File scripts\gerar_msix.ps1 -Versao 1.0.0.0
 ```
 
 Saída: `dist\Sigra-1.0.0.0-x64.msix`, sem assinatura (a Loja assina na publicação). A cada nova
-submissão, aumente a versão (o último número fica 0: `1.0.1.0`). Com `-Registrar`, o pacote é
-instalado neste PC para teste (exige o Modo de Desenvolvedor do Windows).
+submissão, aumente a versão (o último número fica 0: `1.0.1.0`).
+
+Para testar neste PC como se viesse da Loja (exige o Modo de Desenvolvedor do Windows), com uma
+identidade de teste que não interfere no pacote da Loja:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\gerar_msix.ps1 -Teste -Registrar
+Get-AppxPackage Sigra.Teste | Remove-AppxPackage   # remover depois
+```
 
 ## Desenvolvimento
 
